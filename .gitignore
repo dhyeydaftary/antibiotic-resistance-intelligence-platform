@@ -1,0 +1,30 @@
+# Python / Django (ml-backend)
+ml-backend-env/
+__pycache__/
+*.pyc
+*.pyo
+db.sqlite3
+*.log
+media/
+staticfiles/
+
+# Node / React (frontend)
+node_modules/
+dist/
+.vite/
+
+# Node / Express (gateway)
+gateway/node_modules/
+
+# Environment files (never commit secrets)
+.env
+.env.local
+*.env
+
+# Editor/OS junk
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
