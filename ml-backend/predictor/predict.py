@@ -23,7 +23,7 @@ ORGANISM_LIST = [
 AWARE_MAP = {
     'AMX/AMP': 'Access', 'AMC': 'Access', 'CZ': 'Access', 'FOX': 'Watch',
     'CTX/CRO': 'Watch', 'IPM': 'Watch', 'GEN': 'Access', 'AN': 'Access',
-    'Acide nalidixique': 'Access', 'ofx': 'Watch', 'CIP': 'Watch', 'C': 'Access',
+    'Acide nalidixique': 'Watch', 'ofx': 'Watch', 'CIP': 'Watch', 'C': 'Access',
     'Co-trimoxazole': 'Access', 'Furanes': 'Access', 'colistine': 'Reserve'
 }
 
