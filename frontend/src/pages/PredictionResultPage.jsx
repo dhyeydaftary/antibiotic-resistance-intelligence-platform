@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 
 const FAKE_PREDICTION = {
   predictionId: 'test123',
@@ -20,28 +20,37 @@ const AWARE_COLORS = {
 
 function PredictionResultPage() {
   const { id } = useParams();
+  const location = useLocation();
+
+  // Real data comes through navigation state (from the live prediction flow).
+  // Fake data is used as a fallback for old History links with fake IDs.
+  const realPrediction = location.state?.prediction;
+  const displayData = realPrediction || FAKE_PREDICTION;
+  const isLive = Boolean(realPrediction);
 
   return (
     <div style={{ padding: '20px' }}>
       <h1>Prediction Result Page</h1>
       <p>Prediction ID: {id}</p>
-      <p>Organism: {FAKE_PREDICTION.organism}</p>
+      {isLive ? (
+        <p style={{ color: '#2e7d32', fontWeight: 'bold' }}>Live prediction from ML backend</p>
+      ) : (
+        <p style={{ color: '#888' }}>Showing sample data (fake ID)</p>
+      )}
 
       <table style={{ borderCollapse: 'collapse', marginTop: '16px' }}>
         <thead>
           <tr>
             <th style={{ border: '1px solid #ccc', padding: '8px' }}>Antibiotic</th>
             <th style={{ border: '1px solid #ccc', padding: '8px' }}>Result</th>
-            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Confidence</th>
             <th style={{ border: '1px solid #ccc', padding: '8px' }}>AWaRe Category</th>
           </tr>
         </thead>
         <tbody>
-          {FAKE_PREDICTION.predictions.map((p) => (
+          {displayData.predictions.map((p) => (
             <tr key={p.antibiotic}>
               <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.antibiotic}</td>
               <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.result}</td>
-              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{(p.confidence * 100).toFixed(0)}%</td>
               <td
                 style={{
                   border: '1px solid #ccc',
