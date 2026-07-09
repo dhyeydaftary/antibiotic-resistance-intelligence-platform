@@ -4,6 +4,69 @@ from rest_framework import status
 
 from .serializers import PredictionRequestSerializer
 from .predict import predict_resistance
+from .trends import get_resistance_trend
+
+
+@api_view(['GET'])
+def trends_view(request):
+    antibiotic = request.query_params.get('antibiotic')
+    organism = request.query_params.get('organism', 'all')
+
+    if not antibiotic:
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Query parameter 'antibiotic' is required",
+                    "field": "antibiotic",
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        series = get_resistance_trend(antibiotic, organism)
+    except ValueError as e:
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": str(e),
+                    "field": "antibiotic",
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": str(e),
+                    "field": None,
+                }
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return Response(
+        {
+            "success": True,
+            "data": {
+                "antibiotic": antibiotic,
+                "organism": organism,
+                "series": series,
+            },
+            "error": None,
+        },
+        status=status.HTTP_200_OK
+    )
 
 
 @api_view(['POST'])
