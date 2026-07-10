@@ -1,10 +1,12 @@
 import pandas as pd
 import os
+import json
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARTIFACTS_DIR = os.path.join(BASE_DIR, 'ml_artifacts')
 
 _df = None
+_antibiotic_columns = None
 
 
 def _load_data():
@@ -17,11 +19,30 @@ def _load_data():
     return _df
 
 
+def _load_antibiotic_columns():
+    global _antibiotic_columns
+    if _antibiotic_columns is None:
+        with open(os.path.join(ARTIFACTS_DIR, 'antibiotic_columns.json')) as f:
+            _antibiotic_columns = json.load(f)
+    return _antibiotic_columns
+
+
+ORGANISM_LIST = [
+    'Acinetobacter baumannii', 'Citrobacter spp.', 'Enterobacteria spp.',
+    'Escherichia coli', 'Klebsiella pneumoniae', 'Morganella morganii',
+    'Proteus mirabilis', 'Pseudomonas aeruginosa', 'Serratia marcescens', 'Unknown'
+]
+
+
 def get_resistance_trend(antibiotic, organism=None):
     df = _load_data()
+    antibiotic_columns = _load_antibiotic_columns()
 
-    if antibiotic not in df.columns:
+    if antibiotic not in antibiotic_columns:
         raise ValueError(f"Unknown antibiotic: {antibiotic}")
+
+    if organism and organism != 'all' and organism not in ORGANISM_LIST:
+        raise ValueError(f"Unknown organism: {organism}")
 
     data = df.dropna(subset=[antibiotic, 'Collection_Date'])
 
