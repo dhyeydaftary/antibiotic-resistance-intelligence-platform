@@ -1,23 +1,40 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { loginUser } from '../api/authApi';
+import { useAuth } from '../context/AuthContext';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   }
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    console.log('Login submitted:', formData);
+async function handleSubmit(e) 
+{
+  e.preventDefault();
+  setError('');
+  setLoading(true);
+
+  try {
+    const result = await loginUser(formData.email, formData.password);
+    login(result.data.token, result.data.user);
     navigate('/home');
+  } catch (err) {
+    const message = err.response?.data?.error?.message || 'Something went wrong. Please try again.';
+    setError(message);
+  } finally {
+    setLoading(false);
   }
+}
 
   return (
     <div style={{ padding: '20px' }}>
@@ -33,7 +50,11 @@ function LoginPage() {
           <input type="password" name="password" value={formData.password} onChange={handleChange} required />
         </label>
 
-        <button type="submit">Login</button>
+        {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
+
+        <button type="submit" disabled={loading}>
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
       </form>
 
       <p style={{ marginTop: '16px' }}>
