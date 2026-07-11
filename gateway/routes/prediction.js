@@ -48,4 +48,56 @@ router.post('/predict', verifyToken, async (req, res) => {
   }
 });
 
+
+router.get('/trends', verifyToken, async (req, res) => {
+  try {
+    const djangoResponse = await axios.get(
+      `${process.env.DJANGO_API_URL}/trends/`,
+      { params: req.query }
+    );
+
+    res.status(200).json(djangoResponse.data);
+
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json(err.response.data);
+    }
+
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: err.message,
+        field: null,
+      },
+    });
+  }
+});
+
+router.get('/dataset-stats', verifyToken, async (req, res) => {
+  try {
+    const djangoResponse = await axios.get(
+      `${process.env.DJANGO_API_URL}/dataset-stats/`
+    );
+
+    res.status(200).json(djangoResponse.data);
+
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json(err.response.data);
+    }
+
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: err.message,
+        field: null,
+      },
+    });
+  }
+});
+
 module.exports = router;
