@@ -75,6 +75,7 @@ router.get('/trends', verifyToken, async (req, res) => {
   }
 });
 
+
 router.get('/dataset-stats', verifyToken, async (req, res) => {
   try {
     const djangoResponse = await axios.get(
@@ -88,6 +89,33 @@ router.get('/dataset-stats', verifyToken, async (req, res) => {
       return res.status(err.response.status).json(err.response.data);
     }
 
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: err.message,
+        field: null,
+      },
+    });
+  }
+});
+
+
+router.get('/history', verifyToken, async (req, res) => {
+  try {
+    const history = await PredictionHistory.find({ userId: req.userId })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        history,
+      },
+      error: null,
+    });
+
+  } catch (err) {
     res.status(500).json({
       success: false,
       data: null,
