@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { signupUser } from '../api/authApi';
+import { useAuth } from '../context/AuthContext';
 
 function SignupPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     name: '',
@@ -10,21 +13,34 @@ function SignupPage() {
     password: '',
     confirmPassword: '',
   });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   function handleChange(e) {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
 
-    console.log('Signup submitted:', formData);
-    navigate('/login');
+    setLoading(true);
+
+    try {
+      const result = await signupUser(formData.name, formData.email, formData.password);
+      login(result.data.token, result.data.user);
+      navigate('/home');
+    } catch (err) {
+      const message = err.response?.data?.error?.message || 'Something went wrong. Please try again.';
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -51,7 +67,11 @@ function SignupPage() {
           <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required />
         </label>
 
-        <button type="submit">Sign Up</button>
+        {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
+
+        <button type="submit" disabled={loading}>
+          {loading ? 'Signing up...' : 'Sign Up'}
+        </button>
       </form>
 
       <p style={{ marginTop: '16px' }}>
