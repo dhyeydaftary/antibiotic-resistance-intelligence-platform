@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from .dataset_stats import get_dataset_stats
 
 from .serializers import PredictionRequestSerializer
 from .predict import predict_resistance
@@ -63,6 +64,34 @@ def trends_view(request):
                 "organism": organism,
                 "series": series,
             },
+            "error": None,
+        },
+        status=status.HTTP_200_OK
+    )
+
+
+@api_view(['GET'])
+def dataset_stats_view(request):
+    try:
+        stats = get_dataset_stats()
+    except Exception as e:
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": str(e),
+                    "field": None,
+                }
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return Response(
+        {
+            "success": True,
+            "data": stats,
             "error": None,
         },
         status=status.HTTP_200_OK
