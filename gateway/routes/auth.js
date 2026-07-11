@@ -70,4 +70,79 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Email and password are required',
+          field: null,
+        },
+      });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        error: {
+          code: 'AUTH_ERROR',
+          message: 'Invalid email or password',
+          field: null,
+        },
+      });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        data: null,
+        error: {
+          code: 'AUTH_ERROR',
+          message: 'Invalid email or password',
+          field: null,
+        },
+      });
+    }
+
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+        },
+      },
+      error: null,
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: err.message,
+        field: null,
+      },
+    });
+  }
+});
+
 module.exports = router;
