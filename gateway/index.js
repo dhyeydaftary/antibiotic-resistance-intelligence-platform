@@ -3,11 +3,15 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
+const authRoutes = require('./routes/auth');
+
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+app.use('/api/auth', authRoutes);
 
 // Simple health check route
 app.get('/', (req, res) => {
