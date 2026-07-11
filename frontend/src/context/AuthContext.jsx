@@ -1,11 +1,13 @@
 import { createContext, useState, useContext, useEffect } from 'react';
-import api from '../api/axiosConfig';
+import { useNavigate } from 'react-router-dom';
+import api, { setAuthErrorHandler } from '../api/axiosConfig';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (token) {
@@ -15,6 +17,14 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
+  useEffect(() => {
+    setAuthErrorHandler(() => {
+      setToken(null);
+      setUser(null);
+      navigate('/login');
+    });
+  }, [navigate]);
+
   function login(newToken, newUser) {
     setToken(newToken);
     setUser(newUser);
@@ -23,6 +33,7 @@ export function AuthProvider({ children }) {
   function logout() {
     setToken(null);
     setUser(null);
+    navigate('/login');
   }
 
   const value = {
