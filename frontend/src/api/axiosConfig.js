@@ -6,6 +6,14 @@ const api = axios.create({
   baseURL: GATEWAY_BASE_URL,
 });
 
+api.interceptors.request.use((config) => {
+  const token = sessionStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 let onAuthError = null;
 
 export function setAuthErrorHandler(handler) {
