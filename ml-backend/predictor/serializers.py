@@ -7,7 +7,7 @@ class PredictionRequestSerializer(serializers.Serializer):
     diabetes = serializers.BooleanField()
     hypertension = serializers.BooleanField()
     hospital_before = serializers.BooleanField()
-    infection_freq = serializers.FloatField(min_value=0)
+    infection_freq = serializers.FloatField(min_value=0, max_value=3)
     year = serializers.IntegerField(min_value=2000, max_value=2030)
     month = serializers.IntegerField(min_value=1, max_value=12)
     organism = serializers.ChoiceField(choices=[
