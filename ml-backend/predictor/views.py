@@ -35,6 +35,7 @@ def trends_view(request):
     try:
         series = get_resistance_trend(antibiotic, organism)
     except ValueError as e:
+        field = "organism" if "organism" in str(e).lower() else "antibiotic"
         return Response(
             {
                 "success": False,
@@ -42,7 +43,7 @@ def trends_view(request):
                 "error": {
                     "code": "VALIDATION_ERROR",
                     "message": str(e),
-                    "field": "antibiotic",
+                    "field": field,
                 }
             },
             status=status.HTTP_400_BAD_REQUEST
