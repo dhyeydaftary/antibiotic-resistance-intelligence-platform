@@ -36,12 +36,13 @@ router.post('/predict', verifyToken, async (req, res) => {
       return res.status(err.response.status).json(err.response.data);
     }
 
+    console.error('Error in /predict:', err);
     res.status(500).json({
       success: false,
       data: null,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err.message,
+        message: 'Something went wrong while generating the prediction.',
         field: null,
       },
     });
@@ -63,12 +64,13 @@ router.get('/trends', verifyToken, async (req, res) => {
       return res.status(err.response.status).json(err.response.data);
     }
 
+    console.error('Error in /trends:', err);
     res.status(500).json({
       success: false,
       data: null,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err.message,
+        message: 'Something went wrong while fetching trend data.',
         field: null,
       },
     });
@@ -89,12 +91,13 @@ router.get('/dataset-stats', verifyToken, async (req, res) => {
       return res.status(err.response.status).json(err.response.data);
     }
 
+    console.error('Error in /dataset-stats:', err);
     res.status(500).json({
       success: false,
       data: null,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err.message,
+        message: 'Something went wrong while fetching dataset statistics.',
         field: null,
       },
     });
@@ -116,12 +119,13 @@ router.get('/history', verifyToken, async (req, res) => {
     });
 
   } catch (err) {
+    console.error('Error in /history:', err);
     res.status(500).json({
       success: false,
       data: null,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err.message,
+        message: 'Something went wrong while fetching prediction history.',
         field: null,
       },
     });
