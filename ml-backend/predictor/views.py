@@ -1,11 +1,16 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .dataset_stats import get_dataset_stats
 
+import logging
+
+from .dataset_stats import get_dataset_stats
 from .serializers import PredictionRequestSerializer
 from .predict import predict_resistance
 from .trends import get_resistance_trend
+
+
+logger = logging.getLogger(__name__)
 
 
 @api_view(['GET'])
@@ -43,13 +48,14 @@ def trends_view(request):
             status=status.HTTP_400_BAD_REQUEST
         )
     except Exception as e:
+        logger.exception("Unexpected error in trends_view")
         return Response(
             {
                 "success": False,
                 "data": None,
                 "error": {
                     "code": "INTERNAL_ERROR",
-                    "message": str(e),
+                    "message": "Something went wrong while fetching trend data.",
                     "field": None,
                 }
             },
@@ -75,13 +81,14 @@ def dataset_stats_view(request):
     try:
         stats = get_dataset_stats()
     except Exception as e:
+        logger.exception("Unexpected error in dataset_stats_view")
         return Response(
             {
                 "success": False,
                 "data": None,
                 "error": {
                     "code": "INTERNAL_ERROR",
-                    "message": str(e),
+                    "message": "Something went wrong while fetching dataset statistics.",
                     "field": None,
                 }
             },
@@ -121,13 +128,14 @@ def predict_view(request):
     try:
         predictions = predict_resistance(patient_data)
     except Exception as e:
+        logger.exception("Unexpected error in predict_view")
         return Response(
             {
                 "success": False,
                 "data": None,
                 "error": {
                     "code": "INTERNAL_ERROR",
-                    "message": str(e),
+                    "message": "Something went wrong while generating the prediction.",
                     "field": None,
                 }
             },
