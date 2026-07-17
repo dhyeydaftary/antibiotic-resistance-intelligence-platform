@@ -9,7 +9,7 @@ router.post('/signup', async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
+    if (!name || !email || !password || typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({
         success: false,
         data: null,
@@ -58,12 +58,13 @@ router.post('/signup', async (req, res) => {
     });
 
   } catch (err) {
+    console.error('Error in /signup:', err);
     res.status(500).json({
       success: false,
       data: null,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err.message,
+        message: 'Something went wrong. Please try again.',
         field: null,
       },
     });
@@ -75,7 +76,7 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({
         success: false,
         data: null,
@@ -133,12 +134,13 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (err) {
+    console.error('Error in /login:', err);
     res.status(500).json({
       success: false,
       data: null,
       error: {
         code: 'INTERNAL_ERROR',
-        message: err.message,
+        message: 'Something went wrong. Please try again.',
         field: null,
       },
     });
