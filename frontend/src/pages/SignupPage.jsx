@@ -1,83 +1,207 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { signupUser } from '../api/authApi';
-import { useAuth } from '../context/AuthContext';
+import { useMemo, useRef, useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { AuthLayout } from "@/components/auth/AuthLayout";
+import { FormHeader } from "@/components/auth/FormHeader";
+import { TextInput } from "@/components/auth/TextInput";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import { Checkbox } from "@/components/auth/Checkbox";
+import { PrimaryButton } from "@/components/auth/Button";
+import { Banner } from "@/components/auth/Banner";
+import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
+import { StrengthMeter } from "@/components/auth/StrengthMeter";
+import { DemoHint } from "@/components/auth/DemoHint";
+import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
+import { signup } from "@/utils/mockAuthApi";
 
 function SignupPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const nameRef = useRef(null);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
-  const [error, setError] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [terms, setTerms] = useState(false);
+  const [privacy, setPrivacy] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [globalError, setGlobalError] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  function handleChange(e) {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  }
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError('');
+  const pwEval = useMemo(() => evaluatePassword(password), [password]);
 
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+  const validate = () => {
+    const e = {};
+    if (!name.trim()) e.name = "Name is required";
+    if (!email) e.email = "Email address is required";
+    else if (!EMAIL_RE.test(email))
+      e.email = "Please enter a valid email address";
+    if (!password) e.password = "Password is required";
+    else if (!pwEval.allPassed) e.password = "Password is too weak";
+    if (!confirm) e.confirm = "Please confirm your password";
+    else if (confirm !== password) e.confirm = "Passwords do not match";
+    if (!terms) e.terms = "Please accept the Terms & Conditions";
+    if (!privacy) e.privacy = "Please accept the Privacy Policy";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
+
+  const onSubmit = async (ev) => {
+    ev.preventDefault();
+    setGlobalError(null);
+    if (!validate()) return;
+    setLoading(true);
+    const res = await signup({ name, email, password });
+    setLoading(false);
+    if (res.ok) {
+      sessionStorage.setItem("amr:pending-email", email);
+      toast.success("Account created. Check your inbox for the code.");
+      navigate("/verify-email");
       return;
     }
-
-    setLoading(true);
-
-    try {
-      const result = await signupUser(formData.name, formData.email, formData.password);
-      login(result.data.token, result.data.user);
-      navigate('/home');
-    } catch (err) {
-      const message = err.response?.data?.error?.message || 'Something went wrong. Please try again.';
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }
+    if (res.field === "email") setErrors({ email: res.message });
+    else setGlobalError({ title: res.message, tone: "error" });
+  };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Sign Up</h1>
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '300px' }}>
-        <label>
-          Name
-          <input type="text" name="name" value={formData.name} onChange={handleChange} required />
-        </label>
+    <AuthLayout sideLabel="CREATE ACCOUNT">
+      <FormHeader
+        kicker="NEW · RESEARCHER REGISTRATION"
+        title={
+          <>
+            Begin your <em className="italic">inquiry</em> into resistance.
+          </>
+        }
+        subtitle="Create an account to run predictions across 15 antibiotics on a validated public dataset."
+      />
 
-        <label>
-          Email
-          <input type="email" name="email" value={formData.email} onChange={handleChange} required />
-        </label>
+      {globalError ? (
+        <div className="mb-6">
+          <Banner
+            tone={globalError.tone}
+            title={globalError.title}
+            testId="signup-banner"
+          />
+        </div>
+      ) : null}
 
-        <label>
-          Password
-          <input type="password" name="password" value={formData.password} onChange={handleChange} required />
-        </label>
+      <form onSubmit={onSubmit} noValidate className="space-y-6" data-testid="signup-form">
+        <TextInput
+          ref={nameRef}
+          label="FULL NAME"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          error={errors.name}
+          testId="signup-name"
+          placeholder="Ada Lovelace"
+        />
+        <TextInput
+          label="EMAIL ADDRESS"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          error={errors.email}
+          testId="signup-email"
+          placeholder="you@lab.org"
+        />
 
-        <label>
-          Confirm Password
-          <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} required />
-        </label>
+        <div>
+          <PasswordInput
+            label="PASSWORD"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={errors.password}
+            testId="signup-password"
+            placeholder="••••••••"
+          />
+          <StrengthMeter
+            strength={pwEval.strength}
+            strengthIndex={pwEval.strengthIndex}
+          />
+          <PasswordChecklist
+            results={pwEval.results}
+            testId="signup-password-checklist"
+          />
+        </div>
 
-        {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
+        <PasswordInput
+          label="CONFIRM PASSWORD"
+          autoComplete="new-password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          error={errors.confirm}
+          testId="signup-confirm"
+          placeholder="••••••••"
+        />
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Signing up...' : 'Sign Up'}
-        </button>
+        <div className="pt-2 space-y-3">
+          <Checkbox
+            checked={terms}
+            onCheckedChange={setTerms}
+            error={errors.terms}
+            testId="signup-terms"
+            label={
+              <>
+                I agree to the{" "}
+                <a href="#" className="amr-link text-ink">
+                  Terms &amp; Conditions
+                </a>
+                .
+              </>
+            }
+          />
+          <Checkbox
+            checked={privacy}
+            onCheckedChange={setPrivacy}
+            error={errors.privacy}
+            testId="signup-privacy"
+            label={
+              <>
+                I&rsquo;ve read and accept the{" "}
+                <a href="#" className="amr-link text-ink">
+                  Privacy Policy
+                </a>
+                .
+              </>
+            }
+          />
+        </div>
+
+        <PrimaryButton
+          type="submit"
+          loading={loading}
+          loadingText="Creating account…"
+          testId="signup-submit"
+        >
+          Create account
+        </PrimaryButton>
       </form>
 
-      <p style={{ marginTop: '16px' }}>
-        Already have an account? <Link to="/login">Login</Link>
-      </p>
-    </div>
+      <div className="mt-8 pt-6 border-t hairline flex items-center justify-between">
+        <span className="text-[13.5px] text-ink-muted">
+          Already have an account?
+        </span>
+        <Link
+          to="/login"
+          className="font-mono-label amr-link text-ink"
+          data-testid="login-link"
+        >
+          LOGIN →
+        </Link>
+      </div>
+
+      <DemoHint>
+        <p>Use taken@example.com  →  email already exists</p>
+        <p>Any other valid email  →  proceeds to /verify-email</p>
+      </DemoHint>
+    </AuthLayout>
   );
 }
 
