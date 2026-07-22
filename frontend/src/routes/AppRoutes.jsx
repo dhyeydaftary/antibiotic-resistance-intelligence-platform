@@ -2,6 +2,8 @@ import { Routes, Route } from 'react-router-dom';
 import LandingPage from '../pages/LandingPage';
 import LoginPage from '../pages/LoginPage';
 import SignupPage from '../pages/SignupPage';
+import VerifyEmailPage from '../pages/VerifyEmailPage';
+import ForgotPasswordPage from '../pages/ForgotPasswordPage';
 import HomePage from '../pages/HomePage';
 import PredictionInputPage from '../pages/PredictionInputPage';
 import PredictionResultPage from '../pages/PredictionResultPage';
@@ -19,6 +21,8 @@ function AppRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
       <Route path="/signup" element={<GuestRoute><SignupPage /></GuestRoute>} />
+      <Route path="/verify-email" element={<GuestRoute><VerifyEmailPage /></GuestRoute>} />
+      <Route path="/forgot-password" element={<GuestRoute><ForgotPasswordPage /></GuestRoute>} />
       <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/predict" element={<ProtectedRoute><PredictionInputPage /></ProtectedRoute>} />
       <Route path="/predict/result/:id" element={<ProtectedRoute><PredictionResultPage /></ProtectedRoute>} />

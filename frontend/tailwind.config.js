@@ -6,9 +6,13 @@ export default {
       colors: {
         paper: '#F7F5F0',
         ink: '#12141A',
+        'ink-soft': '#3A3D45',
+        'ink-muted': '#5E6068',
+        'ink-faint': '#8A8D93',
         teal: '#2C7A6B',
         hairline: '#DFDAD0',
         destructive: '#C1502E',
+        success: '#2F6B5A',
         muted: '#EDE9DF',
         'muted-foreground': '#5E6068',
         background: '#F7F5F0',
