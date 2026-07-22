@@ -11,13 +11,14 @@ import DatasetExplorerPage from '../pages/DatasetExplorerPage';
 import AboutPage from '../pages/AboutPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import ProtectedRoute from './ProtectedRoute';
+import GuestRoute from './GuestRoute';
 
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/login" element={<GuestRoute><LoginPage /></GuestRoute>} />
+      <Route path="/signup" element={<GuestRoute><SignupPage /></GuestRoute>} />
       <Route path="/home" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path="/predict" element={<ProtectedRoute><PredictionInputPage /></ProtectedRoute>} />
       <Route path="/predict/result/:id" element={<ProtectedRoute><PredictionResultPage /></ProtectedRoute>} />
