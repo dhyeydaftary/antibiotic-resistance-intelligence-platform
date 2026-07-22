@@ -10,8 +10,6 @@ function Navbar() {
 
   return (
     <nav style={{ display: 'flex', gap: '16px', padding: '12px', borderBottom: '1px solid #ccc' }}>
-      <Link to="/">Landing</Link>
-      <Link to="/about">About</Link>
 
       {!isAuthenticated && (
         <>
