@@ -10,14 +10,13 @@ import { PrimaryButton, GhostButton } from "@/components/auth/Button";
 import { Banner } from "@/components/auth/Banner";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { StrengthMeter } from "@/components/auth/StrengthMeter";
-import { DemoHint } from "@/components/auth/DemoHint";
 import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
 import {
   forgotPassword,
-  verifyOtp,
+  verifyResetOtp,
   resendOtp,
   resetPassword,
-} from "@/utils/mockAuthApi";
+} from "@/api/authApi";
 
 const CODE_TTL_SECONDS = 90;
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -88,7 +87,7 @@ function ForgotPasswordPage() {
     setBanner(null);
     setInvalidOtp(false);
     setLoading(true);
-    const res = await verifyOtp({ email, code: c });
+    const res = await verifyResetOtp({ email, code: c });
     setLoading(false);
     if (res.ok) {
       setStep(2);
@@ -373,14 +372,6 @@ function ForgotPasswordPage() {
           BACK TO SIGN IN →
         </Link>
       </div>
-
-      {step < 3 ? (
-        <DemoHint>
-          <p>Step 01 — unknown@example.com  →  no account matches</p>
-          <p>Step 02 — 123456 verifies · 000000 expired · else incorrect</p>
-          <p>Step 03 — any password meeting the checklist succeeds</p>
-        </DemoHint>
-      ) : null}
     </AuthLayout>
   );
 }
