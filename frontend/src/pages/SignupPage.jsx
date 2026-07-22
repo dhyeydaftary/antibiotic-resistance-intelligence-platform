@@ -10,9 +10,8 @@ import { PrimaryButton } from "@/components/auth/Button";
 import { Banner } from "@/components/auth/Banner";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { StrengthMeter } from "@/components/auth/StrengthMeter";
-import { DemoHint } from "@/components/auth/DemoHint";
 import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
-import { signup } from "@/utils/mockAuthApi";
+import { signup } from "@/api/authApi";
 
 function SignupPage() {
   const navigate = useNavigate();
@@ -196,11 +195,6 @@ function SignupPage() {
           LOGIN →
         </Link>
       </div>
-
-      <DemoHint>
-        <p>Use taken@example.com  →  email already exists</p>
-        <p>Any other valid email  →  proceeds to /verify-email</p>
-      </DemoHint>
     </AuthLayout>
   );
 }

@@ -8,9 +8,8 @@ import { PasswordInput } from "@/components/auth/PasswordInput";
 import { Checkbox } from "@/components/auth/Checkbox";
 import { PrimaryButton } from "@/components/auth/Button";
 import { Banner } from "@/components/auth/Banner";
-import { DemoHint } from "@/components/auth/DemoHint";
 import { EMAIL_RE } from "@/utils/validators";
-import { login } from "@/utils/mockAuthApi";
+import { login } from "@/api/authApi";
 import { useAuth } from "@/context/AuthContext";
 
 function LoginPage() {
@@ -47,7 +46,7 @@ function LoginPage() {
     const res = await login({ email, password });
     setLoading(false);
     if (res.ok) {
-      authLogin(res.token, { email: res.email });
+      authLogin(res.token, res.user);
       toast.success("Signed in.");
       navigate("/home");
       return;
@@ -159,14 +158,6 @@ function LoginPage() {
           SIGN UP →
         </Link>
       </div>
-
-      <DemoHint>
-        <p>demo@example.com &nbsp;/&nbsp; Password1!  →  success</p>
-        <p>unverified@example.com &nbsp;/&nbsp; Password1!  →  not verified</p>
-        <p>anything@else.com  →  email not found</p>
-        <p>demo@example.com &nbsp;/&nbsp; wrong  →  incorrect password</p>
-        <p>5+ failures in a row  →  rate-limited</p>
-      </DemoHint>
     </AuthLayout>
   );
 }
