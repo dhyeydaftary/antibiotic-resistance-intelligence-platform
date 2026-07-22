@@ -6,8 +6,7 @@ import { FormHeader } from "@/components/auth/FormHeader";
 import { OtpBoxes } from "@/components/auth/OtpBoxes";
 import { PrimaryButton, GhostButton } from "@/components/auth/Button";
 import { Banner } from "@/components/auth/Banner";
-import { DemoHint } from "@/components/auth/DemoHint";
-import { verifyOtp, resendOtp } from "@/utils/mockAuthApi";
+import { verifyOtp, resendOtp } from "@/api/authApi";
 import { useAuth } from "@/context/AuthContext";
 
 const CODE_TTL_SECONDS = 90;
@@ -50,7 +49,7 @@ function VerifyEmailPage() {
     const res = await verifyOtp({ email, code: c });
     setLoading(false);
     if (res.ok) {
-      authLogin(res.token, { email: res.email });
+      authLogin(res.token, res.user);
       sessionStorage.removeItem("amr:pending-email");
       setBanner({
         tone: "success",
@@ -83,6 +82,11 @@ function VerifyEmailPage() {
       setExpiresIn(CODE_TTL_SECONDS);
       setResendIn(RESEND_COOLDOWN_SECONDS);
       toast.success(`A new code was sent to ${email}.`);
+    } else {
+      setBanner({
+        tone: "error",
+        title: res.message || "Couldn't resend the code",
+      });
     }
   };
 
@@ -182,12 +186,6 @@ function VerifyEmailPage() {
           CHANGE EMAIL →
         </GhostButton>
       </div>
-
-      <DemoHint>
-        <p>Enter 123456  →  verified</p>
-        <p>Enter 000000  →  expired</p>
-        <p>Anything else  →  incorrect code</p>
-      </DemoHint>
     </AuthLayout>
   );
 }
