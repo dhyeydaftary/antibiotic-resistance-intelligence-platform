@@ -14,6 +14,10 @@ const predictionHistorySchema = new mongoose.Schema({
     type: Array,
     required: true,
   },
+  aiInsights: {
+    type: Object,
+    required: false,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('PredictionHistory', predictionHistorySchema);
