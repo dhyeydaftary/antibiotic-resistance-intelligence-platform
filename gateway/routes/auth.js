@@ -2,7 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { sendOtpEmail } = require('../utils/emailUtil');
+const { sendOtpEmail, sendWelcomeEmail } = require('../utils/emailUtil');
 const {
   generateOtp,
   hashOtp,
@@ -176,6 +176,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    if (!user.hasReceivedWelcomeEmail) {
+      user.hasReceivedWelcomeEmail = true;
+      await user.save();
+      sendWelcomeEmail(user.email, user.name).catch((err) =>
+        console.error('Welcome email failed to send:', err)
+      );
+    }
+
     const token = signToken(user._id);
 
     res.status(200).json({
@@ -257,6 +265,14 @@ router.post('/verify-otp', async (req, res) => {
     user.otp = null;
     user.otpExpiry = null;
     await user.save();
+
+    if (!user.hasReceivedWelcomeEmail) {
+      user.hasReceivedWelcomeEmail = true;
+      await user.save();
+      sendWelcomeEmail(user.email, user.name).catch((err) =>
+        console.error('Welcome email failed to send:', err)
+      );
+    }
 
     const token = signToken(user._id);
 

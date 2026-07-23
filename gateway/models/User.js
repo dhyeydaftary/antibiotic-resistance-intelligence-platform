@@ -34,6 +34,10 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  hasReceivedWelcomeEmail: {
+    type: Boolean,
+    default: false,
+  },
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);
