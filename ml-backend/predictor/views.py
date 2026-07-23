@@ -8,6 +8,7 @@ from .dataset_stats import get_dataset_stats
 from .serializers import PredictionRequestSerializer
 from .predict import predict_resistance
 from .trends import get_resistance_trend
+from .ai_insights import generate_ai_insights
 
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,7 @@ def predict_view(request):
 
     try:
         predictions = predict_resistance(patient_data)
+        ai_insights = generate_ai_insights(patient_data, predictions)
     except Exception as e:
         logger.exception("Unexpected error in predict_view")
         return Response(
@@ -148,6 +150,7 @@ def predict_view(request):
             "success": True,
             "data": {
                 "predictions": predictions,
+                "aiInsights": ai_insights,
                 "modelVersion": "v1.0",
             },
             "error": None,
