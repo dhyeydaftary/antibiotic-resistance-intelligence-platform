@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import Navbar from './components/common/Navbar';
 import AuthHeader from './components/common/AuthHeader';
 import AppRoutes from './routes/AppRoutes';
+import CommandPalette from './components/common/CommandPalette';
 
 function App() {
   const location = useLocation();
@@ -18,6 +19,7 @@ function App() {
       {isAuthPage && <AuthHeader />}
       {!isLandingPage && !isAuthPage && <Navbar />}
       <AppRoutes />
+      <CommandPalette />
       <Toaster
         position="top-center"
         toastOptions={{
