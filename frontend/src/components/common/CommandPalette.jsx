@@ -184,7 +184,7 @@ export default function CommandPalette() {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4"
+          className="fixed inset-0 z-50 flex items-start justify-center pt-[8vh] sm:pt-[12vh] px-3 sm:px-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -193,7 +193,7 @@ export default function CommandPalette() {
           <div className="absolute inset-0 bg-black/55" onClick={close} />
 
           <motion.div
-            className="relative w-full max-w-xl bg-black border border-neutral-800 rounded-2xl flex flex-col max-h-[70vh] overflow-hidden"
+            className="relative w-full max-w-xl bg-black border border-neutral-800 rounded-2xl flex flex-col max-h-[85vh] sm:max-h-[70vh] overflow-hidden"
             initial={{ opacity: 0, y: -12, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }}
