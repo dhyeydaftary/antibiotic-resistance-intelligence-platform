@@ -2,11 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPrediction } from '../api/predictionApi';
 
-const ORGANISM_OPTIONS = [
-  'Acinetobacter baumannii', 'Citrobacter spp.', 'Enterobacteria spp.',
-  'Escherichia coli', 'Klebsiella pneumoniae', 'Morganella morganii',
-  'Proteus mirabilis', 'Pseudomonas aeruginosa', 'Serratia marcescens', 'Unknown'
-];
+import { ORGANISM_OPTIONS } from '../constants/domainData';
 
 function PredictionInputPage() {
   const navigate = useNavigate();
