@@ -25,16 +25,6 @@ async function sendOtpEmail(to, code, purpose = 'verify') {
       ? 'Use the code below to reset your AMR-Insight password. This code expires in 10 minutes.'
       : 'Use the code below to verify your email and activate your AMR-Insight account. This code expires in 10 minutes.';
 
-  // Mock email sending for local development if a real API key is not provided
-  if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes('replace') || process.env.RESEND_API_KEY.includes('your_resend')) {
-    console.log('\n================ MOCK EMAIL ================');
-    console.log(`To: ${to}`);
-    console.log(`Subject: ${subject}`);
-    console.log(`OTP Code: ${code}`);
-    console.log('============================================\n');
-    return { success: true, id: 'mock-id-' + Date.now() };
-  }
-
   try {
     const result = await resend.emails.send({
       from: 'AMR-Insight <onboarding@resend.dev>',
