@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getHistory } from '../api/historyApi';
+import { downloadPdf, downloadCsv, downloadJson } from '../utils/reportGenerator';
 
 function summarize(predictions) {
   const summary = { resistantCount: 0, susceptibleCount: 0, intermediateCount: 0 };
@@ -48,13 +49,14 @@ function HistoryPage() {
       )}
 
       {!loading && !error && history.length > 0 && (
-        <table style={{ borderCollapse: 'collapse', marginTop: '16px', width: '100%', maxWidth: '700px' }}>
+        <table style={{ borderCollapse: 'collapse', marginTop: '16px', width: '100%', maxWidth: '900px' }}>
           <thead>
             <tr>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Date</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Organism</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>R / S / I Summary</th>
               <th style={{ border: '1px solid #ccc', padding: '8px' }}>Action</th>
+              <th style={{ border: '1px solid #ccc', padding: '8px' }}>Download</th>
             </tr>
           </thead>
           <tbody>
@@ -73,6 +75,11 @@ function HistoryPage() {
                   </td>
                   <td style={{ border: '1px solid #ccc', padding: '8px' }}>
                     <button onClick={() => handleView(item)}>View</button>
+                  </td>
+                  <td style={{ border: '1px solid #ccc', padding: '8px', display: 'flex', gap: '6px' }}>
+                    <button onClick={() => downloadPdf(item)}>PDF</button>
+                    <button onClick={() => downloadCsv(item)}>CSV</button>
+                    <button onClick={() => downloadJson(item)}>JSON</button>
                   </td>
                 </tr>
               );
