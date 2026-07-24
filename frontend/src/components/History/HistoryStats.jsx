@@ -30,83 +30,78 @@ const HistoryStats = ({ stats }) => {
     animate();
   }, [stats.total, stats.thisWeek, stats.avgResistance]);
 
-  // 14px line icons - no circle background
   const FlaskIcon = () => (
-    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5 text-ink/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 9.5M10 4l.5 9.5M14 4l-.5 9.5M12 20c-1.5 0-3-.5-3-2.5V4h6v13.5c0 2-1.5 2.5-3 2.5z" />
     </svg>
   );
 
   const CalendarIcon = () => (
-    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5 text-ink/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   );
 
   const GaugeIcon = () => (
-    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5 text-ink/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2v4m0 4v4m8-6h-4M8 12H4m12 6.36l-2.83-2.83M8.83 17.53l-2.83 2.83M18 12a6 6 0 11-12 0 6 6 0 0112 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 10v2h2" />
     </svg>
   );
 
   const ClockIcon = () => (
-    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-5 h-5 text-ink/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 
-  const statItems = [
+  const statCards = [
     {
       label: 'Total Predictions',
       value: counts.total,
-      delta: '+8%',
+      trend: '+8%',
       icon: FlaskIcon,
     },
     {
       label: 'This Week',
       value: counts.thisWeek,
-      delta: '+3',
+      trend: '+3',
       icon: CalendarIcon,
     },
     {
       label: 'Avg Resistance',
       value: `${counts.avgResistance}%`,
-      delta: '+2%',
+      trend: '+2%',
       icon: GaugeIcon,
     },
     {
       label: 'Last Prediction',
-      value: stats.lastPrediction || 'No predictions yet',
+      value: stats.lastPrediction || '—',
       icon: ClockIcon,
     }
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-8 gap-x-6 py-6 border-b border-hairline mb-8">
-      {statItems.map((item, index) => {
-        const IconComponent = item.icon;
-        const hasDelta = item.delta !== undefined;
-
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      {statCards.map((card, index) => {
+        const IconComponent = card.icon;
         return (
-          <div key={index} className="relative">
-            {/* Vertical divider between columns (except last) */}
-            {index > 0 && (
-              <div className="hidden sm:block absolute -left-3 top-0 bottom-0 w-px bg-hairline" />
-            )}
-            
+          <div
+            key={index}
+            className="bg-paper border border-hairline rounded-xl px-4 py-4 transition-all duration-200 hover:border-ink/20"
+          >
             <div className="flex items-start justify-between">
-              <div>
-                <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-faint">
-                  {item.label}
-                </span>
-                <div className="mt-2 font-serif text-[48px] font-light text-ink leading-none tabular-nums">
-                  {item.value}
-                </div>
-                {hasDelta && (
-                  <div className="mt-1.5 flex items-center gap-1">
-                    <span className="font-mono text-xs text-ink-soft">
-                      ↑ {item.delta}
+              <div className="flex-1">
+                <p className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
+                  {card.label}
+                </p>
+                <p className="font-serif text-2xl sm:text-3xl font-light text-ink mt-1">
+                  {card.value}
+                </p>
+                {card.trend && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="font-mono text-[10px] text-ink-muted">
+                      ↑ {card.trend}
                     </span>
                     <span className="font-mono text-[10px] text-ink-faint">
                       vs last week
@@ -114,7 +109,7 @@ const HistoryStats = ({ stats }) => {
                   </div>
                 )}
               </div>
-              <div className="mt-1 flex-shrink-0">
+              <div className="mt-1">
                 <IconComponent />
               </div>
             </div>

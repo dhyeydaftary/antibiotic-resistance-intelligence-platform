@@ -9,6 +9,7 @@ import HistoryInsights from '../components/history/HistoryInsights';
 import EmptyHistory from '../components/history/EmptyHistory';
 import HistorySkeleton from '../components/history/HistorySkeleton';
 
+// ✅ COMPLETE MOCK DATA - ALL RECORDS
 const mockPredictions = [
   {
     id: 'PRED-2026-07-23-001',
@@ -17,6 +18,7 @@ const mockPredictions = [
     antibiotic: 'Ciprofloxacin',
     result: 'R',
     confidence: 94.2,
+    status: 'Completed',
     inputValues: {
       age: 45,
       sex: 'Female',
@@ -36,6 +38,7 @@ const mockPredictions = [
     antibiotic: 'Vancomycin',
     result: 'S',
     confidence: 98.7,
+    status: 'Completed',
     inputValues: {
       age: 62,
       sex: 'Male',
@@ -55,6 +58,7 @@ const mockPredictions = [
     antibiotic: 'Amoxicillin',
     result: 'I',
     confidence: 76.1,
+    status: 'Completed',
     inputValues: {
       age: 34,
       sex: 'Female',
@@ -74,6 +78,7 @@ const mockPredictions = [
     antibiotic: 'Meropenem',
     result: 'S',
     confidence: 91.5,
+    status: 'Completed',
     inputValues: {
       age: 55,
       sex: 'Male',
@@ -93,6 +98,7 @@ const mockPredictions = [
     antibiotic: 'Gentamicin',
     result: 'R',
     confidence: 88.9,
+    status: 'Completed',
     inputValues: {
       age: 71,
       sex: 'Female',
@@ -112,6 +118,7 @@ const mockPredictions = [
     antibiotic: 'Penicillin',
     result: 'I',
     confidence: 82.3,
+    status: 'Completed',
     inputValues: {
       age: 28,
       sex: 'Male',
@@ -131,6 +138,7 @@ const mockPredictions = [
     antibiotic: 'Ceftriaxone',
     result: 'R',
     confidence: 96.4,
+    status: 'Pending',
     inputValues: {
       age: 49,
       sex: 'Female',
@@ -150,6 +158,7 @@ const mockPredictions = [
     antibiotic: 'Trimethoprim',
     result: 'S',
     confidence: 93.8,
+    status: 'Completed',
     inputValues: {
       age: 39,
       sex: 'Male',
@@ -169,6 +178,7 @@ const mockPredictions = [
     antibiotic: 'Erythromycin',
     result: 'R',
     confidence: 85.7,
+    status: 'Failed',
     inputValues: {
       age: 58,
       sex: 'Female',
@@ -188,6 +198,7 @@ const mockPredictions = [
     antibiotic: 'Ciprofloxacin',
     result: 'I',
     confidence: 79.4,
+    status: 'Completed',
     inputValues: {
       age: 67,
       sex: 'Male',
@@ -414,7 +425,15 @@ const HistoryPage = () => {
   const paginatedPredictions = filteredPredictions.slice(pageStart, pageEnd);
 
   return (
-    <div className="min-h-screen bg-paper px-4 sm:px-6 lg:px-8 py-6">
+    // ✅ Dots at 25% opacity - clearly visible, premium texture
+    <div 
+      className="min-h-screen w-full px-4 sm:px-6 lg:px-8 py-6"
+      style={{
+        backgroundImage: 'radial-gradient(circle, rgba(138,141,147,0.25) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
+        backgroundColor: '#F7F5F0'
+      }}
+    >
       <div className="max-w-7xl mx-auto">
         <HistoryHeader 
           onRefresh={handleRefresh}

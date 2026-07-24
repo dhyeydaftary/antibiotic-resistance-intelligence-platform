@@ -13,8 +13,8 @@ const HistoryTimelineEvent = ({ prediction, isExpanded, onToggle, index }) => {
 
   const getResultColor = (result) => {
     switch (result) {
-      case 'R': return 'text-resistant';
-      case 'S': return 'text-susceptible';
+      case 'R': return 'text-destructive';
+      case 'S': return 'text-teal';
       case 'I': return 'text-intermediate';
       default: return 'text-ink-muted';
     }
@@ -22,8 +22,8 @@ const HistoryTimelineEvent = ({ prediction, isExpanded, onToggle, index }) => {
 
   const getResultDotColor = (result) => {
     switch (result) {
-      case 'R': return 'bg-resistant';
-      case 'S': return 'bg-susceptible';
+      case 'R': return 'bg-destructive';
+      case 'S': return 'bg-teal';
       case 'I': return 'bg-intermediate';
       default: return 'bg-ink-faint';
     }
@@ -38,15 +38,13 @@ const HistoryTimelineEvent = ({ prediction, isExpanded, onToggle, index }) => {
     }
   };
 
-  // Check if this is the first item in a group (no top border needed)
   const isEven = index % 2 === 0;
 
   return (
     <div className="relative">
-      {/* ✅ Row with clean layout */}
       <div
         className={`
-          group flex items-center gap-3 px-5 py-3 rounded-lg
+          group flex items-center gap-4 px-5 py-3 rounded-lg
           ${isEven ? 'bg-paper' : 'bg-paper/60'}
           hover:bg-ink/5 transition-colors duration-200 ease-out
           cursor-pointer border border-transparent hover:border-hairline/40
@@ -58,7 +56,7 @@ const HistoryTimelineEvent = ({ prediction, isExpanded, onToggle, index }) => {
         role="button"
         aria-expanded={isExpanded}
       >
-        {/* Left accent bar - 2px × 20px outcome color */}
+        {/* Left accent bar */}
         <div className={`w-0.5 h-5 rounded-full flex-shrink-0 ${getResultDotColor(prediction.result)}`} />
         
         {/* Prediction ID */}
@@ -121,7 +119,7 @@ const HistoryTimelineEvent = ({ prediction, isExpanded, onToggle, index }) => {
         </motion.svg>
       </div>
 
-      {/* ✅ Expanded panel */}
+      {/* Expanded panel */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -133,9 +131,9 @@ const HistoryTimelineEvent = ({ prediction, isExpanded, onToggle, index }) => {
               ease: [0.16, 1, 0.3, 1],
               opacity: { duration: 0.2 }
             }}
-            className="overflow-hidden"
+            className="overflow-hidden ml-9"
           >
-            <div className="bg-paper/80 border border-hairline/50 rounded-lg mt-1 px-5 py-4 ml-2">
+            <div className="bg-paper/80 border border-hairline/50 rounded-lg mt-1 px-5 py-4">
               <HistoryDetails prediction={prediction} />
             </div>
           </motion.div>
