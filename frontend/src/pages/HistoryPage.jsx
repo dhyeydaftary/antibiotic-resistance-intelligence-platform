@@ -33,7 +33,14 @@ function HistoryPage() {
 
   function handleView(item) {
     navigate('/predict/result/live', {
-      state: { prediction: { predictions: item.predictions, inputData: item.inputData } },
+      state: {
+        prediction: {
+          predictions: item.predictions,
+          aiInsights: item.aiInsights,
+          modelVersion: item.modelVersion,
+        },
+        inputData: item.inputData,
+      },
     });
   }
 
