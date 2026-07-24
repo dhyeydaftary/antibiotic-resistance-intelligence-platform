@@ -5,7 +5,7 @@ const Select = ({
   label,
   value,
   onChange,
-  options = [],  // ✅ Default to empty array
+  options = [],
   placeholder = 'Select...',
   className = '',
   labelClassName = '',
@@ -18,19 +18,16 @@ const Select = ({
   const triggerRef = useRef(null);
   const optionRefs = useRef([]);
 
-  // ✅ SAFELY find selected option with fallback
   const selectedOption = options && Array.isArray(options) 
     ? options.find(opt => opt.value === value)
     : undefined;
   const displayLabel = selectedOption ? selectedOption.label : placeholder;
 
-  // ✅ SAFELY get selected index with fallback
   const getSelectedIndex = useCallback(() => {
     if (!options || !Array.isArray(options) || options.length === 0) return -1;
     return options.findIndex(opt => opt.value === value);
   }, [options, value]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
@@ -43,7 +40,6 @@ const Select = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Handle keyboard navigation
   const handleKeyDown = (event) => {
     if (!options || !Array.isArray(options) || options.length === 0) return;
 
@@ -106,7 +102,6 @@ const Select = ({
     }
   };
 
-  // Focus the active option when it changes
   useEffect(() => {
     if (isOpen && focusedIndex >= 0 && optionRefs.current[focusedIndex]) {
       optionRefs.current[focusedIndex].scrollIntoView({
@@ -116,7 +111,6 @@ const Select = ({
     }
   }, [focusedIndex, isOpen]);
 
-  // Reset focused index when opening
   useEffect(() => {
     if (isOpen) {
       const selectedIdx = getSelectedIndex();
@@ -124,7 +118,6 @@ const Select = ({
     }
   }, [isOpen, getSelectedIndex]);
 
-  // Handle trigger click
   const handleTriggerClick = () => {
     if (disabled || !options || !Array.isArray(options) || options.length === 0) return;
     setIsOpen(!isOpen);
@@ -136,7 +129,6 @@ const Select = ({
     }
   };
 
-  // Handle option selection
   const handleOptionSelect = (optionValue) => {
     onChange(optionValue);
     setIsOpen(false);
@@ -149,7 +141,6 @@ const Select = ({
     ? `select-option-${focusedIndex}` 
     : undefined;
 
-  // ✅ If no options, render disabled trigger
   if (!options || !Array.isArray(options) || options.length === 0) {
     return (
       <div className={`relative ${className}`}>
@@ -178,14 +169,12 @@ const Select = ({
       className={`relative ${className}`}
       onKeyDown={handleKeyDown}
     >
-      {/* Label */}
       {label && (
         <label className={`font-mono text-[10px] tracking-wider uppercase text-ink/40 block mb-1.5 ${labelClassName}`}>
           {label}
         </label>
       )}
 
-      {/* Trigger Button */}
       <button
         ref={triggerRef}
         type="button"
@@ -222,7 +211,6 @@ const Select = ({
         </svg>
       </button>
 
-      {/* Options Panel */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -258,13 +246,14 @@ const Select = ({
                   className={`
                     w-full flex items-center justify-between px-3.5 py-2 text-sm font-sans
                     transition-colors duration-150
-                    ${isFocused ? 'bg-hairline/30' : ''}
-                    ${isSelected ? 'text-ink font-medium' : 'text-ink-muted'}
+                    ${isFocused ? 'bg-ink/5' : ''}
+                    ${isSelected ? 'bg-teal/5 text-ink font-medium border-l-2 border-teal' : 'text-ink-muted'}
+                    ${!isSelected && !isFocused ? 'hover:bg-ink/5' : ''}
                   `}
                   onClick={() => handleOptionSelect(option.value)}
                   onMouseEnter={() => setFocusedIndex(index)}
                 >
-                  <span>{option.label}</span>
+                  <span className={isSelected ? 'pl-1' : ''}>{option.label}</span>
                   {isSelected && (
                     <svg className="w-4 h-4 text-teal flex-shrink-0 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />

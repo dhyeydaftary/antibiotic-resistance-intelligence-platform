@@ -38,31 +38,11 @@ const HistoryFilters = ({
     if (filters.antibiotic !== 'All') count++;
     if (filters.organism !== 'All') count++;
     if (filters.sort !== 'newest') count++;
+    if (filters.dateRange !== 'All') count++;
     return count;
   };
 
   const activeFilterCount = getActiveFilterCount();
-
-  // Get active filter summary text
-  const getFilterSummary = () => {
-    const parts = [];
-    if (filters.status !== 'All') {
-      const statusMap = { R: 'Resistant', S: 'Susceptible', I: 'Intermediate' };
-      parts.push(statusMap[filters.status] || filters.status);
-    }
-    if (filters.antibiotic !== 'All') parts.push(filters.antibiotic);
-    if (filters.organism !== 'All') parts.push(filters.organism);
-    if (filters.sort !== 'newest') {
-      const sortMap = {
-        'newest': 'Newest',
-        'oldest': 'Oldest',
-        'confidence-high': 'High Conf.',
-        'confidence-low': 'Low Conf.'
-      };
-      parts.push(sortMap[filters.sort] || filters.sort);
-    }
-    return parts.join(' · ');
-  };
 
   const handleSearchChange = (e) => {
     onFilterChange({ ...filters, search: e.target.value });
@@ -83,7 +63,8 @@ const HistoryFilters = ({
       status: 'All',
       antibiotic: 'All',
       organism: 'All',
-      sort: 'newest'
+      sort: 'newest',
+      dateRange: 'All'
     });
   };
 
@@ -198,6 +179,9 @@ const HistoryFilters = ({
             <svg className="w-4 h-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
+            {filters.dateRange !== 'All' && (
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-teal" />
+            )}
           </button>
 
           <AnimatePresence>
@@ -260,23 +244,7 @@ const HistoryFilters = ({
             )}
           </button>
 
-          {/* Filter Summary (when filters active) */}
-          {activeFilterCount > 0 && (
-            <div className="hidden sm:flex items-center gap-1 ml-1 max-w-[200px]">
-              <span className="font-sans text-xs text-ink/40 truncate">
-                {getFilterSummary()}
-              </span>
-              <button
-                onClick={clearAllFilters}
-                className="text-ink-faint hover:text-ink transition-colors duration-200 flex-shrink-0"
-                aria-label="Clear all filters"
-              >
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-          )}
+          {/* ✅ NO Filter Summary Text - Clean and minimal */}
 
           <AnimatePresence>
             {isFiltersOpen && (
