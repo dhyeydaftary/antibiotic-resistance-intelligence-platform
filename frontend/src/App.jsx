@@ -1,4 +1,5 @@
 import { useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'sonner';
 import Navbar from './components/common/Navbar';
 import AuthHeader from './components/common/AuthHeader';
@@ -14,11 +15,49 @@ function App() {
     location.pathname === '/verify-email' ||
     location.pathname === '/forgot-password';
 
+  const routesWithTransition = (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -6 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <AppRoutes />
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  if (isLandingPage || isAuthPage) {
+    return (
+      <>
+        {isAuthPage && <AuthHeader />}
+        {routesWithTransition}
+        <CommandPalette />
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            unstyled: false,
+            className: "!bg-paper !text-ink !border !border-hairline !rounded-none !shadow-none !font-sans",
+          }}
+        />
+      </>
+    );
+  }
+
   return (
     <>
-      {isAuthPage && <AuthHeader />}
-      {!isLandingPage && !isAuthPage && <Navbar />}
-      <AppRoutes />
+      <div
+        className="min-h-screen bg-canvas"
+        style={{
+          backgroundImage: 'radial-gradient(circle, #C7C7CC 1.2px, transparent 1.2px)',
+          backgroundSize: '24px 24px',
+        }}
+      >
+        <Navbar />
+        {routesWithTransition}
+      </div>
       <CommandPalette />
       <Toaster
         position="top-center"
