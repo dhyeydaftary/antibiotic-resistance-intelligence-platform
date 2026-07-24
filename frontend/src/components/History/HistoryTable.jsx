@@ -6,13 +6,12 @@ const HistoryTable = ({
   itemsPerPage,
   totalItems,
   onPageChange,
-  onDelete
 }) => {
   const [hoveredRow, setHoveredRow] = useState(null);
 
   if (!predictions || predictions.length === 0) {
     return (
-      <div className="bg-paper border border-hairline rounded-lg py-12 px-4 text-center">
+      <div className="bg-paper border border-hairline rounded-xl py-12 px-4 text-center">
         <p className="font-sans text-ink-muted">
           No predictions match your current filters.
         </p>
@@ -73,8 +72,8 @@ const HistoryTable = ({
 
   const getResultColor = (result) => {
     switch (result) {
-      case 'R': return 'text-resistant';
-      case 'S': return 'text-susceptible';
+      case 'R': return 'text-destructive';
+      case 'S': return 'text-teal';
       case 'I': return 'text-intermediate';
       default: return 'text-ink-muted';
     }
@@ -82,8 +81,8 @@ const HistoryTable = ({
 
   const getResultDotColor = (result) => {
     switch (result) {
-      case 'R': return 'bg-resistant';
-      case 'S': return 'bg-susceptible';
+      case 'R': return 'bg-destructive';
+      case 'S': return 'bg-teal';
       case 'I': return 'bg-intermediate';
       default: return 'bg-ink-faint';
     }
@@ -117,7 +116,7 @@ const HistoryTable = ({
 
   return (
     <div className="mb-8">
-      <div className="bg-paper border border-hairline rounded-lg overflow-hidden">
+      <div className="bg-paper border border-hairline rounded-xl overflow-hidden">
         {/* Table Header */}
         <div className="flex items-center px-5 py-3 border-b border-hairline bg-paper/50">
           <div className="w-[50px] flex-shrink-0 font-mono text-[10px] tracking-wider uppercase text-ink-faint text-center">#</div>
@@ -158,7 +157,7 @@ const HistoryTable = ({
                 </div>
                 
                 <div className="flex-1 min-w-[100px]">
-                  <span className="font-sans text-sm text-ink truncate block">
+                  <span className="font-serif italic text-sm text-ink truncate block">
                     {prediction.organism}
                   </span>
                 </div>

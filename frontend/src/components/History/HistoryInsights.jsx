@@ -14,7 +14,6 @@ const HistoryInsights = ({ predictions }) => {
     const susceptibilityRate = Math.round((susceptible / total) * 100);
     const intermediateRate = Math.round((intermediate / total) * 100);
 
-    // Most common antibiotic
     const antibioticCount = {};
     predictions.forEach(p => {
       antibioticCount[p.antibiotic] = (antibioticCount[p.antibiotic] || 0) + 1;
@@ -24,7 +23,6 @@ const HistoryInsights = ({ predictions }) => {
     );
     const mostCommonAntibioticPercentage = Math.round((antibioticCount[mostCommonAntibiotic] / total) * 100);
 
-    // Recent trend
     const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -82,27 +80,27 @@ const HistoryInsights = ({ predictions }) => {
 
   return (
     <div className="mt-8 pt-6 border-t border-hairline">
-      <h3 className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-faint mb-4">
+      <h3 className="font-mono text-[10px] tracking-wider uppercase text-ink-faint mb-4">
         Quick Insights
       </h3>
       
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-hairline">
-        {/* Card 1: Most Common Outcome */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Most Common Outcome */}
         <motion.div
           custom={0}
           initial="hidden"
           animate="visible"
           variants={cardVariants}
-          className="px-5 py-4"
+          className="bg-paper border border-hairline rounded-lg px-5 py-4"
         >
           <div className="flex items-start justify-between">
-            <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-faint">
+            <span className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
               Most Common Outcome
             </span>
           </div>
           
           <div className="mt-2">
-            <span className="font-serif text-[28px] font-light text-ink">
+            <span className="font-serif text-xl sm:text-2xl font-light text-ink">
               {insights.resistanceRate > 40 ? 'Resistant' : 
                insights.susceptibilityRate > 40 ? 'Susceptible' : 'Intermediate'}
             </span>
@@ -112,14 +110,14 @@ const HistoryInsights = ({ predictions }) => {
             {insights.resistanceRate}% R · {insights.susceptibilityRate}% S · {insights.intermediateRate}% I
           </div>
           
-          <div className="mt-2.5 w-full h-0.5 rounded-full overflow-hidden bg-hairline/50">
+          <div className="mt-2.5 w-full h-1 rounded-full overflow-hidden bg-hairline/30">
             <div className="flex h-full w-full">
               <motion.div
                 custom={insights.resistanceRate}
                 variants={barVariants}
                 initial="hidden"
                 animate="visible"
-                className="h-full bg-resistant/80"
+                className="h-full bg-destructive/70"
                 style={{ width: `${insights.resistanceRate}%` }}
                 aria-hidden="true"
               />
@@ -128,7 +126,7 @@ const HistoryInsights = ({ predictions }) => {
                 variants={barVariants}
                 initial="hidden"
                 animate="visible"
-                className="h-full bg-intermediate/80"
+                className="h-full bg-intermediate/70"
                 style={{ width: `${insights.intermediateRate}%` }}
                 aria-hidden="true"
               />
@@ -137,7 +135,7 @@ const HistoryInsights = ({ predictions }) => {
                 variants={barVariants}
                 initial="hidden"
                 animate="visible"
-                className="h-full bg-susceptible/80"
+                className="h-full bg-teal/70"
                 style={{ width: `${insights.susceptibilityRate}%` }}
                 aria-hidden="true"
               />
@@ -145,22 +143,22 @@ const HistoryInsights = ({ predictions }) => {
           </div>
         </motion.div>
 
-        {/* Card 2: Most Frequent Antibiotic */}
+        {/* Most Frequent Antibiotic */}
         <motion.div
           custom={1}
           initial="hidden"
           animate="visible"
           variants={cardVariants}
-          className="px-5 py-4"
+          className="bg-paper border border-hairline rounded-lg px-5 py-4"
         >
           <div className="flex items-start justify-between">
-            <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-faint">
+            <span className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
               Most Frequent Antibiotic
             </span>
           </div>
           
           <div className="mt-2">
-            <span className="font-serif text-[28px] font-light text-ink">
+            <span className="font-serif text-xl sm:text-2xl font-light text-ink">
               {insights.mostCommonAntibiotic}
             </span>
           </div>
@@ -170,25 +168,28 @@ const HistoryInsights = ({ predictions }) => {
           </div>
         </motion.div>
 
-        {/* Card 3: Resistance Trend */}
+        {/* Resistance Trend */}
         <motion.div
           custom={2}
           initial="hidden"
           animate="visible"
           variants={cardVariants}
-          className="px-5 py-4"
+          className="bg-paper border border-hairline rounded-lg px-5 py-4"
         >
           <div className="flex items-start justify-between">
-            <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-faint">
+            <span className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
               Resistance Trend
             </span>
           </div>
           
           <div className="mt-2 flex items-baseline gap-1">
-            <span className="font-serif text-[28px] font-light text-ink">
+            <span className={`font-serif text-xl sm:text-2xl font-light ${
+              insights.trendChange > 0 ? 'text-destructive' : 
+              insights.trendChange < 0 ? 'text-success' : 'text-ink'
+            }`}>
               {insights.trendChange > 0 ? '↑' : insights.trendChange < 0 ? '↓' : '→'}
             </span>
-            <span className="font-serif text-[28px] font-light text-ink">
+            <span className="font-serif text-xl sm:text-2xl font-light text-ink">
               {Math.abs(insights.trendChange)}%
             </span>
           </div>

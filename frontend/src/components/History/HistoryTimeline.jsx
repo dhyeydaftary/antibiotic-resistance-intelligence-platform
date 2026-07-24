@@ -6,7 +6,7 @@ const HistoryTimeline = ({ predictions }) => {
 
   if (!predictions || !predictions.length) {
     return (
-      <div className="bg-paper border border-hairline rounded-lg py-12 px-4 text-center">
+      <div className="bg-paper border border-hairline rounded-xl py-12 px-4 text-center">
         <p className="font-sans text-ink-muted">
           No predictions match your current filters.
         </p>
@@ -14,7 +14,6 @@ const HistoryTimeline = ({ predictions }) => {
     );
   }
 
-  // Group predictions by date
   const groupedPredictions = predictions.reduce((groups, prediction) => {
     const date = new Date(prediction.date);
     const dateKey = date.toLocaleDateString('en-US', { 
@@ -36,20 +35,16 @@ const HistoryTimeline = ({ predictions }) => {
   const dateKeys = Object.keys(groupedPredictions);
 
   return (
-    <div className="relative mb-8">
-      {/* ✅ Vertical line - fixed position */}
-      <div className="absolute left-[23px] top-0 bottom-0 w-px bg-hairline/60" />
+    <div className="relative mb-8 pl-8">
+      {/* Vertical line */}
+      <div className="absolute left-[11px] top-0 bottom-0 w-px bg-hairline/60" />
       
       {dateKeys.map((dateKey, dateIndex) => (
-        <div 
-          key={dateKey} 
-          className="relative mb-10 last:mb-0"
-        >
+        <div key={dateKey} className="relative mb-10 last:mb-0">
           {/* Date group header */}
-          <div className="relative flex items-center gap-3 mb-4 pl-[46px]">
-            {/* ✅ Dot - perfectly centered on the line */}
-            <div className="absolute left-[19px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full bg-teal ring-4 ring-paper z-10" />
-            <span className="font-mono text-[12px] tracking-[0.14em] uppercase text-ink-soft">
+          <div className="relative flex items-center gap-3 mb-4">
+            <div className="absolute left-[-21px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full bg-teal ring-4 ring-paper z-10" />
+            <span className="font-mono text-[12px] tracking-[0.14em] uppercase text-ink-soft ml-6">
               {dateKey}
             </span>
             <span className="font-mono text-[11px] text-ink-faint">
@@ -57,8 +52,8 @@ const HistoryTimeline = ({ predictions }) => {
             </span>
           </div>
           
-          {/* Events for this date */}
-          <div className="space-y-1 pl-[46px]">
+          {/* Events */}
+          <div className="space-y-1">
             {groupedPredictions[dateKey].map((prediction, index) => (
               <HistoryTimelineEvent
                 key={prediction.id}
