@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft, ChevronDown, FileDown, FileJson, FileSpreadsheet,
   AlertTriangle, TrendingUp, Sparkles, ListChecks,
@@ -13,9 +13,9 @@ import { downloadPdf, downloadCsv, downloadJson } from '../utils/reportGenerator
 import { RingChart } from '../components/charts/ring-chart';
 import { Ring } from '../components/charts/ring';
 import { RingCenter } from '../components/charts/ring-center';
+import { chartCenterValueClassName, chartCenterLabelClassName } from '../components/charts/chart-center-typography';
 import { BarChart } from '../components/charts/bar-chart';
 import { Bar } from '../components/charts/bar';
-import { BarXAxis } from '../components/charts/bar-x-axis';
 import { Grid } from '../components/charts/grid';
 import { ChartTooltip } from '../components/charts/tooltip';
 
@@ -36,7 +36,6 @@ const RISK_TONE = {
   High: 'text-resistant',
 };
 
-// Chart theming: explicit brand tokens, scoped to whatever contains this style block
 const CHART_VARS = {
   '--chart-background': '#1D1D1F',
   '--chart-foreground': '#F5F5F7',
@@ -47,6 +46,78 @@ const CHART_VARS = {
   '--chart-grid': '#3A3A3C',
   '--border': '#3A3A3C',
 };
+
+function buildHighlightTerms(predictions) {
+  const terms = [];
+  predictions.forEach((p) => {
+    terms.push({ term: p.antibiotic, className: 'font-medium text-onpanel-ink' });
+  });
+  terms.push({ term: 'resistant', className: 'font-semibold text-resistant' });
+  terms.push({ term: 'susceptible', className: 'font-semibold text-susceptible' });
+  terms.push({ term: 'intermediate', className: 'font-semibold text-intermediate' });
+  terms.push({ term: 'Reserve', className: 'font-semibold text-resistant' });
+  terms.push({ term: 'Watch', className: 'font-semibold text-intermediate' });
+  terms.push({ term: 'Access', className: 'font-semibold text-susceptible' });
+  return terms.sort((a, b) => b.term.length - a.term.length);
+}
+
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
+const NUMBER_REGEX = /\d+(\.\d+)?%?/g;
+
+function highlightNumbers(text, keyPrefix) {
+  const nodes = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  const regex = new RegExp(NUMBER_REGEX);
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(<span key={`${keyPrefix}-${key++}`}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    nodes.push(
+      <span key={`${keyPrefix}-${key++}`} className="font-mono text-onpanel-ink">
+        {match[0]}
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    nodes.push(<span key={`${keyPrefix}-${key++}`}>{text.slice(lastIndex)}</span>);
+  }
+  return nodes;
+}
+
+function RichText({ text, terms }) {
+  if (!text) return null;
+  if (!terms || terms.length === 0) return <>{highlightNumbers(text, 'n')}</>;
+
+  const pattern = terms.map((t) => escapeRegExp(t.term)).join('|');
+  const regex = new RegExp(`(?<![A-Za-z])(${pattern})(?![A-Za-z])`, 'g');
+
+  const nodes = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      const plain = text.slice(lastIndex, match.index);
+      nodes.push(<span key={key++}>{highlightNumbers(plain, `p${key}`)}</span>);
+    }
+    const matched = terms.find((t) => t.term === match[0]);
+    nodes.push(<span key={key++} className={matched?.className}>{match[0]}</span>);
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    const plain = text.slice(lastIndex);
+    nodes.push(<span key={key++}>{highlightNumbers(plain, `p${key}`)}</span>);
+  }
+  return <>{nodes}</>;
+}
 
 function PredictionRow({ p }) {
   const [expanded, setExpanded] = useState(false);
@@ -59,7 +130,7 @@ function PredictionRow({ p }) {
         onClick={() => hasShap && setExpanded((v) => !v)}
         className={`flex w-full items-center gap-4 px-5 py-3.5 text-left transition-colors ${hasShap ? 'hover:bg-panel-raised cursor-pointer' : 'cursor-default'}`}
       >
-        <span className="w-24 shrink-0 font-mono text-[13px] font-medium text-onpanel-ink">{p.antibiotic}</span>
+        <span className="w-24 shrink-0 truncate font-mono text-[13px] font-medium text-onpanel-ink">{p.antibiotic}</span>
         <span className="w-32 shrink-0"><ResultBadge result={p.result} /></span>
         <span className="w-20 shrink-0 font-mono text-[11px] uppercase tracking-wide text-onpanel-faint">{p.awareCategory}</span>
         <span className="flex-1 text-right font-mono text-[13px] text-onpanel-muted">
@@ -68,27 +139,37 @@ function PredictionRow({ p }) {
         {hasShap && (
           <ChevronDown
             size={14}
-            className={`shrink-0 text-onpanel-faint transition-transform ${expanded ? 'rotate-180' : ''}`}
+            className={`shrink-0 text-onpanel-faint transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
           />
         )}
       </button>
 
-      {expanded && hasShap && (
-        <div className="space-y-1.5 bg-panel px-5 pb-4 pt-1">
-          {p.shapExplanation.slice(0, 5).map((s) => (
-            <div key={s.feature} className="flex items-center gap-3 font-mono text-[11px]">
-              <span className="w-32 shrink-0 truncate text-onpanel-faint">{s.feature.replace(/_/g, ' ')}</span>
-              <div className="h-1 flex-1 overflow-hidden rounded-full bg-panel-border">
-                <div
-                  className={`h-full rounded-full ${s.direction === 'positive' ? 'bg-resistant' : 'bg-susceptible'}`}
-                  style={{ width: `${Math.min(Math.abs(s.contribution) * 60, 100)}%` }}
-                />
-              </div>
-              <span className="w-14 shrink-0 text-right text-onpanel-muted">{s.contribution.toFixed(3)}</span>
+      <AnimatePresence initial={false}>
+        {expanded && hasShap && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-1.5 bg-panel px-5 pb-4 pt-1">
+              {p.shapExplanation.slice(0, 5).map((s) => (
+                <div key={s.feature} className="flex items-center gap-3 font-mono text-[11px]">
+                  <span className="w-32 shrink-0 truncate text-onpanel-faint">{s.feature.replace(/_/g, ' ')}</span>
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-panel-border">
+                    <div
+                      className={`h-full rounded-full ${s.direction === 'positive' ? 'bg-resistant' : 'bg-susceptible'}`}
+                      style={{ width: `${Math.min(Math.abs(s.contribution) * 60, 100)}%` }}
+                    />
+                  </div>
+                  <span className="w-14 shrink-0 text-right text-onpanel-muted">{s.contribution.toFixed(3)}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -97,6 +178,10 @@ function PredictionResultPage() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const realPrediction = location.state?.prediction;
   const inputData = location.state?.inputData;
@@ -109,6 +194,8 @@ function PredictionResultPage() {
     {}
   );
   const total = displayData.predictions.length;
+
+  const highlightTerms = useMemo(() => buildHighlightTerms(displayData.predictions), [displayData.predictions]);
 
   const ringData = [
     { label: 'Resistant', value: counts.R || 0, maxValue: total, color: '#FF3B30' },
@@ -163,9 +250,7 @@ function PredictionResultPage() {
           </div>
         </div>
 
-        {/* Two-column layout: sticky sidebar (glanceable) + main scroll content */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-          {/* Sidebar: everything you need at a glance, no scrolling required */}
           <div className="space-y-4 lg:sticky lg:top-8 lg:col-span-2 lg:h-fit">
             {insights?.riskAssessment && (
               <Panel className="p-5">
@@ -176,7 +261,7 @@ function PredictionResultPage() {
                       Risk: <span className={RISK_TONE[insights.riskAssessment.level] || 'text-onpanel-ink'}>{insights.riskAssessment.level}</span>
                     </div>
                     <p className="font-sans text-[13px] leading-[1.5] text-onpanel-muted">
-                      {insights.riskAssessment.text}
+                      <RichText text={insights.riskAssessment.text} terms={highlightTerms} />
                     </p>
                   </div>
                 </div>
@@ -188,11 +273,15 @@ function PredictionResultPage() {
                 Result distribution
               </div>
               <div className="flex items-center justify-center">
-                <RingChart data={ringData} size={168}>
+                <RingChart data={ringData} size={208}>
                   {ringData.map((item, index) => (
                     <Ring key={item.label} index={index} />
                   ))}
-                  <RingCenter defaultLabel="Total" />
+                  <RingCenter
+                    defaultLabel="Total"
+                    valueClassName={`${chartCenterValueClassName} text-onpanel-ink`}
+                    labelClassName={`${chartCenterLabelClassName} text-onpanel-muted`}
+                  />
                 </RingChart>
               </div>
               <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1.5">
@@ -203,22 +292,21 @@ function PredictionResultPage() {
                   </div>
                 ))}
               </div>
-            </Panel>
 
-            <Panel className="p-5 chart-on-dark" style={CHART_VARS}>
+              <div className="my-4 h-px bg-panel-border" />
+
               <div className="mb-3 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
                 Confidence by antibiotic
               </div>
+              <p className="mb-2 font-sans text-[11px] text-onpanel-faint">Hover a bar to see the antibiotic and confidence.</p>
               <BarChart data={barData} xDataKey="antibiotic" aspectRatio="4 / 3">
                 <Grid horizontal />
                 <Bar dataKey="confidence" fill="var(--chart-line-primary)" lineCap={4} />
-                <BarXAxis />
-                <ChartTooltip />
+                <ChartTooltip showDatePill={false} />
               </BarChart>
             </Panel>
           </div>
 
-          {/* Main: predictions table + AI insights, scrolls independently */}
           <div className="space-y-4 lg:col-span-3">
             <Panel className="overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4">
@@ -238,20 +326,22 @@ function PredictionResultPage() {
 
             {insights && (
               <>
-                <div className="flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-page-faint">
-                  <Sparkles size={13} />
-                  AI insights
+                <div className="flex items-center gap-2.5 pt-2">
+                  <Sparkles size={18} className="text-accent-blue" />
+                  <h2 className="font-display text-[20px] font-semibold leading-tight text-page-ink">
+                    AI Insights
+                  </h2>
                 </div>
 
                 <Panel className="p-6">
                   <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">Summary</div>
-                  <p className="mb-5 font-sans text-[14px] leading-[1.6] text-onpanel-muted">{insights.summary}</p>
+                  <p className="mb-5 font-sans text-[14px] leading-[1.6] text-onpanel-muted"><RichText text={insights.summary} terms={highlightTerms} /></p>
 
                   <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">Confidence interpretation</div>
-                  <p className="mb-5 font-sans text-[14px] leading-[1.6] text-onpanel-muted">{insights.confidenceInterpretation}</p>
+                  <p className="mb-5 font-sans text-[14px] leading-[1.6] text-onpanel-muted"><RichText text={insights.confidenceInterpretation} terms={highlightTerms} /></p>
 
                   <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">Plain English explanation</div>
-                  <p className="font-sans text-[14px] leading-[1.6] text-onpanel-muted">{insights.plainEnglishExplanation}</p>
+                  <p className="font-sans text-[14px] leading-[1.6] text-onpanel-muted"><RichText text={insights.plainEnglishExplanation} terms={highlightTerms} /></p>
                 </Panel>
 
                 {insights.recommendedNextSteps?.length > 0 && (
@@ -263,7 +353,9 @@ function PredictionResultPage() {
                       {insights.recommendedNextSteps.map((step, i) => (
                         <li key={i} className="flex gap-2.5 font-sans text-[14px] leading-[1.5] text-onpanel-muted">
                           <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent-blue" />
-                          {step}
+                          <span className="min-w-0 flex-1">
+                            <RichText text={step} terms={highlightTerms} />
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -276,7 +368,7 @@ function PredictionResultPage() {
                       <TrendingUp size={13} /> Similar historical cases
                     </div>
                     <p className="mb-4 font-sans text-[13px] text-onpanel-faint">
-                      Based on {insights.similarHistoricalCases.sampleSize} matching records ({insights.similarHistoricalCases.matchCriteria})
+                      Based on <span className="font-mono text-onpanel-ink">{insights.similarHistoricalCases.sampleSize}</span> matching records ({insights.similarHistoricalCases.matchCriteria})
                     </p>
                     <div className="space-y-2">
                       {insights.similarHistoricalCases.resistanceBreakdown.slice(0, 6).map((r) => (
