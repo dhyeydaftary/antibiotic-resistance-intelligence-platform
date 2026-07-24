@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import HistoryTimelineEvent from './HistoryTimelineEvent';
 
-const HistoryTimeline = ({ predictions }) => {
+const HistoryTimeline = ({ predictions, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) => {
   const [expandedId, setExpandedId] = useState(null);
 
   if (!predictions || !predictions.length) {
@@ -16,8 +16,8 @@ const HistoryTimeline = ({ predictions }) => {
 
   const groupedPredictions = predictions.reduce((groups, prediction) => {
     const date = new Date(prediction.date);
-    const dateKey = date.toLocaleDateString('en-US', { 
-      month: 'short', 
+    const dateKey = date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       year: 'numeric'
     });
@@ -36,12 +36,10 @@ const HistoryTimeline = ({ predictions }) => {
 
   return (
     <div className="relative mb-8 pl-8">
-      {/* Vertical line */}
       <div className="absolute left-[11px] top-0 bottom-0 w-px bg-hairline/60" />
-      
-      {dateKeys.map((dateKey, dateIndex) => (
+
+      {dateKeys.map((dateKey) => (
         <div key={dateKey} className="relative mb-10 last:mb-0">
-          {/* Date group header */}
           <div className="relative flex items-center gap-3 mb-4">
             <div className="absolute left-[-21px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full bg-teal ring-4 ring-paper z-10" />
             <span className="font-mono text-[12px] tracking-[0.14em] uppercase text-ink-soft ml-6">
@@ -51,8 +49,7 @@ const HistoryTimeline = ({ predictions }) => {
               · {groupedPredictions[dateKey].length} prediction{groupedPredictions[dateKey].length > 1 ? 's' : ''}
             </span>
           </div>
-          
-          {/* Events */}
+
           <div className="space-y-1">
             {groupedPredictions[dateKey].map((prediction, index) => (
               <HistoryTimelineEvent
@@ -61,6 +58,10 @@ const HistoryTimeline = ({ predictions }) => {
                 isExpanded={expandedId === prediction.id}
                 onToggle={() => toggleExpand(prediction.id)}
                 index={index}
+                onView={onView}
+                onDownloadPdf={onDownloadPdf}
+                onDownloadCsv={onDownloadCsv}
+                onDownloadJson={onDownloadJson}
               />
             ))}
           </div>

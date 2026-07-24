@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getHistory } from '../api/historyApi';
+import { downloadPdf, downloadCsv, downloadJson } from '../utils/reportGenerator';
 import HistoryHeader from '../components/history/HistoryHeader';
 import HistoryStats from '../components/history/HistoryStats';
 import HistoryFilters from '../components/history/HistoryFilters';
@@ -9,213 +11,41 @@ import HistoryInsights from '../components/history/HistoryInsights';
 import EmptyHistory from '../components/history/EmptyHistory';
 import HistorySkeleton from '../components/history/HistorySkeleton';
 
-// ✅ COMPLETE MOCK DATA - ALL RECORDS
-const mockPredictions = [
-  {
-    id: 'PRED-2026-07-23-001',
-    date: '2026-07-23T14:32:00Z',
-    organism: 'E. coli',
-    antibiotic: 'Ciprofloxacin',
-    result: 'R',
-    confidence: 94.2,
+function flattenRecord(record) {
+  const organism = record.inputData?.organism || 'Unknown';
+  const date = record.createdAt;
+
+  return (record.predictions || []).map((p) => ({
+    id: `${record._id}-${p.antibiotic}`,
+    recordId: record._id,
+    date,
+    organism,
+    antibiotic: p.antibiotic,
+    result: p.result,
+    confidence: Math.round((p.confidence || 0) * 100),
     status: 'Completed',
-    inputValues: {
-      age: 45,
-      sex: 'Female',
-      specimen: 'Urine',
-      hospital: 'City General',
-      priorAntibiotics: 'Yes'
-    },
-    explanation: 'High confidence prediction based on resistance patterns observed in similar clinical cases.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-23T14:32:00Z',
-    awarClass: 'Watch'
-  },
-  {
-    id: 'PRED-2026-07-23-002',
-    date: '2026-07-23T11:15:00Z',
-    organism: 'S. aureus',
-    antibiotic: 'Vancomycin',
-    result: 'S',
-    confidence: 98.7,
-    status: 'Completed',
-    inputValues: {
-      age: 62,
-      sex: 'Male',
-      specimen: 'Blood',
-      hospital: 'Memorial Medical',
-      priorAntibiotics: 'No'
-    },
-    explanation: 'Strong susceptibility predicted. No resistance markers detected.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-23T11:15:00Z',
-    awarClass: 'Watch'
-  },
-  {
-    id: 'PRED-2026-07-22-008',
-    date: '2026-07-22T08:03:00Z',
-    organism: 'K. pneumoniae',
-    antibiotic: 'Amoxicillin',
-    result: 'I',
-    confidence: 76.1,
-    status: 'Completed',
-    inputValues: {
-      age: 34,
-      sex: 'Female',
-      specimen: 'Sputum',
-      hospital: 'University Hospital',
-      priorAntibiotics: 'Yes'
-    },
-    explanation: 'Intermediate resistance predicted. Further testing recommended.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-22T08:03:00Z',
-    awarClass: 'Access'
-  },
-  {
-    id: 'PRED-2026-07-21-042',
-    date: '2026-07-21T16:45:00Z',
-    organism: 'P. aeruginosa',
-    antibiotic: 'Meropenem',
-    result: 'S',
-    confidence: 91.5,
-    status: 'Completed',
-    inputValues: {
-      age: 55,
-      sex: 'Male',
-      specimen: 'Wound',
-      hospital: 'Regional Medical',
-      priorAntibiotics: 'No'
-    },
-    explanation: 'Susceptible. Carbapenem susceptibility confirmed.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-21T16:45:00Z',
-    awarClass: 'Watch'
-  },
-  {
-    id: 'PRED-2026-07-21-023',
-    date: '2026-07-21T11:20:00Z',
-    organism: 'E. coli',
-    antibiotic: 'Gentamicin',
-    result: 'R',
-    confidence: 88.9,
-    status: 'Completed',
-    inputValues: {
-      age: 71,
-      sex: 'Female',
-      specimen: 'Urine',
-      hospital: 'City General',
-      priorAntibiotics: 'Yes'
-    },
-    explanation: 'Resistance predicted. Aminoglycoside resistance genes detected.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-21T11:20:00Z',
-    awarClass: 'Access'
-  },
-  {
-    id: 'PRED-2026-07-20-056',
-    date: '2026-07-20T13:55:00Z',
-    organism: 'S. pneumoniae',
-    antibiotic: 'Penicillin',
-    result: 'I',
-    confidence: 82.3,
-    status: 'Completed',
-    inputValues: {
-      age: 28,
-      sex: 'Male',
-      specimen: 'CSF',
-      hospital: 'Neurology Center',
-      priorAntibiotics: 'No'
-    },
-    explanation: 'Intermediate susceptibility. Possible resistance mechanisms developing.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-20T13:55:00Z',
-    awarClass: 'Access'
-  },
-  {
-    id: 'PRED-2026-07-20-031',
-    date: '2026-07-20T10:10:00Z',
-    organism: 'K. pneumoniae',
-    antibiotic: 'Ceftriaxone',
-    result: 'R',
-    confidence: 96.4,
-    status: 'Pending',
-    inputValues: {
-      age: 49,
-      sex: 'Female',
-      specimen: 'Blood',
-      hospital: 'University Hospital',
-      priorAntibiotics: 'Yes'
-    },
-    explanation: 'High confidence resistance prediction. ESBL-producing strain suspected.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-20T10:10:00Z',
-    awarClass: 'Watch'
-  },
-  {
-    id: 'PRED-2026-07-19-089',
-    date: '2026-07-19T18:30:00Z',
-    organism: 'E. coli',
-    antibiotic: 'Trimethoprim',
-    result: 'S',
-    confidence: 93.8,
-    status: 'Completed',
-    inputValues: {
-      age: 39,
-      sex: 'Male',
-      specimen: 'Urine',
-      hospital: 'Community Clinic',
-      priorAntibiotics: 'No'
-    },
-    explanation: 'Susceptible. No resistance markers detected.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-19T18:30:00Z',
-    awarClass: 'Access'
-  },
-  {
-    id: 'PRED-2026-07-19-015',
-    date: '2026-07-19T07:45:00Z',
-    organism: 'S. aureus',
-    antibiotic: 'Erythromycin',
-    result: 'R',
-    confidence: 85.7,
-    status: 'Failed',
-    inputValues: {
-      age: 58,
-      sex: 'Female',
-      specimen: 'Sputum',
-      hospital: 'Memorial Medical',
-      priorAntibiotics: 'Yes'
-    },
-    explanation: 'Resistance predicted. Macrolide resistance genes identified.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-19T07:45:00Z',
-    awarClass: 'Access'
-  },
-  {
-    id: 'PRED-2026-07-18-124',
-    date: '2026-07-18T14:20:00Z',
-    organism: 'P. aeruginosa',
-    antibiotic: 'Ciprofloxacin',
-    result: 'I',
-    confidence: 79.4,
-    status: 'Completed',
-    inputValues: {
-      age: 67,
-      sex: 'Male',
-      specimen: 'Wound',
-      hospital: 'City General',
-      priorAntibiotics: 'Yes'
-    },
-    explanation: 'Intermediate susceptibility. Further testing recommended.',
-    modelVersion: 'CatBoost v2.3',
-    timestamp: '2026-07-18T14:20:00Z',
-    awarClass: 'Watch'
-  }
-];
+    awarClass: p.awareCategory,
+    shapExplanation: p.shapExplanation,
+    aiInsights: record.aiInsights,
+    inputData: record.inputData,
+    predictions: record.predictions,
+  }));
+}
+
+function buildReportItem(prediction) {
+  return {
+    _id: prediction.recordId,
+    createdAt: prediction.date,
+    inputData: prediction.inputData,
+    predictions: prediction.predictions,
+    aiInsights: prediction.aiInsights,
+  };
+}
 
 const HistoryPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [rawRecords, setRawRecords] = useState([]);
   const [predictions, setPredictions] = useState([]);
   const [filteredPredictions, setFilteredPredictions] = useState([]);
   const [stats, setStats] = useState({
@@ -236,23 +66,33 @@ const HistoryPage = () => {
   const [viewMode, setViewMode] = useState('timeline');
   const itemsPerPage = 10;
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      setLoading(true);
-      try {
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        setPredictions(mockPredictions);
-        setFilteredPredictions(mockPredictions);
-        calculateStats(mockPredictions);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchHistory();
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getHistory();
+      const records = result?.data?.history || [];
+      const flattened = records.flatMap(flattenRecord);
+
+      setRawRecords(records);
+      setPredictions(flattened);
+      setFilteredPredictions(flattened);
+      calculateStats(records, flattened);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+      setRawRecords([]);
+      setPredictions([]);
+      setFilteredPredictions([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const calculateStats = (data) => {
-    if (!data.length) {
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const calculateStats = (records, flattened) => {
+    if (!records.length) {
       setStats({
         total: 0,
         thisWeek: 0,
@@ -262,22 +102,24 @@ const HistoryPage = () => {
       return;
     }
 
-    const total = data.length;
+    const total = records.length;
     const now = new Date();
     const weekAgo = new Date(now);
     weekAgo.setDate(weekAgo.getDate() - 7);
-    const thisWeek = data.filter(item => new Date(item.date) >= weekAgo).length;
+    const thisWeek = records.filter((r) => new Date(r.createdAt) >= weekAgo).length;
 
-    const resistanceCount = data.filter(item => item.result === 'R').length;
-    const avgResistance = (resistanceCount / total) * 100;
+    const resistantCount = flattened.filter((p) => p.result === 'R').length;
+    const avgResistance = flattened.length
+      ? (resistantCount / flattened.length) * 100
+      : 0;
 
-    const sorted = [...data].sort((a, b) => new Date(b.date) - new Date(a.date));
-    const lastDate = new Date(sorted[0].date);
-    const now2 = new Date();
+    const sorted = [...records].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+    const lastDate = new Date(sorted[0].createdAt);
+    const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+
     let lastLabel;
-    
-    const diffDays = Math.floor((now2 - lastDate) / (1000 * 60 * 60 * 24));
-    
     if (diffDays === 0) {
       lastLabel = 'Today';
     } else if (diffDays === 1) {
@@ -285,8 +127,8 @@ const HistoryPage = () => {
     } else if (diffDays > 1 && diffDays < 7) {
       lastLabel = `${diffDays} days ago`;
     } else {
-      lastLabel = lastDate.toLocaleDateString('en-US', { 
-        month: 'short', 
+      lastLabel = lastDate.toLocaleDateString('en-US', {
+        month: 'short',
         day: 'numeric',
         year: 'numeric'
       });
@@ -354,7 +196,7 @@ const HistoryPage = () => {
 
   const handleExport = () => {
     const dataToExport = filteredPredictions;
-    
+
     if (dataToExport.length === 0) {
       alert('No data to export.');
       return;
@@ -367,7 +209,6 @@ const HistoryPage = () => {
       'Antibiotic',
       'Result',
       'Confidence (%)',
-      'Model Version',
       'WHO AWaRe Class'
     ];
 
@@ -378,7 +219,6 @@ const HistoryPage = () => {
       p.antibiotic,
       p.result === 'R' ? 'Resistant' : p.result === 'S' ? 'Susceptible' : 'Intermediate',
       p.confidence,
-      p.modelVersion || 'CatBoost v2.3',
       p.awarClass || 'Access'
     ]);
 
@@ -399,15 +239,8 @@ const HistoryPage = () => {
   };
 
   const handleRefresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setPredictions([...mockPredictions]);
-      calculateStats(mockPredictions);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await fetchHistory();
+  }, [fetchHistory]);
 
   const handleNewPrediction = () => {
     navigate('/predict');
@@ -417,6 +250,23 @@ const HistoryPage = () => {
     setViewMode(mode);
   };
 
+  // --- Restored actions: view full result page, per-record downloads ---
+  const handleViewRecord = useCallback((item) => {
+    navigate('/predict/result/live', {
+      state: {
+        prediction: {
+          predictions: item.predictions,
+          aiInsights: item.aiInsights,
+        },
+        inputData: item.inputData,
+      },
+    });
+  }, [navigate]);
+
+  const handleDownloadPdf = useCallback((item) => downloadPdf(buildReportItem(item)), []);
+  const handleDownloadCsv = useCallback((item) => downloadCsv(buildReportItem(item)), []);
+  const handleDownloadJson = useCallback((item) => downloadJson(buildReportItem(item)), []);
+
   const antibioticOptions = ['All', ...new Set(predictions.map(p => p.antibiotic))];
   const organismOptions = ['All', ...new Set(predictions.map(p => p.organism))];
 
@@ -425,8 +275,7 @@ const HistoryPage = () => {
   const paginatedPredictions = filteredPredictions.slice(pageStart, pageEnd);
 
   return (
-    // ✅ Dots at 25% opacity - clearly visible, premium texture
-    <div 
+    <div
       className="min-h-screen w-full px-4 sm:px-6 lg:px-8 py-6"
       style={{
         backgroundImage: 'radial-gradient(circle, rgba(138,141,147,0.25) 1px, transparent 1px)',
@@ -435,22 +284,22 @@ const HistoryPage = () => {
       }}
     >
       <div className="max-w-7xl mx-auto">
-        <HistoryHeader 
+        <HistoryHeader
           onRefresh={handleRefresh}
           onExport={handleExport}
           onNewAnalysis={handleNewPrediction}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
         />
-        
+
         {loading ? (
           <HistorySkeleton />
-        ) : predictions.length === 0 ? (
+        ) : rawRecords.length === 0 ? (
           <EmptyHistory onNewPrediction={handleNewPrediction} />
         ) : (
           <>
             <HistoryStats stats={stats} />
-            
+
             <HistoryFilters
               filters={filters}
               onFilterChange={setFilters}
@@ -458,19 +307,29 @@ const HistoryPage = () => {
               organismOptions={organismOptions}
               totalResults={filteredPredictions.length}
             />
-            
+
             {viewMode === 'timeline' ? (
-              <HistoryTimeline predictions={paginatedPredictions} />
+              <HistoryTimeline
+                predictions={paginatedPredictions}
+                onView={handleViewRecord}
+                onDownloadPdf={handleDownloadPdf}
+                onDownloadCsv={handleDownloadCsv}
+                onDownloadJson={handleDownloadJson}
+              />
             ) : (
-              <HistoryTable 
+              <HistoryTable
                 predictions={paginatedPredictions}
                 currentPage={currentPage}
                 itemsPerPage={itemsPerPage}
                 totalItems={filteredPredictions.length}
                 onPageChange={setCurrentPage}
+                onRowClick={handleViewRecord}
+                onDownloadPdf={handleDownloadPdf}
+                onDownloadCsv={handleDownloadCsv}
+                onDownloadJson={handleDownloadJson}
               />
             )}
-            
+
             <HistoryInsights predictions={filteredPredictions} />
           </>
         )}
