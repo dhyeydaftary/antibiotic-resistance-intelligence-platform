@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const HistoryDetails = ({ prediction }) => {
+const HistoryDetails = ({ prediction, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) => {
   const [showFullExplanation, setShowFullExplanation] = useState(false);
 
   const formatDate = (dateString) => {
@@ -55,6 +55,18 @@ const HistoryDetails = ({ prediction }) => {
 
   const styles = getResultStyles(prediction.result);
 
+  // Real backend data doesn't have inputValues/explanation like the old mock —
+  // adapt to the actual shape: inputData (raw form fields) and aiInsights (LLM-free summary).
+  const inputEntries = Object.entries(prediction.inputData || {}).filter(
+    ([key]) => key !== 'organism'
+  );
+
+  const explanation =
+    prediction.aiInsights?.plainEnglishExplanation ||
+    (prediction.shapExplanation?.[0]
+      ? `The strongest factor influencing this ${styles.label.toLowerCase()} prediction was ${prediction.shapExplanation[0].feature.replace(/_/g, ' ')}.`
+      : 'No AI-generated explanation available for this record.');
+
   return (
     <div className="py-1">
       {/* Result summary bar */}
@@ -80,13 +92,13 @@ const HistoryDetails = ({ prediction }) => {
             Input Values
           </h4>
           <div className="grid grid-cols-2 gap-2">
-            {Object.entries(prediction.inputValues).map(([key, value]) => (
+            {inputEntries.map(([key, value]) => (
               <div key={key} className="flex flex-col">
                 <span className="font-mono text-[9px] tracking-wider uppercase text-ink-faint">
-                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                  {key.replace(/_/g, ' ')}
                 </span>
                 <span className="font-sans text-sm text-ink mt-0.5">
-                  {value}
+                  {String(value)}
                 </span>
               </div>
             ))}
@@ -101,14 +113,6 @@ const HistoryDetails = ({ prediction }) => {
           <div className="space-y-2.5">
             <div>
               <span className="font-mono text-[9px] tracking-wider uppercase text-ink-faint block">
-                Model Version
-              </span>
-              <span className="font-sans text-sm text-ink">
-                {prediction.modelVersion}
-              </span>
-            </div>
-            <div>
-              <span className="font-mono text-[9px] tracking-wider uppercase text-ink-faint block">
                 WHO AWaRe Class
               </span>
               <span className="font-sans text-sm text-ink">
@@ -120,7 +124,7 @@ const HistoryDetails = ({ prediction }) => {
                 Timestamp
               </span>
               <span className="font-sans text-sm text-ink-muted">
-                {formatDate(prediction.timestamp)}
+                {formatDate(prediction.date)}
               </span>
             </div>
             <div>
@@ -129,7 +133,7 @@ const HistoryDetails = ({ prediction }) => {
               </span>
               <div className="flex items-center gap-3">
                 <div className="flex-1 max-w-[120px] h-1.5 bg-hairline rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full rounded-full ${styles.dot} transition-all duration-700`}
                     style={{ width: `${prediction.confidence}%` }}
                   />
@@ -146,12 +150,12 @@ const HistoryDetails = ({ prediction }) => {
       {/* Explanation */}
       <div className="mt-4 pt-4 border-t border-hairline">
         <h4 className="font-mono text-[10px] tracking-wider uppercase text-ink-faint mb-2">
-          Clinical Explanation
+          AI Explanation
         </h4>
-        <p className={`font-sans text-sm text-ink-muted leading-relaxed ${!showFullExplanation && prediction.explanation.length > 200 ? 'line-clamp-3' : ''}`}>
-          {prediction.explanation}
+        <p className={`font-sans text-sm text-ink-muted leading-relaxed ${!showFullExplanation && explanation.length > 200 ? 'line-clamp-3' : ''}`}>
+          {explanation}
         </p>
-        {prediction.explanation.length > 200 && (
+        {explanation.length > 200 && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -162,6 +166,34 @@ const HistoryDetails = ({ prediction }) => {
             {showFullExplanation ? 'Show less' : 'Read more'}
           </button>
         )}
+      </div>
+
+      {/* Actions: view full report, download */}
+      <div className="mt-4 pt-4 border-t border-hairline flex flex-wrap items-center gap-2">
+        <button
+          onClick={(e) => { e.stopPropagation(); onView?.(prediction); }}
+          className="px-3 py-1.5 rounded-lg bg-ink text-paper font-sans text-xs font-medium hover:bg-ink-soft transition-colors"
+        >
+          View full report →
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDownloadPdf?.(prediction); }}
+          className="px-3 py-1.5 rounded-lg border border-hairline font-mono text-xs text-ink-muted hover:text-ink hover:border-ink/30 transition-colors"
+        >
+          PDF
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDownloadCsv?.(prediction); }}
+          className="px-3 py-1.5 rounded-lg border border-hairline font-mono text-xs text-ink-muted hover:text-ink hover:border-ink/30 transition-colors"
+        >
+          CSV
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDownloadJson?.(prediction); }}
+          className="px-3 py-1.5 rounded-lg border border-hairline font-mono text-xs text-ink-muted hover:text-ink hover:border-ink/30 transition-colors"
+        >
+          JSON
+        </button>
       </div>
     </div>
   );
