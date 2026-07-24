@@ -10,6 +10,7 @@ _antibiotic_columns = None
 
 AGE_BAND = 5  # ± years for "similar" age matching
 LOW_CONFIDENCE_THRESHOLD = 0.6
+HIGH_CONFIDENCE_THRESHOLD = 0.85
 RESERVE_TIER = 'Reserve'
 WATCH_TIER = 'Watch'
 
@@ -72,118 +73,230 @@ def get_similar_historical_cases(organism, age):
     }
 
 
+def _pct(n, total):
+    return round((n / total) * 100) if total else 0
+
+
+def _join_names(names):
+    names = list(names)
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return f"{', '.join(names[:-1])}, and {names[-1]}"
+
+
+def _build_summary(resistant, susceptible, intermediate, total, reserve_resistant, watch_resistant):
+    r_pct = _pct(len(resistant), total)
+    s_pct = _pct(len(susceptible), total)
+
+    # Vary the opening line based on the overall shape of the results
+    if not resistant:
+        opening = (
+            f"All {total} antibiotics evaluated show predicted susceptibility "
+            f"or an intermediate response — no resistance was flagged for this profile."
+        )
+    elif len(resistant) == total:
+        opening = (
+            f"Every antibiotic in the panel — all {total} — is predicted resistant for this profile, "
+            f"a result worth flagging prominently."
+        )
+    elif r_pct >= 60:
+        opening = (
+            f"Resistance dominates this panel: {len(resistant)} of {total} antibiotics ({r_pct}%) "
+            f"are predicted resistant, against {len(susceptible)} susceptible ({s_pct}%)."
+        )
+    elif r_pct <= 20:
+        opening = (
+            f"Most of the panel remains viable — {len(susceptible)} of {total} antibiotics ({s_pct}%) "
+            f"are predicted susceptible, with resistance limited to {len(resistant)} ({r_pct}%)."
+        )
+    else:
+        opening = (
+            f"The panel is mixed: {len(resistant)} of {total} antibiotics ({r_pct}%) are predicted resistant, "
+            f"{len(susceptible)} ({s_pct}%) susceptible, and {len(intermediate)} intermediate."
+        )
+
+    parts = [opening]
+
+    if reserve_resistant:
+        names = _join_names(p['antibiotic'] for p in reserve_resistant)
+        tier_word = 'antibiotic' if len(reserve_resistant) == 1 else 'antibiotics'
+        parts.append(
+            f"Of particular note, {names} — a Reserve-tier {tier_word}, normally held back for "
+            f"infections resistant to multiple drugs — {'is' if len(reserve_resistant) == 1 else 'are'} among the resistant predictions."
+        )
+    elif watch_resistant:
+        names = _join_names(p['antibiotic'] for p in watch_resistant)
+        parts.append(
+            f"This includes {names}, classified under the WHO AWaRe Watch tier."
+        )
+
+    return ' '.join(parts)
+
+
+def _build_confidence_text(predictions, low_confidence, high_confidence):
+    avg_conf = sum(p['confidence'] for p in predictions) / len(predictions)
+    conf_pct = round(avg_conf * 100)
+
+    if not low_confidence:
+        base = f"Model confidence is consistently strong across the panel, averaging {conf_pct}%."
+    elif len(low_confidence) == 1:
+        p = low_confidence[0]
+        base = (
+            f"Confidence averages {conf_pct}% across the panel, though the {p['antibiotic']} prediction "
+            f"sits at just {round(p['confidence'] * 100)}% and should be treated as directional rather than definitive."
+        )
+    else:
+        names = _join_names(p['antibiotic'] for p in low_confidence)
+        lowest = min(low_confidence, key=lambda p: p['confidence'])
+        base = (
+            f"Confidence averages {conf_pct}% overall, but {names} fall below the {int(LOW_CONFIDENCE_THRESHOLD * 100)}% "
+            f"threshold — {lowest['antibiotic']} is the least certain at {round(lowest['confidence'] * 100)}%."
+        )
+
+    if high_confidence and len(high_confidence) <= 4:
+        names = _join_names(p['antibiotic'] for p in high_confidence)
+        base += f" {names} {'is' if len(high_confidence) == 1 else 'are'} the most confidently predicted, each above {int(HIGH_CONFIDENCE_THRESHOLD * 100)}%."
+    elif high_confidence:
+        base += f" {len(high_confidence)} predictions exceed {int(HIGH_CONFIDENCE_THRESHOLD * 100)}% confidence."
+
+    return base
+
+
+def _build_plain_explanation(resistant, total):
+    if not resistant:
+        return (
+            "No resistance was predicted across the panel for this patient profile, so no single "
+            "clinical factor stands out as a driver of concern."
+        )
+
+    # Aggregate top SHAP driver per resistant antibiotic, with signed magnitude
+    driver_totals = {}
+    driver_examples = {}
+    for p in resistant:
+        if not p['shapExplanation']:
+            continue
+        top = p['shapExplanation'][0]
+        feature = top['feature']
+        driver_totals[feature] = driver_totals.get(feature, 0) + abs(top['contribution'])
+        driver_examples.setdefault(feature, []).append(p['antibiotic'])
+
+    if not driver_totals:
+        return (
+            f"{len(resistant)} of {total} antibiotics are predicted resistant, based on the patient "
+            f"profile and organism provided."
+        )
+
+    most_common_feature = max(driver_totals, key=driver_totals.get)
+    affected = driver_examples[most_common_feature]
+    readable = _humanize_feature(most_common_feature)
+
+    if len(affected) == len(resistant):
+        coverage = "every resistant prediction"
+    elif len(affected) >= len(resistant) / 2:
+        coverage = f"most of the resistant predictions ({_join_names(affected)})"
+    else:
+        coverage = f"several resistant predictions, including {_join_names(affected)}"
+
+    return (
+        f"{readable.capitalize()} is the strongest recurring signal behind the resistant predictions, "
+        f"showing up as the top contributing factor for {coverage}."
+    )
+
+
 def generate_ai_insights(patient_data, predictions):
     resistant = [p for p in predictions if p['result'] == 'R']
     susceptible = [p for p in predictions if p['result'] == 'S']
     intermediate = [p for p in predictions if p['result'] == 'I']
-
-    # --- Summary ---
-    summary_parts = [
-        f"Out of 15 antibiotics evaluated, {len(resistant)} show predicted resistance, "
-        f"{len(susceptible)} show predicted susceptibility, and {len(intermediate)} show an intermediate response."
-    ]
+    total = len(predictions)
 
     reserve_resistant = [p for p in resistant if p['awareCategory'] == RESERVE_TIER]
     watch_resistant = [p for p in resistant if p['awareCategory'] == WATCH_TIER]
+    access_resistant = [p for p in resistant if p['awareCategory'] == 'Access']
 
-    if reserve_resistant:
-        names = ', '.join(p['antibiotic'] for p in reserve_resistant)
-        summary_parts.append(
-            f"Notably, resistance is predicted for {names} - a Reserve-tier antibiotic, "
-            f"typically held back as a last-line treatment option."
-        )
-    elif watch_resistant:
-        names = ', '.join(p['antibiotic'] for p in watch_resistant)
-        summary_parts.append(
-            f"Resistance is predicted for {names}, classified under the WHO AWaRe Watch tier."
-        )
+    summary = _build_summary(resistant, susceptible, intermediate, total, reserve_resistant, watch_resistant)
 
-    summary = ' '.join(summary_parts)
-
-    # --- Confidence Interpretation ---
     low_confidence = [p for p in predictions if p['confidence'] < LOW_CONFIDENCE_THRESHOLD]
-    high_confidence = [p for p in predictions if p['confidence'] >= 0.85]
+    high_confidence = [p for p in predictions if p['confidence'] >= HIGH_CONFIDENCE_THRESHOLD]
+    confidence_text = _build_confidence_text(predictions, low_confidence, high_confidence)
 
-    if low_confidence:
-        names = ', '.join(p['antibiotic'] for p in low_confidence)
-        confidence_text = (
-            f"Most predictions carry solid confidence levels, though {names} "
-            f"{'show' if len(low_confidence) > 1 else 'shows'} lower certainty and should be "
-            f"interpreted more cautiously."
-        )
-    else:
-        confidence_text = "All 15 predictions carry reasonably high confidence levels."
+    plain_explanation = _build_plain_explanation(resistant, total)
 
-    if high_confidence:
-        confidence_text += (
-            f" Predictions for {', '.join(p['antibiotic'] for p in high_confidence)} "
-            f"are especially confident."
-        )
-
-    # --- Plain English explanation (top driver across resistant predictions) ---
-    if resistant:
-        top_driver_counts = {}
-        for p in resistant:
-            if p['shapExplanation']:
-                top_feature = p['shapExplanation'][0]['feature']
-                top_driver_counts[top_feature] = top_driver_counts.get(top_feature, 0) + 1
-
-        if top_driver_counts:
-            most_common_driver = max(top_driver_counts, key=top_driver_counts.get)
-            plain_explanation = (
-                f"Across the antibiotics predicted as resistant, {_humanize_feature(most_common_driver)} "
-                f"was the most frequently influential factor pushing the model toward a resistant prediction."
-            )
-        else:
-            plain_explanation = "The model's predictions are based on the patient profile and organism provided."
-    else:
-        plain_explanation = (
-            "No resistance was predicted across the 15 antibiotics evaluated for this patient profile."
-        )
-
-    # --- Risk Assessment ---
+    # --- Risk Assessment (more granular, with counts) ---
     if reserve_resistant:
         risk_level = "High"
-        risk_text = (
-            "Predicted resistance to a Reserve-tier antibiotic is a significant finding, "
-            "as these are typically reserved for multi-drug-resistant infections."
-        )
+        names = _join_names(p['antibiotic'] for p in reserve_resistant)
+        if len(reserve_resistant) == 1:
+            risk_text = (
+                f"Predicted resistance to {names} — a Reserve-tier, last-line option — is the primary "
+                f"driver of this rating; this antibiotic is typically held back for infections "
+                f"resistant to multiple drugs."
+            )
+        else:
+            risk_text = (
+                f"Predicted resistance to {names} — Reserve-tier, last-line options — is the primary "
+                f"driver of this rating; these antibiotics are typically held back for infections "
+                f"resistant to multiple drugs."
+            )
     elif len(watch_resistant) >= 3:
         risk_level = "Moderate-High"
         risk_text = (
-            "Multiple Watch-tier antibiotics show predicted resistance, suggesting a "
-            "more limited set of effective treatment options."
+            f"{len(watch_resistant)} Watch-tier antibiotics show predicted resistance "
+            f"({_join_names(p['antibiotic'] for p in watch_resistant)}), narrowing the field of "
+            f"likely-effective treatment options."
         )
     elif watch_resistant or resistant:
+        remaining_access = len(susceptible) + len([p for p in intermediate if p['awareCategory'] == 'Access'])
+        risk_text = f"Resistance is predicted for {len(resistant)} of {total} antibiotics"
+        if access_resistant:
+            risk_text += f" ({_join_names(p['antibiotic'] for p in access_resistant)} among the Access tier)"
+        risk_text += f", but {remaining_access} Access-tier or susceptible options appear to remain viable."
         risk_level = "Moderate"
-        risk_text = (
-            "Some resistance is predicted, but multiple Access-tier options may remain viable."
-        )
     else:
         risk_level = "Low"
-        risk_text = "No resistance predicted across the panel; standard first-line options appear viable."
+        risk_text = f"No resistance predicted across all {total} antibiotics; standard first-line Access-tier options appear viable."
 
-    # --- Similar Historical Cases ---
     historical_cases = get_similar_historical_cases(
         patient_data['organism'], patient_data['age']
     )
 
-    # --- Recommended Next Steps (templated, non-prescriptive) ---
+    # --- Recommended Next Steps ---
     next_steps = [
         "Confirm findings with laboratory-based antibiotic susceptibility testing before any treatment decision.",
-        "Review the SHAP explainability breakdown for each antibiotic of interest to understand contributing factors.",
     ]
-    if reserve_resistant or len(watch_resistant) >= 3:
+
+    if resistant:
+        next_steps.append(
+            f"Review the SHAP explainability breakdown for {_join_names(p['antibiotic'] for p in resistant[:3])} "
+            f"to understand what's driving each resistant prediction."
+        )
+    else:
+        next_steps.append(
+            "Review the SHAP explainability breakdown for each antibiotic to understand contributing factors."
+        )
+
+    if reserve_resistant:
+        next_steps.append(
+            "Consult infectious disease guidance given predicted resistance to a Reserve-tier antibiotic."
+        )
+    elif len(watch_resistant) >= 3:
         next_steps.append(
             "Consider consulting infectious disease guidance given the limited predicted treatment options."
         )
+
     if low_confidence:
+        names = _join_names(p['antibiotic'] for p in low_confidence)
         next_steps.append(
-            "Treat lower-confidence predictions as directional only, and prioritize lab confirmation for these."
+            f"Treat the {names} prediction{'s' if len(low_confidence) > 1 else ''} as directional only — "
+            f"confidence fell below {int(LOW_CONFIDENCE_THRESHOLD * 100)}%, so prioritize lab confirmation here."
         )
-    next_steps.append(
-        "Use the Similar Historical Cases data as context, not as a substitute for patient-specific testing."
-    )
+
+    if historical_cases['sampleSize'] > 0:
+        next_steps.append(
+            f"Use the {historical_cases['sampleSize']} similar historical cases as context, "
+            f"not as a substitute for patient-specific testing."
+        )
 
     disclaimer = (
         "This tool is intended for research and educational purposes only. It is not a substitute "

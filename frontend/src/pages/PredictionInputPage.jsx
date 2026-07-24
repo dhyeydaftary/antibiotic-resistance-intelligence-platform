@@ -5,16 +5,99 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { getPrediction } from '../api/predictionApi';
 import { ORGANISM_OPTIONS } from '../constants/domainData';
 import Panel from '../components/app/Panel';
-import Field, { TextInput, SelectInput } from '../components/app/Field';
 import Toggle from '../components/app/Toggle';
 import PrimaryButton from '../components/app/PrimaryButton';
 
 const FIELD_COUNT = 9;
 
+const VALIDATORS = {
+  age: (v) => {
+    if (v === '') return 'Age is required';
+    const n = Number(v);
+    if (Number.isNaN(n)) return 'Must be a number';
+    if (n < 0 || n > 120) return 'Must be between 0 and 120';
+    return null;
+  },
+  infection_freq: (v) => {
+    if (v === '') return 'Infection frequency is required';
+    const n = Number(v);
+    if (Number.isNaN(n)) return 'Must be a number';
+    if (n < 0 || n > 3) return 'Must be between 0 and 3';
+    return null;
+  },
+  year: (v) => {
+    if (v === '') return 'Year is required';
+    const n = Number(v);
+    if (Number.isNaN(n)) return 'Must be a number';
+    if (n < 2000 || n > 2030) return 'Must be between 2000 and 2030';
+    return null;
+  },
+  month: (v) => {
+    if (v === '') return 'Month is required';
+    const n = Number(v);
+    if (Number.isNaN(n)) return 'Must be a number';
+    if (n < 1 || n > 12) return 'Must be between 1 and 12';
+    return null;
+  },
+};
+
 function SectionLabel({ children }) {
   return (
     <div className="mb-3.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#8E8E93]">
       {children}
+    </div>
+  );
+}
+
+function Field({ label, children }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block font-sans text-[13px] font-medium text-[#C7C7CC]">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function TextInput({ name, value, onChange, onBlur, type = 'text', error, touched, ...rest }) {
+  const showError = touched && error;
+  return (
+    <div>
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        className={`w-full rounded-[10px] border bg-panel-raised px-3.5 py-2.5 font-sans text-[15px] text-onpanel-ink placeholder:text-onpanel-faint outline-none transition-all duration-150 ${
+          showError
+            ? 'border-resistant focus:border-resistant focus:shadow-[0_0_0_4px_rgba(255,59,48,0.15)]'
+            : 'border-panel-border focus:border-accent-blue focus:shadow-focus-ring'
+        }`}
+        {...rest}
+      />
+      {showError && (
+        <p className="mt-1.5 font-sans text-[12px] text-resistant">{error}</p>
+      )}
+    </div>
+  );
+}
+
+function SelectInput({ name, value, onChange, options }) {
+  return (
+    <div className="relative">
+      <select
+        name={name}
+        value={value}
+        onChange={onChange}
+        className="w-full appearance-none rounded-[10px] border border-panel-border bg-panel-raised px-3.5 py-2.5 pr-9 font-sans text-[15px] text-onpanel-ink outline-none transition-all duration-150 focus:border-accent-blue focus:shadow-focus-ring cursor-pointer"
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt} className="bg-panel-raised text-onpanel-ink">{opt}</option>
+        ))}
+      </select>
+      <svg className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-onpanel-faint" width="12" height="8" viewBox="0 0 12 8" fill="none">
+        <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </div>
   );
 }
@@ -36,6 +119,19 @@ function PredictionInputPage() {
     month: new Date().getMonth() + 1,
     organism: location.state?.organism || 'Escherichia coli',
   });
+
+  const [touched, setTouched] = useState({});
+
+  const fieldErrors = useMemo(() => {
+    const errors = {};
+    Object.keys(VALIDATORS).forEach((key) => {
+      const err = VALIDATORS[key](String(formData[key]));
+      if (err) errors[key] = err;
+    });
+    return errors;
+  }, [formData]);
+
+  const isFormValid = Object.keys(fieldErrors).length === 0;
 
   const filledCount = useMemo(() => {
     let count = 2;
@@ -59,11 +155,23 @@ function PredictionInputPage() {
     }));
   }
 
+  function handleBlur(e) {
+    setTouched((prev) => ({ ...prev, [e.target.name]: true }));
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
+    // Mark all validated fields touched so any remaining errors show up
+    setTouched({ age: true, infection_freq: true, year: true, month: true });
+
+    if (!isFormValid) {
+      setError('Please fix the highlighted fields before submitting.');
+      return;
+    }
+
+    setLoading(true);
     try {
       const payload = {
         ...formData,
@@ -119,7 +227,12 @@ function PredictionInputPage() {
                 <SectionLabel>Demographics</SectionLabel>
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Age">
-                    <TextInput name="age" type="number" value={formData.age} onChange={handleChange} required min="0" max="120" placeholder="e.g. 45" />
+                    <TextInput
+                      name="age" type="number" value={formData.age}
+                      onChange={handleChange} onBlur={handleBlur}
+                      error={fieldErrors.age} touched={touched.age}
+                      placeholder="e.g. 45"
+                    />
                   </Field>
                   <Field label="Gender">
                     <SelectInput name="gender" value={formData.gender} onChange={handleChange} options={['Male', 'Female']} />
@@ -140,13 +253,28 @@ function PredictionInputPage() {
                 <SectionLabel>Encounter details</SectionLabel>
                 <div className="grid grid-cols-3 gap-4">
                   <Field label="Infection frequency">
-                    <TextInput name="infection_freq" type="number" step="0.1" value={formData.infection_freq} onChange={handleChange} required min="0" max="3" placeholder="e.g. 1.5" />
+                    <TextInput
+                      name="infection_freq" type="number" step="0.1" value={formData.infection_freq}
+                      onChange={handleChange} onBlur={handleBlur}
+                      error={fieldErrors.infection_freq} touched={touched.infection_freq}
+                      placeholder="e.g. 1.5"
+                    />
                   </Field>
                   <Field label="Year">
-                    <TextInput name="year" type="number" value={formData.year} onChange={handleChange} required min="2000" max="2030" placeholder="2026" />
+                    <TextInput
+                      name="year" type="number" value={formData.year}
+                      onChange={handleChange} onBlur={handleBlur}
+                      error={fieldErrors.year} touched={touched.year}
+                      placeholder="2026"
+                    />
                   </Field>
                   <Field label="Month">
-                    <TextInput name="month" type="number" value={formData.month} onChange={handleChange} required min="1" max="12" placeholder="1–12" />
+                    <TextInput
+                      name="month" type="number" value={formData.month}
+                      onChange={handleChange} onBlur={handleBlur}
+                      error={fieldErrors.month} touched={touched.month}
+                      placeholder="1–12"
+                    />
                   </Field>
                 </div>
               </div>
