@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HistoryHeader from '../components/history/HistoryHeader';
 import HistoryStats from '../components/history/HistoryStats';
@@ -17,7 +17,6 @@ const mockPredictions = [
     antibiotic: 'Ciprofloxacin',
     result: 'R',
     confidence: 94.2,
-    status: 'Completed',
     inputValues: {
       age: 45,
       sex: 'Female',
@@ -37,7 +36,6 @@ const mockPredictions = [
     antibiotic: 'Vancomycin',
     result: 'S',
     confidence: 98.7,
-    status: 'Completed',
     inputValues: {
       age: 62,
       sex: 'Male',
@@ -57,7 +55,6 @@ const mockPredictions = [
     antibiotic: 'Amoxicillin',
     result: 'I',
     confidence: 76.1,
-    status: 'Completed',
     inputValues: {
       age: 34,
       sex: 'Female',
@@ -77,7 +74,6 @@ const mockPredictions = [
     antibiotic: 'Meropenem',
     result: 'S',
     confidence: 91.5,
-    status: 'Completed',
     inputValues: {
       age: 55,
       sex: 'Male',
@@ -97,7 +93,6 @@ const mockPredictions = [
     antibiotic: 'Gentamicin',
     result: 'R',
     confidence: 88.9,
-    status: 'Completed',
     inputValues: {
       age: 71,
       sex: 'Female',
@@ -117,7 +112,6 @@ const mockPredictions = [
     antibiotic: 'Penicillin',
     result: 'I',
     confidence: 82.3,
-    status: 'Completed',
     inputValues: {
       age: 28,
       sex: 'Male',
@@ -137,7 +131,6 @@ const mockPredictions = [
     antibiotic: 'Ceftriaxone',
     result: 'R',
     confidence: 96.4,
-    status: 'Pending',
     inputValues: {
       age: 49,
       sex: 'Female',
@@ -157,7 +150,6 @@ const mockPredictions = [
     antibiotic: 'Trimethoprim',
     result: 'S',
     confidence: 93.8,
-    status: 'Completed',
     inputValues: {
       age: 39,
       sex: 'Male',
@@ -177,7 +169,6 @@ const mockPredictions = [
     antibiotic: 'Erythromycin',
     result: 'R',
     confidence: 85.7,
-    status: 'Failed',
     inputValues: {
       age: 58,
       sex: 'Female',
@@ -197,7 +188,6 @@ const mockPredictions = [
     antibiotic: 'Ciprofloxacin',
     result: 'I',
     confidence: 79.4,
-    status: 'Completed',
     inputValues: {
       age: 67,
       sex: 'Male',
@@ -233,7 +223,6 @@ const HistoryPage = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('timeline');
-  const [searching, setSearching] = useState(false);
   const itemsPerPage = 10;
 
   useEffect(() => {
@@ -300,71 +289,57 @@ const HistoryPage = () => {
     });
   };
 
-  // Debounced search
   useEffect(() => {
-    const timer = setTimeout(() => {
-      applyFilters();
-    }, 300);
+    let filtered = [...predictions];
 
-    return () => clearTimeout(timer);
+    if (filters.search) {
+      const searchLower = filters.search.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.id.toLowerCase().includes(searchLower) ||
+        item.organism.toLowerCase().includes(searchLower) ||
+        item.antibiotic.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (filters.status !== 'All') {
+      filtered = filtered.filter(item => item.result === filters.status);
+    }
+
+    if (filters.antibiotic !== 'All') {
+      filtered = filtered.filter(item => item.antibiotic === filters.antibiotic);
+    }
+
+    if (filters.organism !== 'All') {
+      filtered = filtered.filter(item => item.organism === filters.organism);
+    }
+
+    if (filters.dateRange !== 'All') {
+      const days = parseInt(filters.dateRange);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      filtered = filtered.filter(item => new Date(item.date) >= cutoff);
+    }
+
+    switch (filters.sort) {
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
+        break;
+      case 'confidence-high':
+        filtered.sort((a, b) => b.confidence - a.confidence);
+        break;
+      case 'confidence-low':
+        filtered.sort((a, b) => a.confidence - b.confidence);
+        break;
+      default:
+        break;
+    }
+
+    setFilteredPredictions(filtered);
+    setCurrentPage(1);
   }, [filters, predictions]);
-
-  const applyFilters = () => {
-    setSearching(true);
-    
-    setTimeout(() => {
-      let filtered = [...predictions];
-
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filtered = filtered.filter(item =>
-          item.id.toLowerCase().includes(searchLower) ||
-          item.organism.toLowerCase().includes(searchLower) ||
-          item.antibiotic.toLowerCase().includes(searchLower)
-        );
-      }
-
-      if (filters.status !== 'All') {
-        filtered = filtered.filter(item => item.result === filters.status);
-      }
-
-      if (filters.antibiotic !== 'All') {
-        filtered = filtered.filter(item => item.antibiotic === filters.antibiotic);
-      }
-
-      if (filters.organism !== 'All') {
-        filtered = filtered.filter(item => item.organism === filters.organism);
-      }
-
-      if (filters.dateRange !== 'All') {
-        const days = parseInt(filters.dateRange);
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - days);
-        filtered = filtered.filter(item => new Date(item.date) >= cutoff);
-      }
-
-      switch (filters.sort) {
-        case 'newest':
-          filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-          break;
-        case 'oldest':
-          filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
-          break;
-        case 'confidence-high':
-          filtered.sort((a, b) => b.confidence - a.confidence);
-          break;
-        case 'confidence-low':
-          filtered.sort((a, b) => a.confidence - b.confidence);
-          break;
-        default:
-          break;
-      }
-
-      setFilteredPredictions(filtered);
-      setCurrentPage(1);
-      setSearching(false);
-    }, 200);
-  };
 
   const handleExport = () => {
     const dataToExport = filteredPredictions;
@@ -431,13 +406,6 @@ const HistoryPage = () => {
     setViewMode(mode);
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Delete this prediction record?')) {
-      setPredictions(prev => prev.filter(p => p.id !== id));
-      setFilteredPredictions(prev => prev.filter(p => p.id !== id));
-    }
-  };
-
   const antibioticOptions = ['All', ...new Set(predictions.map(p => p.antibiotic))];
   const organismOptions = ['All', ...new Set(predictions.map(p => p.organism))];
 
@@ -469,30 +437,18 @@ const HistoryPage = () => {
               onFilterChange={setFilters}
               antibioticOptions={antibioticOptions}
               organismOptions={organismOptions}
-              searching={searching}
+              totalResults={filteredPredictions.length}
             />
             
-            {filteredPredictions.length === 0 ? (
-              <div className="bg-paper border border-hairline rounded-xl py-12 px-4 text-center">
-                <p className="font-sans text-ink-muted">
-                  No predictions match your current filters.
-                </p>
-              </div>
-            ) : viewMode === 'timeline' ? (
-              <HistoryTimeline 
-                key="timeline-view" 
-                predictions={paginatedPredictions} 
-                onDelete={handleDelete}
-              />
+            {viewMode === 'timeline' ? (
+              <HistoryTimeline predictions={paginatedPredictions} />
             ) : (
               <HistoryTable 
-                key="table-view"
                 predictions={paginatedPredictions}
                 currentPage={currentPage}
                 itemsPerPage={itemsPerPage}
                 totalItems={filteredPredictions.length}
                 onPageChange={setCurrentPage}
-                onDelete={handleDelete}
               />
             )}
             

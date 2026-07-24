@@ -4,9 +4,9 @@ import HistoryTimelineEvent from './HistoryTimelineEvent';
 const HistoryTimeline = ({ predictions }) => {
   const [expandedId, setExpandedId] = useState(null);
 
-  if (!predictions.length) {
+  if (!predictions || !predictions.length) {
     return (
-      <div className="bg-paper border border-hairline rounded-xl py-12 px-4 text-center">
+      <div className="bg-paper border border-hairline rounded-lg py-12 px-4 text-center">
         <p className="font-sans text-ink-muted">
           No predictions match your current filters.
         </p>
@@ -36,41 +36,41 @@ const HistoryTimeline = ({ predictions }) => {
   const dateKeys = Object.keys(groupedPredictions);
 
   return (
-    <div className="mb-8 animate-fadeInUp" style={{ animationDelay: '200ms' }}>
-      <div className="relative">
-        {/* Timeline vertical line */}
-        <div className="absolute left-[15px] top-0 bottom-0 w-px bg-hairline" />
-        
-        {dateKeys.map((dateKey, dateIndex) => (
-          <div key={dateKey} className="mb-6 last:mb-0">
-            {/* Date header */}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-[30px] h-[30px] rounded-full bg-paper border-2 border-hairline flex items-center justify-center z-10 relative">
-                <div className="w-2.5 h-2.5 rounded-full bg-teal" />
-              </div>
-              <span className="font-mono text-xs tracking-wider uppercase text-ink-muted">
-                {dateKey}
-              </span>
-              <span className="text-ink-faint text-xs font-sans">
-                {groupedPredictions[dateKey].length} prediction{groupedPredictions[dateKey].length > 1 ? 's' : ''}
-              </span>
-            </div>
-            
-            {/* Events for this date */}
-            <div className="ml-[46px] space-y-3">
-              {groupedPredictions[dateKey].map((prediction, index) => (
-                <HistoryTimelineEvent
-                  key={prediction.id}
-                  prediction={prediction}
-                  isExpanded={expandedId === prediction.id}
-                  onToggle={() => toggleExpand(prediction.id)}
-                  index={index}
-                />
-              ))}
-            </div>
+    <div className="relative mb-8">
+      {/* ✅ Vertical line - fixed position */}
+      <div className="absolute left-[23px] top-0 bottom-0 w-px bg-hairline/60" />
+      
+      {dateKeys.map((dateKey, dateIndex) => (
+        <div 
+          key={dateKey} 
+          className="relative mb-10 last:mb-0"
+        >
+          {/* Date group header */}
+          <div className="relative flex items-center gap-3 mb-4 pl-[46px]">
+            {/* ✅ Dot - perfectly centered on the line */}
+            <div className="absolute left-[19px] top-1/2 -translate-y-1/2 w-[9px] h-[9px] rounded-full bg-teal ring-4 ring-paper z-10" />
+            <span className="font-mono text-[12px] tracking-[0.14em] uppercase text-ink-soft">
+              {dateKey}
+            </span>
+            <span className="font-mono text-[11px] text-ink-faint">
+              · {groupedPredictions[dateKey].length} prediction{groupedPredictions[dateKey].length > 1 ? 's' : ''}
+            </span>
           </div>
-        ))}
-      </div>
+          
+          {/* Events for this date */}
+          <div className="space-y-1 pl-[46px]">
+            {groupedPredictions[dateKey].map((prediction, index) => (
+              <HistoryTimelineEvent
+                key={prediction.id}
+                prediction={prediction}
+                isExpanded={expandedId === prediction.id}
+                onToggle={() => toggleExpand(prediction.id)}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

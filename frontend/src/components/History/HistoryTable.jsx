@@ -12,8 +12,8 @@ const HistoryTable = ({
 
   if (!predictions || predictions.length === 0) {
     return (
-      <div className="bg-paper border border-ink/10 rounded-xl py-12 px-4 text-center">
-        <p className="font-sans text-ink/40">
+      <div className="bg-paper border border-hairline rounded-lg py-12 px-4 text-center">
+        <p className="font-sans text-ink-muted">
           No predictions match your current filters.
         </p>
       </div>
@@ -71,11 +71,29 @@ const HistoryTable = ({
     }
   };
 
+  const getResultColor = (result) => {
+    switch (result) {
+      case 'R': return 'text-resistant';
+      case 'S': return 'text-susceptible';
+      case 'I': return 'text-intermediate';
+      default: return 'text-ink-muted';
+    }
+  };
+
+  const getResultDotColor = (result) => {
+    switch (result) {
+      case 'R': return 'bg-resistant';
+      case 'S': return 'bg-susceptible';
+      case 'I': return 'bg-intermediate';
+      default: return 'bg-ink-faint';
+    }
+  };
+
   const getStatusDot = (status) => {
     switch (status) {
-      case 'Completed': return 'bg-green-500';
-      case 'Pending': return 'bg-amber-500';
-      case 'Failed': return 'bg-red-400';
+      case 'Completed': return 'bg-success';
+      case 'Pending': return 'bg-intermediate';
+      case 'Failed': return 'bg-destructive';
       default: return 'bg-ink/30';
     }
   };
@@ -99,128 +117,84 @@ const HistoryTable = ({
 
   return (
     <div className="mb-8">
-      <div className="bg-paper border border-ink/10 rounded-xl overflow-hidden">
+      <div className="bg-paper border border-hairline rounded-lg overflow-hidden">
         {/* Table Header */}
-        <div className="grid grid-cols-12 gap-3 px-5 py-3.5 border-b border-ink/10 bg-paper/50">
-          <div className="col-span-1 font-mono text-[10px] tracking-wider uppercase text-ink/30">
-            #
-          </div>
-          <div className="col-span-2 font-mono text-[10px] tracking-wider uppercase text-ink/30">
-            Date & Time
-          </div>
-          <div className="col-span-2 font-mono text-[10px] tracking-wider uppercase text-ink/30">
-            Sample ID
-          </div>
-          <div className="col-span-2 font-mono text-[10px] tracking-wider uppercase text-ink/30">
-            Organism
-          </div>
-          <div className="col-span-2 font-mono text-[10px] tracking-wider uppercase text-ink/30">
-            Antibiotic
-          </div>
-          <div className="col-span-1 font-mono text-[10px] tracking-wider uppercase text-ink/30 text-center">
-            Result
-          </div>
-          <div className="col-span-1 font-mono text-[10px] tracking-wider uppercase text-ink/30 text-center">
-            Confidence
-          </div>
-          <div className="col-span-1 font-mono text-[10px] tracking-wider uppercase text-ink/30 text-right">
-            Status
-          </div>
+        <div className="flex items-center px-5 py-3 border-b border-hairline bg-paper/50">
+          <div className="w-[50px] flex-shrink-0 font-mono text-[10px] tracking-wider uppercase text-ink-faint text-center">#</div>
+          <div className="w-[120px] flex-shrink-0 font-mono text-[10px] tracking-wider uppercase text-ink-faint">Date & Time</div>
+          <div className="w-[130px] flex-shrink-0 font-mono text-[10px] tracking-wider uppercase text-ink-faint">Sample ID</div>
+          <div className="flex-1 min-w-[100px] font-mono text-[10px] tracking-wider uppercase text-ink-faint">Organism</div>
+          <div className="flex-1 min-w-[100px] font-mono text-[10px] tracking-wider uppercase text-ink-faint">Antibiotic</div>
+          <div className="w-[100px] flex-shrink-0 font-mono text-[10px] tracking-wider uppercase text-ink-faint text-center">Result</div>
+          <div className="w-[120px] flex-shrink-0 font-mono text-[10px] tracking-wider uppercase text-ink-faint text-center">Confidence</div>
+          <div className="w-[100px] flex-shrink-0 font-mono text-[10px] tracking-wider uppercase text-ink-faint text-right">Status</div>
         </div>
 
         {/* Table Rows */}
-        <div className="divide-y divide-ink/5">
+        <div className="divide-y divide-hairline/50">
           {predictions.map((prediction, index) => {
             const isHovered = hoveredRow === prediction.id;
             
             return (
               <div 
                 key={prediction.id}
-                className="grid grid-cols-12 gap-3 px-5 py-3 items-center transition-all duration-150 hover:bg-ink/5"
+                className="flex items-center px-5 py-3 min-h-[56px] hover:bg-ink/5 transition-colors duration-150"
                 onMouseEnter={() => setHoveredRow(prediction.id)}
                 onMouseLeave={() => setHoveredRow(null)}
               >
-                <div className="col-span-1 text-center font-sans text-sm text-ink/40">
+                <div className="w-[50px] flex-shrink-0 text-center font-sans text-sm text-ink/40">
                   {startIndex + index + 1}
                 </div>
-                <div className="col-span-2">
-                  <div className="font-sans text-xs text-ink">
-                    {formatDate(prediction.date)}
-                  </div>
-                  <div className="font-mono text-[10px] text-ink/40">
-                    {formatTime(prediction.date)}
-                  </div>
+                
+                <div className="w-[120px] flex-shrink-0">
+                  <div className="font-sans text-xs text-ink">{formatDate(prediction.date)}</div>
+                  <div className="font-mono text-[10px] text-ink/40">{formatTime(prediction.date)}</div>
                 </div>
-                <div className="col-span-2">
-                  <span className="font-mono text-xs text-ink font-medium">
+                
+                <div className="w-[130px] flex-shrink-0">
+                  <span className="font-mono text-xs text-ink font-medium truncate block">
                     {prediction.id}
                   </span>
                 </div>
-                <div className="col-span-2 font-sans text-sm text-ink">
-                  {prediction.organism}
+                
+                <div className="flex-1 min-w-[100px]">
+                  <span className="font-sans text-sm text-ink truncate block">
+                    {prediction.organism}
+                  </span>
                 </div>
-                <div className="col-span-2 font-sans text-sm text-ink/60">
-                  {prediction.antibiotic}
+                
+                <div className="flex-1 min-w-[100px]">
+                  <span className="font-sans text-sm text-ink/60 truncate block">
+                    {prediction.antibiotic}
+                  </span>
                 </div>
-                <div className="col-span-1 text-center">
-                  <span className={`font-sans text-xs font-medium px-2 py-0.5 rounded-full bg-ink/5 ${
-                    prediction.result === 'R' ? 'text-ink/80' : 
-                    prediction.result === 'S' ? 'text-emerald-600' : 
-                    'text-amber-600'
-                  }`}>
+                
+                <div className="w-[100px] flex-shrink-0 flex justify-center">
+                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-sans text-xs font-medium ${getResultColor(prediction.result)} border border-hairline`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${getResultDotColor(prediction.result)}`} />
                     {getResultLabel(prediction.result)}
                   </span>
                 </div>
-                <div className="col-span-1">
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="w-12 h-1 bg-ink/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-ink/40 rounded-full transition-all duration-700"
-                        style={{ width: `${prediction.confidence}%` }}
-                      />
-                    </div>
-                    <span className="font-mono text-[10px] text-ink/40">
-                      {prediction.confidence}%
-                    </span>
+                
+                <div className="w-[120px] flex-shrink-0 flex items-center justify-center gap-2">
+                  <div className="w-16 h-1 bg-hairline rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${getResultDotColor(prediction.result)} opacity-70`}
+                      style={{ width: `${prediction.confidence}%` }}
+                    />
                   </div>
+                  <span className="font-mono text-[10px] text-ink/40 min-w-[36px]">
+                    {prediction.confidence}%
+                  </span>
                 </div>
-                <div className="col-span-1 text-right">
+                
+                <div className="w-[100px] flex-shrink-0 text-right">
                   <div className="flex items-center justify-end gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(prediction.status)}`} />
                     <span className="font-sans text-xs text-ink/40">
                       {prediction.status || 'Completed'}
                     </span>
                   </div>
-                </div>
-
-                {/* Actions - fade in on hover */}
-                <div className={`absolute right-4 flex items-center gap-1 transition-opacity duration-150 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                  <button
-                    className="p-1.5 rounded-lg hover:bg-ink/5 transition-colors duration-200 text-ink/30 hover:text-ink/60"
-                    aria-label="View details"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </button>
-                  <button
-                    className="p-1.5 rounded-lg hover:bg-ink/5 transition-colors duration-200 text-ink/30 hover:text-ink/60"
-                    aria-label="Download PDF"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => onDelete && onDelete(prediction.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 transition-colors duration-200 text-ink/20 hover:text-red-400"
-                    aria-label="Delete"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
                 </div>
               </div>
             );

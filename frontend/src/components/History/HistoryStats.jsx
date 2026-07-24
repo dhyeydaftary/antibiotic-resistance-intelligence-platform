@@ -30,60 +30,49 @@ const HistoryStats = ({ stats }) => {
     animate();
   }, [stats.total, stats.thisWeek, stats.avgResistance]);
 
-  // ✅ CORRECT ICONS:
-  // Total Predictions → Flask/Beaker glyph
+  // 14px line icons - no circle background
   const FlaskIcon = () => (
-    <svg className="w-4 h-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 9.5M10 4l.5 9.5M14 4l-.5 9.5M12 20c-1.5 0-3-.5-3-2.5V4h6v13.5c0 2-1.5 2.5-3 2.5z" />
     </svg>
   );
 
-  // This Week → Calendar glyph
   const CalendarIcon = () => (
-    <svg className="w-4 h-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   );
 
-  // Avg Resistance → Gauge/Percentage arc glyph
   const GaugeIcon = () => (
-    <svg className="w-4 h-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2v4m0 4v4m8-6h-4M8 12H4m12 6.36l-2.83-2.83M8.83 17.53l-2.83 2.83M18 12a6 6 0 11-12 0 6 6 0 0112 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 10v2h2" />
     </svg>
   );
 
-  // Last Prediction → Clock glyph
   const ClockIcon = () => (
-    <svg className="w-4 h-4 text-ink-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="w-[14px] h-[14px] text-ink-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   );
 
-  // ✅ 4 CARDS - "Most Frequent" REMOVED
-  const statCards = [
+  const statItems = [
     {
       label: 'Total Predictions',
       value: counts.total,
-      trend: '+8%',
-      trendUp: true,
-      isNeutralTrend: true, // Volume metric - neutral, no color
+      delta: '+8%',
       icon: FlaskIcon,
     },
     {
       label: 'This Week',
       value: counts.thisWeek,
-      trend: '+3',
-      trendUp: true,
-      isNeutralTrend: true, // Volume metric - neutral, no color
+      delta: '+3',
       icon: CalendarIcon,
     },
     {
       label: 'Avg Resistance',
       value: `${counts.avgResistance}%`,
-      trend: '+2%',
-      trendUp: true,
-      isNeutralTrend: false, // Directional metric - color matters
+      delta: '+2%',
       icon: GaugeIcon,
     },
     {
@@ -94,63 +83,41 @@ const HistoryStats = ({ stats }) => {
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-      {statCards.map((card, index) => {
-        const IconComponent = card.icon;
-        const hasTrend = card.trend !== undefined;
-        
-        // ✅ Trend color logic:
-        // - Neutral metrics (volume): ink-muted always
-        // - Directional metrics (resistance): resistant if going up, success if going down
-        let trendColor = 'text-ink-muted';
-        let arrowSymbol = '↑';
-        
-        if (hasTrend) {
-          // Determine direction
-          const isUp = card.trendUp !== undefined ? card.trendUp : true;
-          arrowSymbol = isUp ? '↑' : '↓';
-          
-          if (card.isNeutralTrend) {
-            // Volume metrics: always muted
-            trendColor = 'text-ink-muted';
-          } else {
-            // Directional metrics: color based on direction
-            if (isUp) {
-              trendColor = 'text-resistant';
-            } else {
-              trendColor = 'text-success';
-            }
-          }
-        }
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-y-8 gap-x-6 py-6 border-b border-hairline mb-8">
+      {statItems.map((item, index) => {
+        const IconComponent = item.icon;
+        const hasDelta = item.delta !== undefined;
 
         return (
-          <div
-            key={index}
-            className="bg-paper border border-hairline rounded-lg px-5 py-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-ink-soft/40 group"
-          >
+          <div key={index} className="relative">
+            {/* Vertical divider between columns (except last) */}
+            {index > 0 && (
+              <div className="hidden sm:block absolute -left-3 top-0 bottom-0 w-px bg-hairline" />
+            )}
+            
             <div className="flex items-start justify-between">
-              <span className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
-                {card.label}
-              </span>
-              {/* ✅ Circle: hairline/25 bg, hairline border, 36px */}
-              <div className="w-9 h-9 rounded-full border border-hairline bg-hairline/25 flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105">
+              <div>
+                <span className="font-mono text-[11px] tracking-[0.16em] uppercase text-ink-faint">
+                  {item.label}
+                </span>
+                <div className="mt-2 font-serif text-[48px] font-light text-ink leading-none tabular-nums">
+                  {item.value}
+                </div>
+                {hasDelta && (
+                  <div className="mt-1.5 flex items-center gap-1">
+                    <span className="font-mono text-xs text-ink-soft">
+                      ↑ {item.delta}
+                    </span>
+                    <span className="font-mono text-[10px] text-ink-faint">
+                      vs last week
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="mt-1 flex-shrink-0">
                 <IconComponent />
               </div>
             </div>
-            
-            <div className="mt-3">
-              <span className="font-serif text-xl sm:text-2xl font-medium text-ink">
-                {card.value}
-              </span>
-            </div>
-            
-            {hasTrend && (
-              <div className="mt-1 flex items-center gap-1">
-                <span className={`text-xs font-mono tracking-wider ${trendColor}`}>
-                  {arrowSymbol} {card.trend}
-                </span>
-              </div>
-            )}
           </div>
         );
       })}
