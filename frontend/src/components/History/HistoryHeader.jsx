@@ -17,19 +17,30 @@ const HistoryHeader = ({
 
   return (
     <div className="mb-10">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      {/* Eyebrow */}
+      <div className="flex items-center gap-2 mb-3">
+        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-faint">
+          Archive · 2026
+        </span>
+        <span className="text-ink-faint/30">|</span>
+        <span className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-faint/50">
+          Research Ledger
+        </span>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
         <div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-medium text-ink tracking-tight">
+          <h1 className="font-serif text-[44px] font-light text-ink tracking-[-0.02em] leading-none">
             Analysis History
           </h1>
-          <p className="font-sans text-ink-muted mt-2 text-sm leading-relaxed max-w-2xl">
+          <p className="font-sans text-ink-muted mt-3 text-sm leading-relaxed max-w-[60ch]">
             Review past AMR predictions and export results. Each record captures 
             resistance profiles, confidence scores, and clinical context.
           </p>
         </div>
         
         <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-          {/* New Analysis - Primary Action */}
+          {/* New Analysis - Primary filled button */}
           <button
             onClick={onNewAnalysis}
             className="font-sans text-sm bg-ink text-paper px-4 py-2 rounded-lg hover:bg-ink/90 transition-all duration-200 flex items-center gap-2"
@@ -40,46 +51,35 @@ const HistoryHeader = ({
             New Analysis
           </button>
 
-          {/* View Toggle */}
-          <div className="flex items-center gap-1 p-0.5 border border-hairline rounded-lg bg-paper">
+          {/* View Toggle - Segmented control */}
+          <div className="flex items-center p-0.5 border border-hairline rounded-lg bg-paper">
             <button
               onClick={() => onViewModeChange('timeline')}
               className={`px-3 py-1.5 font-sans text-xs rounded-md transition-all duration-200 ${
                 viewMode === 'timeline'
-                  ? 'bg-ink/10 text-ink'
-                  : 'text-ink-muted hover:text-ink hover:bg-ink/5'
+                  ? 'bg-paper text-ink ring-1 ring-hairline'
+                  : 'text-ink-soft hover:text-ink'
               }`}
-              aria-label="Timeline view"
             >
-              <span className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-                Timeline
-              </span>
+              Timeline
             </button>
             <button
               onClick={() => onViewModeChange('table')}
               className={`px-3 py-1.5 font-sans text-xs rounded-md transition-all duration-200 ${
                 viewMode === 'table'
-                  ? 'bg-ink/10 text-ink'
-                  : 'text-ink-muted hover:text-ink hover:bg-ink/5'
+                  ? 'bg-paper text-ink ring-1 ring-hairline'
+                  : 'text-ink-soft hover:text-ink'
               }`}
-              aria-label="Table view"
             >
-              <span className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M3 14h18M3 18h18M3 6h18" />
-                </svg>
-                Table
-              </span>
+              Table
             </button>
           </div>
 
+          {/* Refresh - Ghost icon button */}
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="font-sans text-sm text-ink-muted hover:text-ink transition-all duration-200 px-3 py-1.5 border border-hairline rounded-lg hover:border-ink/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="font-sans text-sm text-ink-soft hover:text-ink transition-all duration-200 px-3 py-2 rounded-lg hover:border hover:border-hairline disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span className="flex items-center gap-1.5">
               <svg 
@@ -96,9 +96,10 @@ const HistoryHeader = ({
             </span>
           </button>
           
+          {/* Export - Ghost icon button */}
           <button
             onClick={onExport}
-            className="font-sans text-sm text-ink-muted hover:text-ink transition-all duration-200 px-3 py-1.5 border border-hairline rounded-lg hover:border-ink/20"
+            className="font-sans text-sm text-ink-soft hover:text-ink transition-all duration-200 px-3 py-2 rounded-lg hover:border hover:border-hairline"
           >
             <span className="flex items-center gap-1.5">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,6 +110,9 @@ const HistoryHeader = ({
           </button>
         </div>
       </div>
+
+      {/* Hairline divider */}
+      <div className="w-full h-px bg-hairline mt-8" />
     </div>
   );
 };
