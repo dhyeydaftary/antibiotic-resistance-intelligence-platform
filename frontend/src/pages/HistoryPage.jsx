@@ -1,296 +1,218 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getHistory } from '../api/historyApi';
 import { downloadPdf, downloadCsv, downloadJson } from '../utils/reportGenerator';
 import HistoryHeader from '../components/history/HistoryHeader';
 import HistoryStats from '../components/history/HistoryStats';
-import HistoryFilters from '../components/history/HistoryFilters';
+import HistoryInsights from '../components/history/HistoryInsights';
+import HistoryFilterBar from '../components/history/HistoryFilterBar';
 import HistoryTimeline from '../components/history/HistoryTimeline';
 import HistoryTable from '../components/history/HistoryTable';
-import HistoryInsights from '../components/history/HistoryInsights';
 import EmptyHistory from '../components/history/EmptyHistory';
 import HistorySkeleton from '../components/history/HistorySkeleton';
 
-function flattenRecord(record) {
-  const organism = record.inputData?.organism || 'Unknown';
-  const date = record.createdAt;
+const DEFAULT_FILTERS = {
+  search: '', status: 'All', dateFrom: '', dateTo: '', antibiotic: 'All', organism: 'All', sort: 'newest',
+};
 
-  return (record.predictions || []).map((p) => ({
-    id: `${record._id}-${p.antibiotic}`,
-    recordId: record._id,
-    date,
-    organism,
-    antibiotic: p.antibiotic,
-    result: p.result,
-    confidence: Math.round((p.confidence || 0) * 100),
-    status: 'Completed',
-    awarClass: p.awareCategory,
-    shapExplanation: p.shapExplanation,
+function summarizeRecord(record) {
+  const preds = record.predictions || [];
+  const counts = preds.reduce((acc, p) => ({ ...acc, [p.result]: (acc[p.result] || 0) + 1 }), {});
+  const avgConfidence = preds.length ? preds.reduce((sum, p) => sum + (p.confidence || 0), 0) / preds.length : 0;
+  return {
+    id: record._id,
+    date: record.createdAt,
+    organism: record.inputData?.organism || 'Unknown',
+    predictions: preds,
     aiInsights: record.aiInsights,
     inputData: record.inputData,
-    predictions: record.predictions,
-  }));
+    resistantCount: counts.R || 0,
+    susceptibleCount: counts.S || 0,
+    intermediateCount: counts.I || 0,
+    total: preds.length,
+    avgConfidence,
+  };
 }
 
-function buildReportItem(prediction) {
-  return {
-    _id: prediction.recordId,
-    createdAt: prediction.date,
-    inputData: prediction.inputData,
-    predictions: prediction.predictions,
-    aiInsights: prediction.aiInsights,
-  };
+function buildReportItem(record) {
+  return { _id: record.id, createdAt: record.date, inputData: record.inputData, predictions: record.predictions, aiInsights: record.aiInsights };
+}
+
+// Calendar-day diff, not raw millisecond diff — fixes "Today" showing for yesterday's prediction
+function daysAgoLabel(dateValue) {
+  const now = new Date();
+  const target = new Date(dateValue);
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfTarget = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const diffDays = Math.round((startOfToday - startOfTarget) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays > 1 && diffDays < 7) return `${diffDays} days ago`;
+  return target.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 const HistoryPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [rawRecords, setRawRecords] = useState([]);
-  const [predictions, setPredictions] = useState([]);
-  const [filteredPredictions, setFilteredPredictions] = useState([]);
-  const [stats, setStats] = useState({
-    total: 0,
-    thisWeek: 0,
-    avgResistance: 0,
-    lastPrediction: 'No predictions yet'
-  });
-  const [filters, setFilters] = useState({
-    search: '',
-    status: 'All',
-    dateRange: 'All',
-    antibiotic: 'All',
-    organism: 'All',
-    sort: 'newest'
-  });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState('timeline');
-  const itemsPerPage = 10;
+  const itemsPerPage = 8;
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     try {
       const result = await getHistory();
-      const records = result?.data?.history || [];
-      const flattened = records.flatMap(flattenRecord);
-
-      setRawRecords(records);
-      setPredictions(flattened);
-      setFilteredPredictions(flattened);
-      calculateStats(records, flattened);
+      setRawRecords(result?.data?.history || []);
     } catch (err) {
       console.error('Failed to load history:', err);
       setRawRecords([]);
-      setPredictions([]);
-      setFilteredPredictions([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+  useEffect(() => { fetchHistory(); }, [fetchHistory]);
 
-  const calculateStats = (records, flattened) => {
-    if (!records.length) {
-      setStats({
-        total: 0,
-        thisWeek: 0,
-        avgResistance: 0,
-        lastPrediction: 'No predictions yet'
-      });
-      return;
-    }
+  const summaries = useMemo(() => rawRecords.map(summarizeRecord), [rawRecords]);
 
-    const total = records.length;
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    const thisWeek = records.filter((r) => new Date(r.createdAt) >= weekAgo).length;
+  const stats = useMemo(() => {
+    if (!rawRecords.length) return { total: 0, thisWeek: 0, avgResistance: 0, lastPrediction: 'No predictions yet' };
 
-    const resistantCount = flattened.filter((p) => p.result === 'R').length;
-    const avgResistance = flattened.length
-      ? (resistantCount / flattened.length) * 100
-      : 0;
+    const total = rawRecords.length;
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const thisWeek = rawRecords.filter((r) => new Date(r.createdAt) >= weekAgo).length;
 
-    const sorted = [...records].sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
-    const lastDate = new Date(sorted[0].createdAt);
-    const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+    const allPreds = summaries.flatMap((s) => s.predictions);
+    const resistantCount = allPreds.filter((p) => p.result === 'R').length;
+    const avgResistance = allPreds.length ? (resistantCount / allPreds.length) * 100 : 0;
 
-    let lastLabel;
-    if (diffDays === 0) {
-      lastLabel = 'Today';
-    } else if (diffDays === 1) {
-      lastLabel = 'Yesterday';
-    } else if (diffDays > 1 && diffDays < 7) {
-      lastLabel = `${diffDays} days ago`;
-    } else {
-      lastLabel = lastDate.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      });
-    }
+    const sorted = [...rawRecords].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-    setStats({
-      total,
-      thisWeek,
-      avgResistance: Math.round(avgResistance),
-      lastPrediction: lastLabel
+    return { total, thisWeek, avgResistance: Math.round(avgResistance), lastPrediction: daysAgoLabel(sorted[0].createdAt) };
+  }, [rawRecords, summaries]);
+
+  // Stats per antibiotic/organism, used for hover previews in the filter dropdowns
+  const antibioticStats = useMemo(() => {
+    const map = {};
+    summaries.flatMap((s) => s.predictions).forEach((p) => {
+      if (!map[p.antibiotic]) map[p.antibiotic] = { count: 0, resistant: 0, confidenceSum: 0 };
+      map[p.antibiotic].count += 1;
+      if (p.result === 'R') map[p.antibiotic].resistant += 1;
+      map[p.antibiotic].confidenceSum += p.confidence || 0;
     });
-  };
+    const result = {};
+    Object.entries(map).forEach(([key, v]) => {
+      result[key] = {
+        count: v.count,
+        resistantPct: Math.round((v.resistant / v.count) * 100),
+        avgConfidence: Math.round((v.confidenceSum / v.count) * 100),
+      };
+    });
+    return result;
+  }, [summaries]);
 
-  useEffect(() => {
-    let filtered = [...predictions];
+  const organismStats = useMemo(() => {
+    const map = {};
+    summaries.forEach((s) => {
+      if (!map[s.organism]) map[s.organism] = { count: 0, resistant: 0, total: 0 };
+      map[s.organism].count += 1;
+      map[s.organism].resistant += s.resistantCount;
+      map[s.organism].total += s.total;
+    });
+    const result = {};
+    Object.entries(map).forEach(([key, v]) => {
+      result[key] = { count: v.count, resistantPct: v.total ? Math.round((v.resistant / v.total) * 100) : 0 };
+    });
+    return result;
+  }, [summaries]);
 
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      filtered = filtered.filter(item =>
-        item.id.toLowerCase().includes(searchLower) ||
-        item.organism.toLowerCase().includes(searchLower) ||
-        item.antibiotic.toLowerCase().includes(searchLower)
-      );
-    }
+  const filteredSummaries = useMemo(() => {
+    let filtered = summaries.filter((s) => {
+      if (filters.organism !== 'All' && s.organism !== filters.organism) return false;
 
-    if (filters.status !== 'All') {
-      filtered = filtered.filter(item => item.result === filters.status);
-    }
+      if (filters.dateFrom && new Date(s.date) < new Date(filters.dateFrom)) return false;
+      if (filters.dateTo) {
+        const to = new Date(filters.dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (new Date(s.date) > to) return false;
+      }
 
-    if (filters.antibiotic !== 'All') {
-      filtered = filtered.filter(item => item.antibiotic === filters.antibiotic);
-    }
+      if (filters.antibiotic !== 'All' || filters.status !== 'All') {
+        const matches = s.predictions.some((p) => {
+          const abxOk = filters.antibiotic === 'All' || p.antibiotic === filters.antibiotic;
+          const statusOk = filters.status === 'All' || p.result === filters.status;
+          return abxOk && statusOk;
+        });
+        if (!matches) return false;
+      }
 
-    if (filters.organism !== 'All') {
-      filtered = filtered.filter(item => item.organism === filters.organism);
-    }
+      if (filters.search) {
+        const q = filters.search.toLowerCase();
+        const organismMatch = s.organism.toLowerCase().includes(q);
+        const abxMatch = s.predictions.some((p) => p.antibiotic.toLowerCase().includes(q));
+        if (!organismMatch && !abxMatch) return false;
+      }
 
-    if (filters.dateRange !== 'All') {
-      const days = parseInt(filters.dateRange);
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() - days);
-      filtered = filtered.filter(item => new Date(item.date) >= cutoff);
-    }
+      return true;
+    });
 
     switch (filters.sort) {
-      case 'newest':
-        filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-        break;
-      case 'oldest':
-        filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
-        break;
-      case 'confidence-high':
-        filtered.sort((a, b) => b.confidence - a.confidence);
-        break;
-      case 'confidence-low':
-        filtered.sort((a, b) => a.confidence - b.confidence);
-        break;
-      default:
-        break;
+      case 'newest': filtered.sort((a, b) => new Date(b.date) - new Date(a.date)); break;
+      case 'oldest': filtered.sort((a, b) => new Date(a.date) - new Date(b.date)); break;
+      case 'confidence-high': filtered.sort((a, b) => b.avgConfidence - a.avgConfidence); break;
+      case 'confidence-low': filtered.sort((a, b) => a.avgConfidence - b.avgConfidence); break;
+      default: break;
     }
 
-    setFilteredPredictions(filtered);
-    setCurrentPage(1);
-  }, [filters, predictions]);
+    return filtered;
+  }, [summaries, filters]);
+
+  useEffect(() => { setCurrentPage(1); }, [filters]);
 
   const handleExport = () => {
-    const dataToExport = filteredPredictions;
-
-    if (dataToExport.length === 0) {
-      alert('No data to export.');
-      return;
-    }
-
-    const headers = [
-      'Prediction ID',
-      'Date',
-      'Organism',
-      'Antibiotic',
-      'Result',
-      'Confidence (%)',
-      'WHO AWaRe Class'
-    ];
-
-    const rows = dataToExport.map(p => [
-      p.id,
-      new Date(p.date).toLocaleString(),
-      p.organism,
-      p.antibiotic,
-      p.result === 'R' ? 'Resistant' : p.result === 'S' ? 'Susceptible' : 'Intermediate',
-      p.confidence,
-      p.awarClass || 'Access'
+    if (filteredSummaries.length === 0) { alert('No data to export.'); return; }
+    const headers = ['Date', 'Organism', 'Resistant', 'Susceptible', 'Intermediate', 'Avg Confidence (%)'];
+    const rows = filteredSummaries.map((s) => [
+      new Date(s.date).toLocaleString(), s.organism, s.resistantCount, s.susceptibleCount, s.intermediateCount, Math.round(s.avgConfidence * 100),
     ]);
-
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `predictions_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.href = URL.createObjectURL(blob);
+    link.download = `predictions_export_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
-  const handleRefresh = useCallback(async () => {
-    await fetchHistory();
-  }, [fetchHistory]);
+  const handleNewPrediction = () => navigate('/predict');
 
-  const handleNewPrediction = () => {
-    navigate('/predict');
-  };
-
-  const handleViewModeChange = (mode) => {
-    setViewMode(mode);
-  };
-
-  // --- Restored actions: view full result page, per-record downloads ---
-  const handleViewRecord = useCallback((item) => {
+  const handleViewRecord = useCallback((summary) => {
     navigate('/predict/result/live', {
-      state: {
-        prediction: {
-          predictions: item.predictions,
-          aiInsights: item.aiInsights,
-        },
-        inputData: item.inputData,
-      },
+      state: { prediction: { predictions: summary.predictions, aiInsights: summary.aiInsights }, inputData: summary.inputData },
     });
   }, [navigate]);
 
-  const handleDownloadPdf = useCallback((item) => downloadPdf(buildReportItem(item)), []);
-  const handleDownloadCsv = useCallback((item) => downloadCsv(buildReportItem(item)), []);
-  const handleDownloadJson = useCallback((item) => downloadJson(buildReportItem(item)), []);
+  const handleDownloadPdf = useCallback((s) => downloadPdf(buildReportItem(s)), []);
+  const handleDownloadCsv = useCallback((s) => downloadCsv(buildReportItem(s)), []);
+  const handleDownloadJson = useCallback((s) => downloadJson(buildReportItem(s)), []);
 
-  const antibioticOptions = ['All', ...new Set(predictions.map(p => p.antibiotic))];
-  const organismOptions = ['All', ...new Set(predictions.map(p => p.organism))];
+  const antibioticOptions = ['All', ...new Set(summaries.flatMap((s) => s.predictions.map((p) => p.antibiotic)))];
+  const organismOptions = ['All', ...new Set(summaries.map((s) => s.organism))];
 
   const pageStart = (currentPage - 1) * itemsPerPage;
-  const pageEnd = pageStart + itemsPerPage;
-  const paginatedPredictions = filteredPredictions.slice(pageStart, pageEnd);
+  const paginated = filteredSummaries.slice(pageStart, pageStart + itemsPerPage);
+  const totalPages = Math.ceil(filteredSummaries.length / itemsPerPage);
+
+  const actionHandlers = { onView: handleViewRecord, onDownloadPdf: handleDownloadPdf, onDownloadCsv: handleDownloadCsv, onDownloadJson: handleDownloadJson };
 
   return (
-    <div
-      className="min-h-screen w-full px-4 sm:px-6 lg:px-8 py-6"
-      style={{
-        backgroundImage: 'radial-gradient(circle, rgba(138,141,147,0.25) 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-        backgroundColor: '#F7F5F0'
-      }}
-    >
-      <div className="max-w-7xl mx-auto">
-        <HistoryHeader
-          onRefresh={handleRefresh}
-          onExport={handleExport}
-          onNewAnalysis={handleNewPrediction}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-        />
+    <div className="px-6 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl">
+        <HistoryHeader onExport={handleExport} onNewAnalysis={handleNewPrediction} viewMode={viewMode} onViewModeChange={setViewMode} />
 
         {loading ? (
           <HistorySkeleton />
@@ -299,38 +221,24 @@ const HistoryPage = () => {
         ) : (
           <>
             <HistoryStats stats={stats} />
+            <HistoryInsights summaries={summaries} />
 
-            <HistoryFilters
+            <HistoryFilterBar
               filters={filters}
               onFilterChange={setFilters}
+              onClear={() => setFilters(DEFAULT_FILTERS)}
               antibioticOptions={antibioticOptions}
               organismOptions={organismOptions}
-              totalResults={filteredPredictions.length}
+              antibioticStats={antibioticStats}
+              organismStats={organismStats}
+              totalResults={filteredSummaries.length}
             />
 
             {viewMode === 'timeline' ? (
-              <HistoryTimeline
-                predictions={paginatedPredictions}
-                onView={handleViewRecord}
-                onDownloadPdf={handleDownloadPdf}
-                onDownloadCsv={handleDownloadCsv}
-                onDownloadJson={handleDownloadJson}
-              />
+              <HistoryTimeline summaries={paginated} {...actionHandlers} />
             ) : (
-              <HistoryTable
-                predictions={paginatedPredictions}
-                currentPage={currentPage}
-                itemsPerPage={itemsPerPage}
-                totalItems={filteredPredictions.length}
-                onPageChange={setCurrentPage}
-                onRowClick={handleViewRecord}
-                onDownloadPdf={handleDownloadPdf}
-                onDownloadCsv={handleDownloadCsv}
-                onDownloadJson={handleDownloadJson}
-              />
+              <HistoryTable summaries={paginated} currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} {...actionHandlers} />
             )}
-
-            <HistoryInsights predictions={filteredPredictions} />
           </>
         )}
       </div>

@@ -1,205 +1,88 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { Sparkles, FlaskConical, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import Panel from '../app/Panel';
 
-const HistoryInsights = ({ predictions }) => {
+const HistoryInsights = ({ summaries }) => {
   const insights = useMemo(() => {
-    if (!predictions || !predictions.length) return null;
+    if (!summaries || !summaries.length) return null;
 
-    const total = predictions.length;
-    const resistance = predictions.filter(p => p.result === 'R').length;
-    const susceptible = predictions.filter(p => p.result === 'S').length;
-    const intermediate = predictions.filter(p => p.result === 'I').length;
+    const allPreds = summaries.flatMap((s) => s.predictions);
+    const total = allPreds.length;
+    const resistance = allPreds.filter((p) => p.result === 'R').length;
+    const susceptible = allPreds.filter((p) => p.result === 'S').length;
+    const intermediate = allPreds.filter((p) => p.result === 'I').length;
 
     const resistanceRate = Math.round((resistance / total) * 100);
     const susceptibilityRate = Math.round((susceptible / total) * 100);
     const intermediateRate = Math.round((intermediate / total) * 100);
 
     const antibioticCount = {};
-    predictions.forEach(p => {
-      antibioticCount[p.antibiotic] = (antibioticCount[p.antibiotic] || 0) + 1;
-    });
-    const mostCommonAntibiotic = Object.keys(antibioticCount).reduce((a, b) => 
-      antibioticCount[a] > antibioticCount[b] ? a : b
-    );
-    const mostCommonAntibioticPercentage = Math.round((antibioticCount[mostCommonAntibiotic] / total) * 100);
+    allPreds.forEach((p) => { antibioticCount[p.antibiotic] = (antibioticCount[p.antibiotic] || 0) + 1; });
+    const mostCommonAntibiotic = Object.keys(antibioticCount).reduce((a, b) => antibioticCount[a] > antibioticCount[b] ? a : b);
+    const mostCommonPct = Math.round((antibioticCount[mostCommonAntibiotic] / total) * 100);
 
     const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const fourteenDaysAgo = new Date(now);
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+    const sevenAgo = new Date(now); sevenAgo.setDate(sevenAgo.getDate() - 7);
+    const fourteenAgo = new Date(now); fourteenAgo.setDate(fourteenAgo.getDate() - 14);
 
-    const recent = predictions.filter(p => new Date(p.date) >= sevenDaysAgo);
-    const previous = predictions.filter(p => 
-      new Date(p.date) >= fourteenDaysAgo && new Date(p.date) < sevenDaysAgo
-    );
+    const recent = summaries.filter((s) => new Date(s.date) >= sevenAgo);
+    const previous = summaries.filter((s) => new Date(s.date) >= fourteenAgo && new Date(s.date) < sevenAgo);
+    const recentR = recent.flatMap((s) => s.predictions).filter((p) => p.result === 'R').length;
+    const previousR = previous.flatMap((s) => s.predictions).filter((p) => p.result === 'R').length;
+    const trendChange = previousR > 0 ? Math.round(((recentR - previousR) / previousR) * 100) : 0;
 
-    const recentResistance = recent.filter(p => p.result === 'R').length;
-    const previousResistance = previous.filter(p => p.result === 'R').length;
-    const trendChange = previousResistance > 0 
-      ? Math.round(((recentResistance - previousResistance) / previousResistance) * 100)
-      : 0;
-
-    return {
-      resistanceRate,
-      susceptibilityRate,
-      intermediateRate,
-      mostCommonAntibiotic,
-      mostCommonAntibioticPercentage,
-      trendChange,
-      recentCount: recent.length,
-    };
-  }, [predictions]);
+    return { resistanceRate, susceptibilityRate, intermediateRate, mostCommonAntibiotic, mostCommonPct, trendChange, recentCount: recent.length };
+  }, [summaries]);
 
   if (!insights) return null;
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 8 },
-    visible: (i) => ({
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.4,
-        delay: i * 0.05,
-        ease: [0.22, 1, 0.36, 1],
-      },
-    }),
-  };
+  const outcomeLabel = insights.resistanceRate > 40 ? 'Resistant' : insights.susceptibilityRate > 40 ? 'Susceptible' : 'Intermediate';
+  const TrendIcon = insights.trendChange > 0 ? TrendingUp : insights.trendChange < 0 ? TrendingDown : Minus;
+  const trendColor = insights.trendChange > 0 ? 'text-resistant' : insights.trendChange < 0 ? 'text-susceptible' : 'text-onpanel-muted';
 
-  const barVariants = {
-    hidden: { width: 0 },
-    visible: (width) => ({
-      width: `${width}%`,
-      transition: {
-        duration: 0.6,
-        ease: [0.16, 1, 0.3, 1],
-        delay: 0.2,
-      },
-    }),
+  const cardVariants = {
+    hidden: { opacity: 0, y: 6 },
+    visible: (i) => ({ opacity: 1, y: 0, transition: { duration: 0.35, delay: i * 0.05 } }),
   };
 
   return (
-    <div className="mt-8 pt-6 border-t border-hairline">
-      <h3 className="font-mono text-[10px] tracking-wider uppercase text-ink-faint mb-4">
-        Quick Insights
-      </h3>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Most Common Outcome */}
-        <motion.div
-          custom={0}
-          initial="hidden"
-          animate="visible"
-          variants={cardVariants}
-          className="bg-paper border border-hairline rounded-lg px-5 py-4"
-        >
-          <div className="flex items-start justify-between">
-            <span className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
-              Most Common Outcome
-            </span>
-          </div>
-          
-          <div className="mt-2">
-            <span className="font-serif text-xl sm:text-2xl font-light text-ink">
-              {insights.resistanceRate > 40 ? 'Resistant' : 
-               insights.susceptibilityRate > 40 ? 'Susceptible' : 'Intermediate'}
-            </span>
-          </div>
-          
-          <div className="mt-1 font-mono text-[11px] text-ink-soft">
+    <Panel className="mb-6 border-accent-indigo/25 p-5">
+      <div className="mb-4 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-accent-indigo">
+        <Sparkles size={13} /> Quick insights
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <motion.div custom={0} initial="hidden" animate="visible" variants={cardVariants} className="rounded-[14px] bg-panel-raised p-4">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">Most common outcome</div>
+          <div className="mt-1 font-display text-[22px] font-semibold text-onpanel-ink">{outcomeLabel}</div>
+          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">
             {insights.resistanceRate}% R · {insights.susceptibilityRate}% S · {insights.intermediateRate}% I
           </div>
-          
-          <div className="mt-2.5 w-full h-1 rounded-full overflow-hidden bg-hairline/30">
-            <div className="flex h-full w-full">
-              <motion.div
-                custom={insights.resistanceRate}
-                variants={barVariants}
-                initial="hidden"
-                animate="visible"
-                className="h-full bg-destructive/70"
-                style={{ width: `${insights.resistanceRate}%` }}
-                aria-hidden="true"
-              />
-              <motion.div
-                custom={insights.intermediateRate}
-                variants={barVariants}
-                initial="hidden"
-                animate="visible"
-                className="h-full bg-intermediate/70"
-                style={{ width: `${insights.intermediateRate}%` }}
-                aria-hidden="true"
-              />
-              <motion.div
-                custom={insights.susceptibilityRate}
-                variants={barVariants}
-                initial="hidden"
-                animate="visible"
-                className="h-full bg-teal/70"
-                style={{ width: `${insights.susceptibilityRate}%` }}
-                aria-hidden="true"
-              />
-            </div>
+          <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full bg-panel-border">
+            <div className="h-full bg-resistant" style={{ width: `${insights.resistanceRate}%` }} />
+            <div className="h-full bg-intermediate" style={{ width: `${insights.intermediateRate}%` }} />
+            <div className="h-full bg-susceptible" style={{ width: `${insights.susceptibilityRate}%` }} />
           </div>
         </motion.div>
 
-        {/* Most Frequent Antibiotic */}
-        <motion.div
-          custom={1}
-          initial="hidden"
-          animate="visible"
-          variants={cardVariants}
-          className="bg-paper border border-hairline rounded-lg px-5 py-4"
-        >
-          <div className="flex items-start justify-between">
-            <span className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
-              Most Frequent Antibiotic
-            </span>
+        <motion.div custom={1} initial="hidden" animate="visible" variants={cardVariants} className="rounded-[14px] bg-panel-raised p-4">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">
+            <FlaskConical size={11} /> Most frequent antibiotic
           </div>
-          
-          <div className="mt-2">
-            <span className="font-serif text-xl sm:text-2xl font-light text-ink">
-              {insights.mostCommonAntibiotic}
-            </span>
-          </div>
-          
-          <div className="mt-1 font-mono text-[11px] text-ink-soft">
-            {insights.mostCommonAntibioticPercentage}% of predictions
-          </div>
+          <div className="mt-1 truncate font-display text-[22px] font-semibold text-onpanel-ink">{insights.mostCommonAntibiotic}</div>
+          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">{insights.mostCommonPct}% of predictions</div>
         </motion.div>
 
-        {/* Resistance Trend */}
-        <motion.div
-          custom={2}
-          initial="hidden"
-          animate="visible"
-          variants={cardVariants}
-          className="bg-paper border border-hairline rounded-lg px-5 py-4"
-        >
-          <div className="flex items-start justify-between">
-            <span className="font-mono text-[10px] tracking-wider uppercase text-ink-faint">
-              Resistance Trend
-            </span>
+        <motion.div custom={2} initial="hidden" animate="visible" variants={cardVariants} className="rounded-[14px] bg-panel-raised p-4">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">
+            <TrendIcon size={11} /> Resistance trend
           </div>
-          
-          <div className="mt-2 flex items-baseline gap-1">
-            <span className={`font-serif text-xl sm:text-2xl font-light ${
-              insights.trendChange > 0 ? 'text-destructive' : 
-              insights.trendChange < 0 ? 'text-success' : 'text-ink'
-            }`}>
-              {insights.trendChange > 0 ? '↑' : insights.trendChange < 0 ? '↓' : '→'}
-            </span>
-            <span className="font-serif text-xl sm:text-2xl font-light text-ink">
-              {Math.abs(insights.trendChange)}%
-            </span>
-          </div>
-          
-          <div className="mt-1 font-mono text-[11px] text-ink-soft">
-            {insights.recentCount} predictions this week
-          </div>
+          <div className={`mt-1 font-display text-[22px] font-semibold ${trendColor}`}>{Math.abs(insights.trendChange)}%</div>
+          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">{insights.recentCount} predictions this week</div>
         </motion.div>
       </div>
-    </div>
+    </Panel>
   );
 };
 

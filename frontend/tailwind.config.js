@@ -58,6 +58,11 @@ export default {
         'accent-blue': '#0071E3',
         'accent-blue-hover': '#0077ED',
         'accent-blue-active': '#0066CC',
+
+        'accent-indigo': '#5E5CE6',
+        'accent-indigo-soft': '#EEEDFC',
+        'accent-teal': '#30B0C7',
+        'accent-teal-soft': '#E5F6F9',
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
