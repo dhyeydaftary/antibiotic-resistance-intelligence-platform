@@ -6,6 +6,7 @@ import { getDatasetStats } from '../api/datasetApi';
 import { ORGANISM_OPTIONS, ANTIBIOTICS } from '../constants/domainData';
 import Panel from '../components/app/Panel';
 import ExplainTrendDrawer from '../components/trends/ExplainTrendDrawer';
+import ResearchPapersPanel from '../components/trends/ResearchPapersPanel';
 
 import { AreaChart } from '../components/charts/area-chart';
 import { Area } from '../components/charts/area';
@@ -456,6 +457,10 @@ function TrendsPage() {
               </div>
             )}
           </Panel>
+        </div>
+
+        <div className="mt-6">
+          <ResearchPapersPanel antibiotic={antibiotic} organism={organism} />
         </div>
 
         <ExplainTrendDrawer
