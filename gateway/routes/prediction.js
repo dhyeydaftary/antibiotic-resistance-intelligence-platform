@@ -135,6 +135,34 @@ router.get('/explain-trend', verifyToken, async (req, res) => {
 });
 
 
+router.get('/research-papers', verifyToken, async (req, res) => {
+  try {
+    const djangoResponse = await axios.get(
+      `${process.env.DJANGO_API_URL}/research-papers/`,
+      { params: req.query }
+    );
+
+    res.status(200).json(djangoResponse.data);
+
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json(err.response.data);
+    }
+
+    console.error('Error in /research-papers:', err);
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Something went wrong while fetching research papers.',
+        field: null,
+      },
+    });
+  }
+});
+
+
 router.get('/history', verifyToken, async (req, res) => {
   try {
     const {
