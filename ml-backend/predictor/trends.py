@@ -52,13 +52,18 @@ def get_resistance_trend(antibiotic, organism=None):
     data = data.copy()
     data['period'] = data['Collection_Date'].dt.to_period('M').astype(str)
 
-    grouped = data.groupby('period')[antibiotic].apply(
-        lambda col: (col == 'R').sum() / len(col) if len(col) > 0 else 0
+    grouped = data.groupby('period')[antibiotic].agg(
+        resistanceRate=lambda col: (col == 'R').sum() / len(col) if len(col) > 0 else 0,
+        sampleSize='count'
     )
 
     series = [
-        {"period": period, "resistanceRate": round(float(rate), 4)}
-        for period, rate in grouped.sort_index().items()
+        {
+            "period": period,
+            "resistanceRate": round(float(row['resistanceRate']), 4),
+            "sampleSize": int(row['sampleSize']),
+        }
+        for period, row in grouped.sort_index().iterrows()
     ]
 
     return series
