@@ -1,8 +1,10 @@
 from django.urls import path
 from .views import predict_view, trends_view, dataset_stats_view
+from .views import predict_view, trends_view, dataset_stats_view, explain_trend_view
 
 urlpatterns = [
     path('predict/', predict_view, name='predict'),
     path('trends/', trends_view, name='trends'),
     path('dataset-stats/', dataset_stats_view, name='dataset-stats'),
+    path('explain-trend/', explain_trend_view, name='explain-trend'),
 ]
