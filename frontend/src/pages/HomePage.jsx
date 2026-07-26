@@ -1,63 +1,191 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { getHistory } from '../api/historyApi';
+import { useAuth } from '../context/AuthContext';
+import HomeHero from '../components/home/HomeHero';
+import HomeOverviewPanel from '../components/home/HomeOverviewPanel';
+import HomeResearchPanel from '../components/home/HomeResearchPanel';
+import HomeInsightPanel from '../components/home/HomeInsightPanel';
+import HomeToolsPanel from '../components/home/HomeToolsPanel';
+import HomeQuoteBanner from '../components/home/HomeQuoteBanner';
+import ScrollReveal from '../components/home/ScrollReveal';
 
-const FAKE_USER = { name: 'Dhyey' };
-
-const FAKE_RECENT_PREDICTIONS = [
-  { predictionId: 'test123', organism: 'E. coli', createdAt: '2026-07-06T10:00:00Z' },
-  { predictionId: 'test456', organism: 'Staphylococcus aureus', createdAt: '2026-07-05T14:30:00Z' },
-  { predictionId: 'test789', organism: 'Klebsiella pneumoniae', createdAt: '2026-07-04T09:15:00Z' },
-];
-
-const FAKE_STATS = {
-  totalPredictions: 12,
-  mostCommonOrganism: 'E. coli',
-  lastPredictionDate: '2026-07-06',
+const EMPTY_STATS = {
+  total: 0,
+  thisWeek: 0,
+  thisWeekTrendPct: null,
+  mostCommonResult: 'I',
+  mostCommonResultCount: 0,
+  mostCommonResultPct: 0,
+  avgConfidence: 0,
 };
 
+function flattenRecord(record) {
+  return (record.predictions || []).map((p) => ({
+    result: p.result,
+    confidence: Math.round((p.confidence || 0) * 100),
+  }));
+}
+
+function computeStats(records) {
+  if (!records.length) return EMPTY_STATS;
+
+  const total = records.length;
+
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const twoWeeksAgo = new Date(now);
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+  const thisWeek = records.filter((r) => new Date(r.createdAt) >= weekAgo).length;
+  const lastWeek = records.filter(
+    (r) => new Date(r.createdAt) >= twoWeeksAgo && new Date(r.createdAt) < weekAgo
+  ).length;
+  const thisWeekTrendPct = lastWeek > 0 ? ((thisWeek - lastWeek) / lastWeek) * 100 : null;
+
+  const flattened = records.flatMap(flattenRecord);
+
+  const resultCounts = flattened.reduce((acc, p) => {
+    acc[p.result] = (acc[p.result] || 0) + 1;
+    return acc;
+  }, {});
+  const [mostCommonResult, mostCommonResultCount] = Object.entries(resultCounts).sort(
+    (a, b) => b[1] - a[1]
+  )[0] || ['I', 0];
+  const mostCommonResultPct = flattened.length
+    ? (mostCommonResultCount / flattened.length) * 100
+    : 0;
+
+  const avgConfidence = flattened.length
+    ? flattened.reduce((sum, p) => sum + p.confidence, 0) / flattened.length
+    : 0;
+
+  return {
+    total,
+    thisWeek,
+    thisWeekTrendPct,
+    mostCommonResult,
+    mostCommonResultCount,
+    mostCommonResultPct,
+    avgConfidence,
+  };
+}
+
+// One real per-day series (not fake mock numbers) that HomeOverviewPanel
+// renders as an actual Bklit BarChart — see components/charts/bar-chart.jsx,
+// same component the Result page already uses.
+function buildDailySeries(records, days = 8) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const buckets = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(today);
+    day.setDate(day.getDate() - i);
+    buckets.push({
+      date: day,
+      label: day.toLocaleDateString('en-US', { weekday: 'short' }),
+      total: 0,
+      confSum: 0,
+      confCount: 0,
+    });
+  }
+
+  records.forEach((record) => {
+    const d = new Date(record.createdAt);
+    d.setHours(0, 0, 0, 0);
+    const bucket = buckets.find((b) => b.date.getTime() === d.getTime());
+    if (!bucket) return;
+    bucket.total += 1;
+    (record.predictions || []).forEach((p) => {
+      bucket.confSum += Math.round((p.confidence || 0) * 100);
+      bucket.confCount += 1;
+    });
+  });
+
+  return buckets.map((b) => ({
+    label: b.label,
+    total: b.total,
+    avgConfidence: b.confCount ? Math.round(b.confSum / b.confCount) : 0,
+  }));
+}
+
+function getRecentPredictions(records, limit = 5) {
+  const sorted = [...records].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  return sorted.slice(0, limit).map((record) => {
+    const primary = record.predictions?.[0] || {};
+    return {
+      recordId: record._id,
+      organism: record.inputData?.organism || 'Unknown organism',
+      result: primary.result || 'I',
+      confidence: Math.round((primary.confidence || 0) * 100),
+      date: record.createdAt,
+    };
+  });
+}
+
 function HomePage() {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState(EMPTY_STATS);
+  const [dailySeries, setDailySeries] = useState([]);
+  const [recentPredictions, setRecentPredictions] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await getHistory();
+        const records = result?.data?.history || [];
+        if (cancelled) return;
+        setStats(computeStats(records));
+        setDailySeries(buildDailySeries(records));
+        setRecentPredictions(getRecentPredictions(records));
+      } catch (err) {
+        console.error('Failed to load history for Home page:', err);
+        if (!cancelled) {
+          setStats(EMPTY_STATS);
+          setDailySeries([]);
+          setRecentPredictions([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Welcome back, {FAKE_USER.name}</h1>
+    <div className="px-6 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <HomeHero name={user?.name?.split(' ')[0] || 'there'} />
 
-      <div style={{ display: 'flex', gap: '16px', margin: '20px 0' }}>
-        <div style={{ border: '1px solid #ccc', padding: '12px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '12px', color: '#666' }}>Total Predictions</div>
-          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{FAKE_STATS.totalPredictions}</div>
-        </div>
-        <div style={{ border: '1px solid #ccc', padding: '12px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '12px', color: '#666' }}>Most Common Organism</div>
-          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{FAKE_STATS.mostCommonOrganism}</div>
-        </div>
-        <div style={{ border: '1px solid #ccc', padding: '12px', borderRadius: '8px' }}>
-          <div style={{ fontSize: '12px', color: '#666' }}>Last Prediction</div>
-          <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{FAKE_STATS.lastPredictionDate}</div>
-        </div>
-      </div>
+        {loading ? (
+          <div className="h-[260px] animate-pulse rounded-[20px] border border-panel-border bg-panel" />
+        ) : (
+          <ScrollReveal index={0}>
+            <HomeOverviewPanel stats={stats} dailySeries={dailySeries} />
+          </ScrollReveal>
+        )}
 
-      <Link to="/predict">
-        <button style={{ padding: '10px 20px', fontSize: '16px' }}>+ New Prediction</button>
-      </Link>
-
-      <h2 style={{ marginTop: '32px' }}>Recent Predictions</h2>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: '400px' }}>
-        {FAKE_RECENT_PREDICTIONS.map((p) => (
-          <Link
-            key={p.predictionId}
-            to={`/predict/result/${p.predictionId}`}
-            style={{
-              border: '1px solid #ccc',
-              borderRadius: '8px',
-              padding: '10px',
-              textDecoration: 'none',
-              color: 'inherit',
-            }}
-          >
-            <div style={{ fontWeight: 'bold' }}>{p.organism}</div>
-            <div style={{ fontSize: '12px', color: '#666' }}>
-              {new Date(p.createdAt).toLocaleDateString()}
-            </div>
-          </Link>
-        ))}
+        <ScrollReveal index={1}>
+          <HomeResearchPanel recentPredictions={recentPredictions} />
+        </ScrollReveal>
+        <ScrollReveal index={0}>
+          <HomeInsightPanel />
+        </ScrollReveal>
+        <ScrollReveal index={1}>
+          <HomeToolsPanel />
+        </ScrollReveal>
+        <ScrollReveal index={0}>
+          <HomeQuoteBanner />
+        </ScrollReveal>
       </div>
     </div>
   );
