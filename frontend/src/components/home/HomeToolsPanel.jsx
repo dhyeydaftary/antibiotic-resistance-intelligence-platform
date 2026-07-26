@@ -53,10 +53,11 @@ function HomeToolsPanel() {
         </div>
 
         <div className="pt-5 sm:px-6 sm:pt-0">
-          <h3 className="mb-4 font-display text-h4 text-onpanel-ink">Prediction journey</h3>
-          <div className="flex items-center justify-between">
+          <h3 className="mb-6 font-display text-h4 text-onpanel-ink">Prediction journey</h3>
+          <div className="relative flex items-start justify-between">
+            <div className="absolute left-[9%] right-[9%] top-[9px] h-px bg-panel-border" aria-hidden="true" />
             {JOURNEY_STEPS.map((step) => (
-              <div key={step.label} className="flex flex-col items-center text-center">
+              <div key={step.label} className="relative z-10 flex flex-col items-center bg-panel px-1 text-center">
                 <step.icon className="h-[18px] w-[18px] text-accent-blue" strokeWidth={1.75} />
                 <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.06em] text-onpanel-muted">
                   {step.label}

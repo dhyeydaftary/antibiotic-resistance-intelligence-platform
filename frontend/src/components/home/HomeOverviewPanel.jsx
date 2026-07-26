@@ -19,11 +19,6 @@ function Stat({ icon: Icon, label, value, hint }) {
   );
 }
 
-/**
- * stats: see computeStats() in HomePage.jsx
- * dailySeries: [{ label, total, avgConfidence }] over the last ~8 days,
- * see buildDailySeries() in HomePage.jsx — real data, not mocked.
- */
 function HomeOverviewPanel({ stats, dailySeries }) {
   const total = useCountUp(stats.total);
   const thisWeek = useCountUp(stats.thisWeek);
@@ -64,14 +59,10 @@ function HomeOverviewPanel({ stats, dailySeries }) {
       <div className="my-5 h-px bg-panel-border" />
 
       <div>
-        <div className="mb-2 font-mono text-mono-label uppercase tracking-[0.08em] text-onpanel-faint">
-          Predictions per day
-        </div>
         {dailySeries && dailySeries.length > 0 ? (
           <MiniLineChart
             data={dailySeries}
             xKey="label"
-            series={[{ key: 'total', color: '#0071E3', label: 'Predictions' }]}
           />
         ) : (
           <p className="font-sans text-small text-onpanel-faint">No predictions yet this week.</p>
