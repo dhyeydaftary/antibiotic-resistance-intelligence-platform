@@ -9,6 +9,7 @@ from .serializers import PredictionRequestSerializer
 from .predict import predict_resistance
 from .trends import get_resistance_trend
 from .ai_insights import generate_ai_insights
+from .trend_insights import generate_trend_insights
 
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,51 @@ def trends_view(request):
             },
             "error": None,
         },
+        status=status.HTTP_200_OK
+    )
+
+
+@api_view(['GET'])
+def explain_trend_view(request):
+    antibiotic = request.query_params.get('antibiotic')
+    organism = request.query_params.get('organism', 'all')
+
+    if not antibiotic:
+        return Response(
+            {"success": False, "data": None, "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Query parameter 'antibiotic' is required",
+                "field": "antibiotic",
+            }},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        series = get_resistance_trend(antibiotic, organism)
+        insights = generate_trend_insights(antibiotic, organism, series)
+    except ValueError as e:
+        field = "organism" if "organism" in str(e).lower() else "antibiotic"
+        return Response(
+            {"success": False, "data": None, "error": {
+                "code": "VALIDATION_ERROR", "message": str(e), "field": field,
+            }},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Exception:
+        logger.exception("Unexpected error in explain_trend_view")
+        return Response(
+            {"success": False, "data": None, "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Something went wrong while generating the trend explanation.",
+                "field": None,
+            }},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return Response(
+        {"success": True, "data": {
+            "antibiotic": antibiotic, "organism": organism, "insights": insights,
+        }, "error": None},
         status=status.HTTP_200_OK
     )
 

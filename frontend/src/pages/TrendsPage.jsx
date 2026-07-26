@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, Activity, Calendar, Database, Flame, ArrowUp, ArrowDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Activity, Calendar, Database, Flame, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
 import { getTrends } from '../api/trendsApi';
 import { getDatasetStats } from '../api/datasetApi';
 import { ORGANISM_OPTIONS, ANTIBIOTICS } from '../constants/domainData';
 import Panel from '../components/app/Panel';
+import ExplainTrendDrawer from '../components/trends/ExplainTrendDrawer';
 
 import { AreaChart } from '../components/charts/area-chart';
 import { Area } from '../components/charts/area';
@@ -79,6 +80,7 @@ function TrendsPage() {
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [overviewSeries, setOverviewSeries] = useState({});
   const [overviewLoading, setOverviewLoading] = useState(true);
@@ -279,13 +281,21 @@ function TrendsPage() {
 
         {/* Hero chart */}
         <Panel className="mb-6 p-6 chart-on-dark" style={CHART_VARS}>
-          <div className="mb-5">
-            <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-              Resistance rate over time
+          <div className="mb-5 flex items-start justify-between">
+            <div>
+              <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                Resistance rate over time
+              </div>
+              <div className="mt-0.5 font-display text-[18px] font-semibold text-onpanel-ink">
+                {antibiotic} {organism !== 'all' && `· ${organism}`}
+              </div>
             </div>
-            <div className="mt-0.5 font-display text-[18px] font-semibold text-onpanel-ink">
-              {antibiotic} {organism !== 'all' && `· ${organism}`}
-            </div>
+            <button
+              onClick={() => setDrawerOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-onpanel-faint/30 bg-panel-raised px-3 py-1.5 font-mono text-[11px] font-medium text-onpanel-ink transition-colors hover:border-accent-blue hover:text-accent-blue"
+            >
+              <Sparkles size={12} /> Explain Trend
+            </button>
           </div>
 
           {loading ? (
@@ -447,6 +457,13 @@ function TrendsPage() {
             )}
           </Panel>
         </div>
+
+        <ExplainTrendDrawer
+          antibiotic={antibiotic}
+          organism={organism}
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+        />
       </div>
     </div>
   );
