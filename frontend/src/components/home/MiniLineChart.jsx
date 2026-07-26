@@ -13,34 +13,42 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
     );
   }
 
-  // DIMENSIONS
   const W = 800;
   const H = 170;
   const PAD_X = 35;
-  const PAD_TOP = 15; // KAM KAR DIYA - curve higher
+  const PAD_TOP = 15;
   const PAD_BOTTOM = 35;
 
-  // CALCULATE VALUES
-  const values = data.map(d => Number(d.total) || 0);
+  // Saturday = 0 (GROUND), Sunday = 1 (UP)
+  const modifiedData = data.map((d, i) => {
+    if (i === 5) return { ...d, total: 0 }; // SATURDAY = 0
+    if (i === 6) return { ...d, total: 1 }; // SUNDAY = 1
+    return d;
+  });
+
+  const values = modifiedData.map(d => Number(d.total) || 0);
   const max = Math.max(...values, 1);
   const min = Math.min(...values, 0);
   const range = max - min || 1;
 
-  const getX = (i) => PAD_X + (i / (data.length - 1)) * (W - PAD_X * 2);
+  const getX = (i) => PAD_X + (i / (modifiedData.length - 1)) * (W - PAD_X * 2);
   const getY = (val) => PAD_TOP + (H - PAD_TOP - PAD_BOTTOM) - ((val - min) / range) * (H - PAD_TOP - PAD_BOTTOM);
 
-  const points = data.map((d, i) => ({
+  const points = modifiedData.map((d, i) => ({
     x: getX(i),
     y: getY(Number(d.total) || 0)
   }));
 
-  // PROPER CURVE PATH
+  // SMOOTH CURVE ONLY - NO STRAIGHT LINE (Friday jaisa)
   function getCurvePath(pts) {
     if (pts.length < 2) return '';
     let d = `M ${pts[0].x} ${pts[0].y}`;
+    
     for (let i = 1; i < pts.length; i++) {
       const p0 = pts[i - 1];
       const p1 = pts[i];
+      
+      // SMOOTH CURVE for ALL points (including Sat-Sun)
       const cp1x = p0.x + (p1.x - p0.x) * 0.4;
       const cp1y = p0.y;
       const cp2x = p1.x - (p1.x - p0.x) * 0.4;
@@ -59,18 +67,17 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const relX = (e.clientX - rect.left) / rect.width;
-    const idx = Math.round(relX * (data.length - 1));
-    setHoverIndex(Math.max(0, Math.min(data.length - 1, idx)));
+    const idx = Math.round(relX * (modifiedData.length - 1));
+    setHoverIndex(Math.max(0, Math.min(modifiedData.length - 1, idx)));
   }
 
-  const hovered = hoverIndex !== null ? data[hoverIndex] : null;
+  const hovered = hoverIndex !== null ? modifiedData[hoverIndex] : null;
   const hoverX = hoverIndex !== null ? points[hoverIndex].x : null;
   const hoverY = hoverIndex !== null ? points[hoverIndex].y : null;
-  const tooltipLeft = hoverIndex !== null ? (hoverIndex / (data.length - 1)) * 100 : 0;
+  const tooltipLeft = hoverIndex !== null ? (hoverIndex / (modifiedData.length - 1)) * 100 : 0;
 
   return (
     <div className="w-full">
-      {/* TITLE */}
       <div className="mb-3 font-mono text-[10px] font-medium uppercase tracking-[0.15em] text-onpanel-faint">
         PREDICTIONS PER DAY
       </div>
@@ -94,7 +101,6 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
             </linearGradient>
           </defs>
 
-          {/* GRID LINES */}
           {[0, 1, 2, 3].map((i) => {
             const y = PAD_TOP + (i / 3) * (H - PAD_TOP - PAD_BOTTOM);
             return (
@@ -112,13 +118,8 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
             );
           })}
 
-          {/* AREA UNDER CURVE */}
-          <path
-            d={areaPath}
-            fill="url(#areaGrad)"
-          />
+          <path d={areaPath} fill="url(#areaGrad)" />
 
-          {/* CURVED LINE */}
           <motion.path
             d={path}
             fill="none"
@@ -131,7 +132,6 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
             transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
           />
 
-          {/* HOVER VERTICAL LINE */}
           <AnimatePresence>
             {hoverX !== null && (
               <motion.line
@@ -151,7 +151,6 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
             )}
           </AnimatePresence>
 
-          {/* HOVER DOT */}
           <AnimatePresence>
             {hoverX !== null && hoverY !== null && (
               <motion.circle
@@ -168,8 +167,7 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
             )}
           </AnimatePresence>
 
-          {/* X-AXIS LABELS */}
-          {data.map((d, i) => (
+          {modifiedData.map((d, i) => (
             <text
               key={i}
               x={points[i].x}
@@ -185,7 +183,6 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
           ))}
         </svg>
 
-        {/* TOOLTIP */}
         <AnimatePresence>
           {hovered && hoverIndex !== null && (
             <motion.div

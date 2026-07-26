@@ -60,10 +60,7 @@ function HomeOverviewPanel({ stats, dailySeries }) {
 
       <div>
         {dailySeries && dailySeries.length > 0 ? (
-          <MiniLineChart
-            data={dailySeries}
-            xKey="label"
-          />
+          <MiniLineChart data={dailySeries} xKey="label" />
         ) : (
           <p className="font-sans text-small text-onpanel-faint">No predictions yet this week.</p>
         )}
