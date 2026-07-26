@@ -107,6 +107,34 @@ router.get('/dataset-stats', verifyToken, async (req, res) => {
 });
 
 
+router.get('/explain-trend', verifyToken, async (req, res) => {
+  try {
+    const djangoResponse = await axios.get(
+      `${process.env.DJANGO_API_URL}/explain-trend/`,
+      { params: req.query }
+    );
+
+    res.status(200).json(djangoResponse.data);
+
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json(err.response.data);
+    }
+
+    console.error('Error in /explain-trend:', err);
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Something went wrong while generating the trend explanation.',
+        field: null,
+      },
+    });
+  }
+});
+
+
 router.get('/history', verifyToken, async (req, res) => {
   try {
     const {
