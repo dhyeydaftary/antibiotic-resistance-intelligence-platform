@@ -13,3 +13,10 @@ export async function getTrendExplanation(antibiotic, organism = 'all') {
   });
   return response.data;
 }
+
+export async function getResearchPapers(antibiotic, organism = 'all') {
+  const response = await api.get('/predictor/research-papers', {
+    params: { antibiotic, organism },
+  });
+  return response.data;
+}

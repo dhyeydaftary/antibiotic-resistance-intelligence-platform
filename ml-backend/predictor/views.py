@@ -10,6 +10,7 @@ from .predict import predict_resistance
 from .trends import get_resistance_trend
 from .ai_insights import generate_ai_insights
 from .trend_insights import generate_trend_insights
+from .pubmed_client import get_research_papers
 
 
 logger = logging.getLogger(__name__)
@@ -201,5 +202,41 @@ def predict_view(request):
             },
             "error": None,
         },
+        status=status.HTTP_200_OK
+    )
+
+
+@api_view(['GET'])
+def research_papers_view(request):
+    antibiotic = request.query_params.get('antibiotic')
+    organism = request.query_params.get('organism', 'all')
+
+    if not antibiotic:
+        return Response(
+            {"success": False, "data": None, "error": {
+                "code": "VALIDATION_ERROR",
+                "message": "Query parameter 'antibiotic' is required",
+                "field": "antibiotic",
+            }},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        papers = get_research_papers(antibiotic, organism)
+    except Exception:
+        logger.exception("Unexpected error in research_papers_view")
+        return Response(
+            {"success": False, "data": None, "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "Something went wrong while fetching research papers.",
+                "field": None,
+            }},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return Response(
+        {"success": True, "data": {
+            "antibiotic": antibiotic, "organism": organism, "papers": papers,
+        }, "error": None},
         status=status.HTTP_200_OK
     )
