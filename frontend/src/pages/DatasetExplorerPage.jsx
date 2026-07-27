@@ -1,3 +1,5 @@
+// frontend/src/pages/DatasetExplorerPage.jsx
+
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getDatasetStats } from '../api/datasetApi';
@@ -8,7 +10,8 @@ import AntibioticLibraryPanel from '../components/explore/AntibioticLibraryPanel
 import DatasetInsightPanel from '../components/explore/DatasetInsightPanel';
 import ResearchHubPanel from '../components/explore/ResearchHubPanel';
 import QuestionBankPanel from '../components/explore/QuestionBankPanel';
-import ScrollReveal from '../components/home/ScrollReveal';
+import OrganismDistributionChart from '../components/explore/OrganismDistributionChart';
+import Panel from '../components/app/Panel';
 
 function DatasetExplorerPage() {
   const location = useLocation();
@@ -38,8 +41,6 @@ function DatasetExplorerPage() {
     };
   }, []);
 
-  // Lets Home's "View all" / "Explore now" links land on the right section
-  // (e.g. /explore#research-hub) instead of just the top of the page.
   useEffect(() => {
     if (!location.hash || loading) return;
     const el = document.getElementById(location.hash.slice(1));
@@ -80,40 +81,35 @@ function DatasetExplorerPage() {
         )}
 
         {!loading && !error && stats && (
-          <>
-            <ScrollReveal index={0}>
-              <ExploreOverviewPanel stats={stats} />
-            </ScrollReveal>
+          <div className="space-y-6">
+            <ExploreOverviewPanel stats={stats} />
 
-            <ScrollReveal index={1}>
-              <DatasetInsightPanel
-                stats={stats}
-                selectedOrganism={selectedOrganism}
-                selectedAntibiotic={selectedAntibiotic}
-              />
-            </ScrollReveal>
+            {/* DATA VISUALIZATION - MOVED UP */}
+            <Panel className="p-6">
+              <div className="mb-1 font-mono text-mono-label font-medium uppercase tracking-[0.1em] text-onpanel-faint">
+                Data Visualization
+              </div>
+              <h2 className="mb-4 font-display text-h3 text-onpanel-ink">Organism Distribution</h2>
+              <OrganismDistributionChart organisms={organisms} totalRows={stats.totalRows} />
+            </Panel>
 
-            <ScrollReveal index={0}>
-              <OrganismLibraryPanel
-                organisms={organisms}
-                totalRows={stats.totalRows}
-                selected={selectedOrganism}
-                onSelect={selectOrganism}
-              />
-            </ScrollReveal>
+            {/* AI INSIGHT - MOVED DOWN */}
+            <DatasetInsightPanel
+              stats={stats}
+              selectedOrganism={selectedOrganism}
+              selectedAntibiotic={selectedAntibiotic}
+            />
 
-            <ScrollReveal index={1}>
-              <AntibioticLibraryPanel selected={selectedAntibiotic} onSelect={selectAntibiotic} />
-            </ScrollReveal>
-
-            <ScrollReveal index={0}>
-              <ResearchHubPanel />
-            </ScrollReveal>
-
-            <ScrollReveal index={1}>
-              <QuestionBankPanel />
-            </ScrollReveal>
-          </>
+            <OrganismLibraryPanel
+              organisms={organisms}
+              totalRows={stats.totalRows}
+              selected={selectedOrganism}
+              onSelect={selectOrganism}
+            />
+            <AntibioticLibraryPanel selected={selectedAntibiotic} onSelect={selectAntibiotic} />
+            <ResearchHubPanel />
+            <QuestionBankPanel />
+          </div>
         )}
       </div>
     </div>
