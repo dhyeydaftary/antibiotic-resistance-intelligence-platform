@@ -33,7 +33,7 @@ function HomeInsightPanel() {
     <Panel className="p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg">
       <div className="grid grid-cols-1 divide-y divide-panel-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="sm:pr-6">
-          <ColumnHeader title="AI Research Feed" linkTo="/explore" linkLabel="View all" />
+          <ColumnHeader title="AI Research Feed" linkTo="/explore#research-hub" linkLabel="View all" />
           <ul className="space-y-3">
             {RESEARCH_FEED.map((item) => (
               <li key={item.title} className="flex gap-2.5">
@@ -74,7 +74,7 @@ function HomeInsightPanel() {
             </div>
           </div>
           <Link
-            to="/explore"
+            to="/explore#question-bank"
             className="mt-3 inline-flex items-center gap-1 font-sans text-small font-medium text-accent-blue hover:text-accent-blue-hover"
           >
             Explore now

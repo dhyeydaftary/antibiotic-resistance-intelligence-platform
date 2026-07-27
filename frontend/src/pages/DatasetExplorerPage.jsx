@@ -1,73 +1,121 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getDatasetStats } from '../api/datasetApi';
+import ExploreHero from '../components/explore/ExploreHero';
+import ExploreOverviewPanel from '../components/explore/ExploreOverviewPanel';
+import OrganismLibraryPanel from '../components/explore/OrganismLibraryPanel';
+import AntibioticLibraryPanel from '../components/explore/AntibioticLibraryPanel';
+import DatasetInsightPanel from '../components/explore/DatasetInsightPanel';
+import ResearchHubPanel from '../components/explore/ResearchHubPanel';
+import QuestionBankPanel from '../components/explore/QuestionBankPanel';
+import ScrollReveal from '../components/home/ScrollReveal';
 
 function DatasetExplorerPage() {
+  const location = useLocation();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedOrganism, setSelectedOrganism] = useState(null);
+  const [selectedAntibiotic, setSelectedAntibiotic] = useState(null);
 
   useEffect(() => {
+    let cancelled = false;
     getDatasetStats()
       .then((result) => {
+        if (cancelled) return;
         setStats(result.data);
       })
       .catch((err) => {
+        if (cancelled) return;
         setError('Failed to load dataset statistics.');
         console.error(err);
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  // Lets Home's "View all" / "Explore now" links land on the right section
+  // (e.g. /explore#research-hub) instead of just the top of the page.
+  useEffect(() => {
+    if (!location.hash || loading) return;
+    const el = document.getElementById(location.hash.slice(1));
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [location.hash, loading]);
+
+  function selectOrganism(name) {
+    setSelectedOrganism(name);
+    if (name) setSelectedAntibiotic(null);
+  }
+
+  function selectAntibiotic(name) {
+    setSelectedAntibiotic(name);
+    if (name) setSelectedOrganism(null);
+  }
+
+  const organisms = stats?.organismDistribution
+    ? [...stats.organismDistribution].sort((a, b) => b.count - a.count)
+    : [];
+
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Dataset Explorer</h1>
-      <p>Overview of the underlying dataset used to train the prediction model.</p>
+    <div className="px-6 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <ExploreHero
+          organisms={organisms}
+          onSelectOrganism={selectOrganism}
+          onSelectAntibiotic={selectAntibiotic}
+        />
 
-      {loading && <p>Loading...</p>}
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+        {loading && (
+          <div className="h-[260px] animate-pulse rounded-[20px] border border-panel-border bg-panel" />
+        )}
 
-      {!loading && !error && stats && (
-        <>
-          <div style={{ display: 'flex', gap: '16px', marginTop: '20px' }}>
-            <div style={{ border: '1px solid #ccc', padding: '12px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '12px', color: '#666' }}>Total Rows</div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{stats.totalRows.toLocaleString()}</div>
-            </div>
-            <div style={{ border: '1px solid #ccc', padding: '12px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '12px', color: '#666' }}>Total Columns</div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{stats.totalColumns}</div>
-            </div>
-            <div style={{ border: '1px solid #ccc', padding: '12px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '12px', color: '#666' }}>Antibiotic Targets</div>
-              <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{stats.antibioticTargets}</div>
-            </div>
-            <div style={{ border: '1px solid #ccc', padding: '12px', borderRadius: '8px' }}>
-              <div style={{ fontSize: '12px', color: '#666' }}>Date Range</div>
-              <div style={{ fontSize: '16px', fontWeight: 'bold' }}>
-                {stats.dateRange.start} – {stats.dateRange.end}
-              </div>
-            </div>
+        {error && (
+          <div className="rounded-[20px] border border-resistant/30 bg-resistant/5 p-6 font-sans text-small text-resistant">
+            {error}
           </div>
+        )}
 
-          <h2 style={{ marginTop: '32px' }}>Organism Distribution</h2>
-          <table style={{ borderCollapse: 'collapse', marginTop: '12px', width: '100%', maxWidth: '500px' }}>
-            <thead>
-              <tr>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Organism</th>
-                <th style={{ border: '1px solid #ccc', padding: '8px', textAlign: 'left' }}>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.organismDistribution.map((item) => (
-                <tr key={item.organism}>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{item.organism}</td>
-                  <td style={{ border: '1px solid #ccc', padding: '8px' }}>{item.count.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
+        {!loading && !error && stats && (
+          <>
+            <ScrollReveal index={0}>
+              <ExploreOverviewPanel stats={stats} />
+            </ScrollReveal>
+
+            <ScrollReveal index={1}>
+              <DatasetInsightPanel
+                stats={stats}
+                selectedOrganism={selectedOrganism}
+                selectedAntibiotic={selectedAntibiotic}
+              />
+            </ScrollReveal>
+
+            <ScrollReveal index={0}>
+              <OrganismLibraryPanel
+                organisms={organisms}
+                totalRows={stats.totalRows}
+                selected={selectedOrganism}
+                onSelect={selectOrganism}
+              />
+            </ScrollReveal>
+
+            <ScrollReveal index={1}>
+              <AntibioticLibraryPanel selected={selectedAntibiotic} onSelect={selectAntibiotic} />
+            </ScrollReveal>
+
+            <ScrollReveal index={0}>
+              <ResearchHubPanel />
+            </ScrollReveal>
+
+            <ScrollReveal index={1}>
+              <QuestionBankPanel />
+            </ScrollReveal>
+          </>
+        )}
+      </div>
     </div>
   );
 }
