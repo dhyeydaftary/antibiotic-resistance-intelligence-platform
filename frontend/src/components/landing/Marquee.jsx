@@ -1,22 +1,21 @@
-/**
- * Editorial marquee — very slow drifting ribbon of antibiotic names / AWaRe tags.
- */
+// Real antibiotics your models actually predict, with correct WHO AWaRe tiers —
+// same mapping used across predict.py, the PubMed integration, and HowItWorks.
 const ITEMS = [
-  { t: "Ciprofloxacin", a: "Watch" },
-  { t: "Meropenem", a: "Watch" },
-  { t: "Ampicillin", a: "Access" },
-  { t: "Colistin", a: "Reserve" },
-  { t: "Ceftriaxone", a: "Watch" },
-  { t: "Gentamicin", a: "Access" },
-  { t: "TMP-SMX", a: "Access" },
-  { t: "Levofloxacin", a: "Watch" },
-  { t: "Nitrofurantoin", a: "Access" },
-  { t: "Piperacillin-Tazobactam", a: "Watch" },
-  { t: "Amikacin", a: "Access" },
-  { t: "Cefepime", a: "Watch" },
-  { t: "Ertapenem", a: "Watch" },
-  { t: "Amoxicillin-Clav", a: "Access" },
-  { t: "Cefazolin", a: "Access" },
+  { t: 'Ciprofloxacin', a: 'Watch' },
+  { t: 'Imipenem', a: 'Watch' },
+  { t: 'Amoxicillin/Ampicillin', a: 'Access' },
+  { t: 'Colistin', a: 'Reserve' },
+  { t: 'Cefotaxime/Ceftriaxone', a: 'Watch' },
+  { t: 'Gentamicin', a: 'Access' },
+  { t: 'Trimethoprim-sulfamethoxazole', a: 'Access' },
+  { t: 'Ofloxacin', a: 'Watch' },
+  { t: 'Nitrofurantoin', a: 'Access' },
+  { t: 'Cefoxitin', a: 'Watch' },
+  { t: 'Amikacin', a: 'Access' },
+  { t: 'Nalidixic acid', a: 'Watch' },
+  { t: 'Chloramphenicol', a: 'Access' },
+  { t: 'Amoxicillin-clavulanic acid', a: 'Access' },
+  { t: 'Cefazolin', a: 'Access' },
 ];
 
 export default function Marquee() {
@@ -24,17 +23,16 @@ export default function Marquee() {
   return (
     <section
       data-testid="marquee-section"
-      className="relative bg-paper py-16 border-y border-hairline overflow-hidden"
-      aria-hidden="false"
+      className="relative overflow-hidden border-y border-canvas-hairline bg-canvas py-14"
     >
       <div className="flex whitespace-nowrap animate-marquee">
         {row.map((it, i) => (
-          <div key={i} className="flex items-baseline gap-6 mr-16 shrink-0">
-            <span className="font-serif italic text-4xl md:text-6xl text-ink font-light tracking-tight">
+          <div key={i} className="mr-14 flex shrink-0 items-baseline gap-4">
+            <span className="font-display text-[28px] font-semibold tracking-[-0.01em] text-page-ink sm:text-[36px]">
               {it.t}
             </span>
-            <span className="font-mono text-[10px] tracking-[0.3em] uppercase text-ink/40">
-              — {it.a}
+            <span className="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-page-faint">
+              {it.a}
             </span>
           </div>
         ))}
