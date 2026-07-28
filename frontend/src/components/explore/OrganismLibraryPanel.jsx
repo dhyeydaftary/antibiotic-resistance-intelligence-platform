@@ -1,7 +1,7 @@
 import { Microscope } from 'lucide-react';
 import Panel from '../app/Panel';
 
-const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
+const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 /**
  * organisms: real organismDistribution array from GET /predictor/dataset-stats

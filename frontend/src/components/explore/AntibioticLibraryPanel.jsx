@@ -1,7 +1,7 @@
 import Panel from '../app/Panel';
 import { ANTIBIOTIC_AWARE_MAP, AWARE_CATEGORIES, AWARE_DESCRIPTIONS } from '../../constants/exploreContent';
 
-const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
+const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 const CATEGORY_DOT = {
   Access: 'bg-susceptible',

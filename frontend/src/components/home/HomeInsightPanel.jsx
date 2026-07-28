@@ -52,7 +52,7 @@ function HomeInsightPanel() {
   }, []);
 
   return (
-    <Panel className="p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg">
+    <Panel className="p-6 transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg">
       <div className="grid grid-cols-1 divide-y divide-panel-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="sm:pr-6">
           <ColumnHeader title="AI Research Feed" linkTo="/explore#research-hub" linkLabel="View all" />
