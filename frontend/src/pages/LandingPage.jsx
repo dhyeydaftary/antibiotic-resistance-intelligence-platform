@@ -7,13 +7,12 @@ import '../styles/landing.css';
 import Cursor from '../components/landing/Cursor';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
-import LandingContext from '../components/landing/LandingContext';
-import HowItWorks from '../components/landing/HowItWorks';
-import ParticleMorph from '../components/landing/ParticleMorph';
-import TrendsTeaser from '../components/landing/TrendsTeaser';
+import ClinicalWorkflowSection from '../components/landing/ClinicalWorkflowSection';
+import CapabilitiesSection from '../components/landing/CapabilitiesSection';
 import Manifesto from '../components/landing/Manifesto';
 import Marquee from '../components/landing/Marquee';
 import Transparency from '../components/landing/Transparency';
+import AboutPreviewSection from '../components/landing/AboutPreviewSection';
 import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
 import BackToTop from '../components/landing/BackToTop';
@@ -49,17 +48,16 @@ function LandingPage() {
   return (
     <div id="top" className="landing-page noise bg-paper font-sans">
       <Cursor />
-      <Header />
+      <Header lenisRef={lenisRef} />
       <Hero />
-      <LandingContext />
-      <HowItWorks />
-      <ParticleMorph />
-      <TrendsTeaser />
+      <ClinicalWorkflowSection />
+      <CapabilitiesSection />
       <Manifesto />
       <Marquee />
       <Transparency />
+      <AboutPreviewSection />
       <CTA />
-      <Footer />
+      <Footer lenisRef={lenisRef} />
       <BackToTop lenisRef={lenisRef} />
     </div>
   );
