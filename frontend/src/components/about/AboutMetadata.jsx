@@ -9,16 +9,16 @@ const fadeUp = {
     }),
 };
 
-// Real values. Update AWARE_VERSION once confirmed — left as TBD rather
-// than guessing between the 2023 and 2025 WHO releases.
+// Real values. AWaRe version confirmed as 2023 — matches the classification
+// mapping actually used in predict.py's AWARE_MAP and Section 11's reference.
 const METADATA = [
     { label: 'Platform version', value: 'v1.0' },
     { label: 'Dataset coverage', value: '2020–2025' },
     { label: 'Dataset size', value: '10,710 records' },
     { label: 'Antibiotics modeled', value: '15' },
     { label: 'Models', value: '15 per-antibiotic CatBoost classifiers' },
-    { label: 'Last model training', value: 'July 8, 2026' },
-    { label: 'WHO AWaRe version referenced', value: 'TBD' },
+    { label: 'Last model training', value: 'July 2026' },
+    { label: 'WHO AWaRe version referenced', value: '2023' },
 ];
 
 export default function AboutMetadata() {
@@ -59,12 +59,7 @@ export default function AboutMetadata() {
                                     }`}
                             >
                                 <dt className="font-sans text-[13px] text-page-muted">{item.label}</dt>
-                                <dd
-                                    className={`font-mono text-[13px] ${item.value === 'TBD' ? 'text-intermediate' : 'text-page-ink'
-                                        }`}
-                                >
-                                    {item.value}
-                                </dd>
+                                <dd className="font-mono text-[13px] text-page-ink">{item.value}</dd>
                             </div>
                         ))}
                     </dl>
