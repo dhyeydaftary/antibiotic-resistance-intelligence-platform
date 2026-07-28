@@ -30,6 +30,38 @@ export const AWARE_DESCRIPTIONS = {
   Reserve: 'Last-resort antibiotics, used only when other options have failed.',
 };
 
+// REAL — the exact model input features, mirrored from
+// ml-backend/ml_artifacts/feature_columns.json (the actual FEATURE_COLUMNS
+// the CatBoost models are trained on). The `description` text is written
+// copy explaining each field, not fabricated data — the feature names and
+// existence are ground truth from the model artifacts.
+export const MODEL_FEATURES = [
+  { name: 'Age', description: "Patient's age in years at time of sample collection." },
+  { name: 'Gender', description: 'Patient gender, encoded as a binary feature.' },
+  { name: 'Diabetes', description: 'Whether the patient has a diabetes diagnosis on record.' },
+  { name: 'Hypertension', description: 'Whether the patient has a hypertension diagnosis on record.' },
+  { name: 'Hospital_before', description: 'Whether the patient had a prior hospital admission.' },
+  { name: 'Infection_Freq', description: 'Recorded frequency of infections for this patient.' },
+  { name: 'Year', description: 'Year the sample was collected.' },
+  { name: 'Month', description: 'Month the sample was collected.' },
+  { name: 'Date_Missing', description: 'Flag for records with an incomplete collection date.' },
+  { name: 'Organism_*', description: 'One-hot encoded organism identity (9 columns, one per organism + Unknown).' },
+];
+
+// REAL — same 8 organisms the model is trained to recognize, from
+// ml-backend/predictor/predict.py ORGANISM_LIST (plus "Unknown").
+export const ORGANISM_LIST = [
+  'Acinetobacter baumannii',
+  'Citrobacter spp.',
+  'Enterobacteria spp.',
+  'Escherichia coli',
+  'Klebsiella pneumoniae',
+  'Morganella morganii',
+  'Proteus mirabilis',
+  'Pseudomonas aeruginosa',
+  'Serratia marcescens',
+];
+
 // PLACEHOLDER CONTENT — there is no research-feed or Q&A API in this
 // project yet. Same convention as Home's homeContent.js: clearly separated
 // static copy, easy to swap for a real endpoint later.
