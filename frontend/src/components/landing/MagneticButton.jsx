@@ -24,9 +24,9 @@ export default function MagneticButton({ children, className = "", variant = "pr
 
   const base = "inline-flex items-center gap-3 px-7 py-4 text-sm font-sans transition-colors duration-500 will-change-transform select-none";
   const styles = {
-    primary: "bg-ink text-paper hover:bg-teal",
-    ghost: "bg-transparent text-ink border border-ink/20 hover:border-ink",
-    accent: "bg-teal text-paper hover:bg-ink",
+    primary: "bg-accent-blue text-white hover:bg-accent-blue-hover",
+    ghost: "bg-transparent text-page-ink border border-canvas-hairline hover:border-accent-blue hover:text-accent-blue",
+    accent: "bg-accent-teal text-white hover:bg-accent-blue",
   };
 
   const Component = to ? MotionLink : motion.button;

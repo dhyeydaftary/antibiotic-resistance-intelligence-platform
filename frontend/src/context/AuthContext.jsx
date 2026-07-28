@@ -5,12 +5,16 @@ import { useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
+// "Remember me" checked -> localStorage (persists across browser restarts).
+// Unchecked -> sessionStorage (cleared when the tab closes), same as before.
+// On load we don't know which one was used, so check both — localStorage
+// first, since a remembered session should win if somehow both are set.
 function getStoredToken() {
-  return sessionStorage.getItem('token');
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
 }
 
 function getStoredUser() {
-  const raw = sessionStorage.getItem('user');
+  const raw = localStorage.getItem('user') || sessionStorage.getItem('user');
   return raw ? JSON.parse(raw) : null;
 }
 
@@ -26,9 +30,19 @@ export function AuthProvider({ children }) {
     });
   }, [navigate]);
 
-  function login(newToken, newUser) {
-    sessionStorage.setItem('token', newToken);
-    sessionStorage.setItem('user', JSON.stringify(newUser));
+  function login(newToken, newUser, remember = false) {
+    // Clear both storages first so a previous session in the *other* store
+    // (e.g. switching from "remembered" to "not remembered" on a later
+    // login) can't leave stale duplicate data behind.
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem('token', newToken);
+    storage.setItem('user', JSON.stringify(newUser));
+
     setToken(newToken);
     setUser(newUser);
   }
@@ -36,6 +50,8 @@ export function AuthProvider({ children }) {
   function clearAuth() {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
   }
