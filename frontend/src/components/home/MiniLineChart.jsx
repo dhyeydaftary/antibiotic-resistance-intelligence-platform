@@ -71,10 +71,8 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
     setHoverIndex(Math.max(0, Math.min(modifiedData.length - 1, idx)));
   }
 
-  const hovered = hoverIndex !== null ? modifiedData[hoverIndex] : null;
   const hoverX = hoverIndex !== null ? points[hoverIndex].x : null;
   const hoverY = hoverIndex !== null ? points[hoverIndex].y : null;
-  const tooltipLeft = hoverIndex !== null ? (hoverIndex / (modifiedData.length - 1)) * 100 : 0;
 
   return (
     <div className="w-full">
@@ -182,30 +180,6 @@ function MiniLineChart({ data, xKey = 'label', height = 160 }) {
             </text>
           ))}
         </svg>
-
-        <AnimatePresence>
-          {hovered && hoverIndex !== null && (
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 5 }}
-              transition={{ duration: 0.15 }}
-              className="pointer-events-none absolute top-0 z-10 min-w-[100px] rounded-[8px] border border-panel-border bg-panel-raised p-2.5 shadow-panel-md"
-              style={{
-                left: `${tooltipLeft}%`,
-                transform: tooltipLeft < 15 ? 'translateX(0)' :
-                          tooltipLeft > 85 ? 'translateX(-100%)' :
-                          'translateX(-50%)'
-              }}
-            >
-              <div className="text-xs font-semibold text-onpanel-ink">{hovered[xKey]}</div>
-              <div className="flex items-center gap-2 text-xs text-onpanel-muted mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                Predictions: {hovered.total}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
     </div>
   );

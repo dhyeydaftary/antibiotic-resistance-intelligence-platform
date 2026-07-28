@@ -1,6 +1,5 @@
 import { Sparkles } from 'lucide-react';
 import Panel from '../app/Panel';
-import { ANTIBIOTIC_AWARE_MAP, AWARE_DESCRIPTIONS } from '../../constants/exploreContent';
 
 const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
@@ -9,15 +8,13 @@ const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-acc
  * `stats` (the real dataset-stats API response) — same convention the
  * Result page already uses for its "AI Insights" section (templated text
  * over real stats, not a live model call). No numbers here are invented.
+ *
+ * Antibiotic selection was removed from AntibioticLibraryPanel (click-to-
+ * select had no real payoff), so this only responds to organism selection.
  */
-function buildInsight({ stats, selectedOrganism, selectedAntibiotic }) {
+function buildInsight({ stats, selectedOrganism }) {
   const organisms = stats.organismDistribution || [];
   const totalRows = stats.totalRows || 0;
-
-  if (selectedAntibiotic) {
-    const category = ANTIBIOTIC_AWARE_MAP[selectedAntibiotic];
-    return `${selectedAntibiotic} is classified under the WHO AWaRe ${category} tier. ${AWARE_DESCRIPTIONS[category]}`;
-  }
 
   if (selectedOrganism) {
     const entry = organisms.find((o) => o.organism === selectedOrganism);
@@ -35,8 +32,8 @@ function buildInsight({ stats, selectedOrganism, selectedAntibiotic }) {
   }`;
 }
 
-function DatasetInsightPanel({ stats, selectedOrganism, selectedAntibiotic }) {
-  const insight = buildInsight({ stats, selectedOrganism, selectedAntibiotic });
+function DatasetInsightPanel({ stats, selectedOrganism }) {
+  const insight = buildInsight({ stats, selectedOrganism });
 
   return (
     <Panel className={`p-6 ${HOVER}`}>
