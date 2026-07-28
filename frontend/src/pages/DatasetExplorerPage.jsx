@@ -13,7 +13,7 @@ import QuestionBankPanel from '../components/explore/QuestionBankPanel';
 import Panel from '../components/app/Panel';
 import ScrollReveal from '../components/home/ScrollReveal';
 
-const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
+const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 function DatasetExplorerPage() {
   const location = useLocation();
@@ -21,7 +21,6 @@ function DatasetExplorerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedOrganism, setSelectedOrganism] = useState(null);
-  const [selectedAntibiotic, setSelectedAntibiotic] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,12 +50,6 @@ function DatasetExplorerPage() {
 
   function selectOrganism(name) {
     setSelectedOrganism(name);
-    if (name) setSelectedAntibiotic(null);
-  }
-
-  function selectAntibiotic(name) {
-    setSelectedAntibiotic(name);
-    if (name) setSelectedOrganism(null);
   }
 
   const organisms = stats?.organismDistribution
@@ -66,11 +59,7 @@ function DatasetExplorerPage() {
   return (
     <div className="px-6 py-10 sm:py-12">
       <div className="mx-auto max-w-6xl space-y-6">
-        <ExploreHero
-          organisms={organisms}
-          onSelectOrganism={selectOrganism}
-          onSelectAntibiotic={selectAntibiotic}
-        />
+        <ExploreHero />
 
         {loading && (
           <div className="h-[260px] animate-pulse rounded-[20px] border border-panel-border bg-panel" />
@@ -106,7 +95,6 @@ function DatasetExplorerPage() {
               <DatasetInsightPanel
                 stats={stats}
                 selectedOrganism={selectedOrganism}
-                selectedAntibiotic={selectedAntibiotic}
               />
             </ScrollReveal>
 
@@ -120,7 +108,7 @@ function DatasetExplorerPage() {
             </ScrollReveal>
 
             <ScrollReveal index={1}>
-              <AntibioticLibraryPanel selected={selectedAntibiotic} onSelect={selectAntibiotic} />
+              <AntibioticLibraryPanel />
             </ScrollReveal>
 
             <ScrollReveal index={1}>

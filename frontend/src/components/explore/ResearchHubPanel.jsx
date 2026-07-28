@@ -4,7 +4,7 @@ import { FileText, ChevronDown, Info } from 'lucide-react';
 import Panel from '../app/Panel';
 import { RESEARCH_HUB } from '../../constants/exploreContent';
 
-const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
+const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 /**
  * IMPORTANT: RESEARCH_HUB items are placeholder headlines (see
