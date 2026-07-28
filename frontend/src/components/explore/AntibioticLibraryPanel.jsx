@@ -9,7 +9,12 @@ const CATEGORY_DOT = {
   Reserve: 'bg-resistant',
 };
 
-function AntibioticLibraryPanel({ selected, onSelect }) {
+/**
+ * Display-only now — clicking a pill used to "select" an antibiotic for
+ * DatasetInsightPanel, but that added a selection state with no real
+ * payoff. Just the hover border-color change remains.
+ */
+function AntibioticLibraryPanel() {
   const byCategory = AWARE_CATEGORIES.map((category) => ({
     category,
     antibiotics: Object.entries(ANTIBIOTIC_AWARE_MAP)
@@ -34,23 +39,14 @@ function AntibioticLibraryPanel({ selected, onSelect }) {
             </div>
             <p className="mb-3 font-sans text-caption text-onpanel-faint">{AWARE_DESCRIPTIONS[category]}</p>
             <div className="flex flex-wrap gap-1.5">
-              {antibiotics.map((name) => {
-                const isSelected = selected === name;
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => onSelect(isSelected ? null : name)}
-                    className={`rounded-full border px-2.5 py-1 font-mono text-caption transition-colors ${
-                      isSelected
-                        ? 'border-accent-blue bg-accent-blue/15 text-accent-blue'
-                        : 'border-panel-border text-onpanel-muted hover:border-accent-blue/40'
-                    }`}
-                  >
-                    {name}
-                  </button>
-                );
-              })}
+              {antibiotics.map((name) => (
+                <span
+                  key={name}
+                  className="rounded-full border border-panel-border px-2.5 py-1 font-mono text-caption text-onpanel-muted transition-colors hover:border-accent-blue/40"
+                >
+                  {name}
+                </span>
+              ))}
             </div>
           </div>
         ))}
