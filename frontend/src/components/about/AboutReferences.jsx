@@ -10,8 +10,7 @@ const fadeUp = {
     }),
 };
 
-// Verified citation details. Update DATASET_CITATION.url once confirmed —
-// left unlinked deliberately rather than guessing at a source.
+// Verified citation details, including the Kaggle dataset source.
 const REFERENCES = [
     {
         citation:
@@ -29,8 +28,8 @@ const REFERENCES = [
         url: 'https://arxiv.org/abs/1706.09516',
     },
     {
-        citation: 'AMR dataset. Kaggle. [Citation pending confirmation.]',
-        url: null,
+        citation: 'Imadeddine Hosni, A. "Multi-Resistance Antibiotic Susceptibility." Kaggle.',
+        url: 'https://www.kaggle.com/datasets/adilimadeddinehosni/multi-resistance-antibiotic-susceptibility',
     },
 ];
 
