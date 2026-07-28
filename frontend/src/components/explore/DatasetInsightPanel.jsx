@@ -1,7 +1,7 @@
 import { Sparkles } from 'lucide-react';
 import Panel from '../app/Panel';
 
-const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
+const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 /**
  * Every sentence here is generated from real numbers already present in
@@ -43,7 +43,7 @@ function DatasetInsightPanel({ stats, selectedOrganism }) {
         </div>
         <div>
           <div className="mb-1 font-mono text-mono-label uppercase tracking-[0.08em] text-onpanel-faint">
-            AI Insight
+            Insight
           </div>
           <p className="font-sans text-body-lg text-onpanel-ink">{insight}</p>
         </div>

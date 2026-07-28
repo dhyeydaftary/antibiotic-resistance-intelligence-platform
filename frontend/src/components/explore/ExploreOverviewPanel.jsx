@@ -4,7 +4,7 @@ import { Database, Rows3, FlaskConical, CalendarRange } from 'lucide-react';
 import Panel from '../app/Panel';
 import { useCountUp } from '../../hooks/useCountUp';
 
-const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
+const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 function ExploreOverviewPanel({ stats }) {
   const totalRows = useCountUp(stats.totalRows);

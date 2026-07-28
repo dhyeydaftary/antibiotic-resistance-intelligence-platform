@@ -90,16 +90,35 @@ function SunburstChart({ organisms, totalRows }) {
   function showTooltipFor(seg, targetEl) {
     const containerRect = containerRef.current.getBoundingClientRect();
     const targetRect = targetEl.getBoundingClientRect();
+    
+    // Position tooltip above the hovered element with enough offset
+    // so it doesn't cover the label below
+    const tooltipWidth = 180;
+    const tooltipHeight = 70;
+    
+    let left = targetRect.left - containerRect.left + targetRect.width / 2 - tooltipWidth / 2;
+    let top = targetRect.top - containerRect.top - tooltipHeight - 12;
+    
+    // If not enough space above, place below
+    if (top < 10) {
+      top = targetRect.top - containerRect.top + targetRect.height + 12;
+    }
+    
+    // Keep within container bounds
+    const containerWidth = containerRef.current.offsetWidth;
+    if (left < 10) left = 10;
+    if (left + tooltipWidth > containerWidth - 10) left = containerWidth - tooltipWidth - 10;
+
     setHovered({
       ...seg,
-      top: targetRect.top - containerRect.top,
-      left: targetRect.left - containerRect.left + targetRect.width / 2,
+      top: top,
+      left: left,
     });
   }
 
   return (
-    <div ref={containerRef} className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-      <div className="relative shrink-0" onMouseLeave={() => setHovered(null)}>
+    <div ref={containerRef} className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-center" onMouseLeave={() => setHovered(null)}>
+      <div className="relative shrink-0">
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="300" height="300">
           {innerSegments.map((s) => (
             <path
@@ -164,10 +183,14 @@ function SunburstChart({ organisms, totalRows }) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
-            className="pointer-events-none absolute z-20 min-w-[140px] -translate-x-1/2 -translate-y-full rounded-[10px] border border-panel-border bg-panel-raised p-2.5 shadow-panel-lg"
-            style={{ top: hovered.top - 8, left: hovered.left }}
+            className="pointer-events-none absolute z-20 min-w-[160px] rounded-[10px] border border-panel-border bg-panel-raised p-2.5 shadow-panel-lg"
+            style={{ 
+              top: hovered.top, 
+              left: hovered.left,
+              maxWidth: '200px',
+            }}
           >
-            <p className="font-sans text-caption font-semibold text-onpanel-ink">{hovered.label}</p>
+            <p className="font-sans text-caption font-semibold text-onpanel-ink truncate">{hovered.label}</p>
             <p className="font-mono text-[11px] text-onpanel-muted">
               {hovered.count.toLocaleString()} samples · {((hovered.count / grandTotal) * 100).toFixed(1)}%
             </p>

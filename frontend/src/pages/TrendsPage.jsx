@@ -7,6 +7,7 @@ import { ORGANISM_OPTIONS, ANTIBIOTICS } from '../constants/domainData';
 import Panel from '../components/app/Panel';
 import ExplainTrendDrawer from '../components/trends/ExplainTrendDrawer';
 import ResearchPapersPanel from '../components/trends/ResearchPapersPanel';
+import ScrollReveal from '../components/home/ScrollReveal';
 
 import { AreaChart } from '../components/charts/area-chart';
 import { Area } from '../components/charts/area';
@@ -273,195 +274,207 @@ function TrendsPage() {
         </div>
 
         {/* Stat cards */}
-        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="Current rate" value={stats ? `${stats.latest}%` : '—'} icon={Activity} tone={{ text: 'text-onpanel-ink', bg: 'bg-accent-blue/15' }} />
-          <StatCard label="Peak rate" value={stats ? `${stats.peak}%` : '—'} icon={TrendingUp} tone={{ text: 'text-resistant', bg: 'bg-resistant/15' }} />
-          <StatCard label="Change (period)" value={stats ? `${stats.delta > 0 ? '+' : ''}${stats.delta}%` : '—'} icon={TrendIcon} tone={{ text: trendColor, bg: 'bg-accent-teal/15' }} />
-          <StatCard label="Data points" value={stats ? stats.points : '—'} icon={Calendar} tone={{ text: 'text-onpanel-ink', bg: 'bg-accent-indigo/15' }} />
-        </div>
+        <ScrollReveal index={0}>
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <StatCard label="Current rate" value={stats ? `${stats.latest}%` : '—'} icon={Activity} tone={{ text: 'text-onpanel-ink', bg: 'bg-accent-blue/15' }} />
+            <StatCard label="Peak rate" value={stats ? `${stats.peak}%` : '—'} icon={TrendingUp} tone={{ text: 'text-resistant', bg: 'bg-resistant/15' }} />
+            <StatCard label="Change (period)" value={stats ? `${stats.delta > 0 ? '+' : ''}${stats.delta}%` : '—'} icon={TrendIcon} tone={{ text: trendColor, bg: 'bg-accent-teal/15' }} />
+            <StatCard label="Data points" value={stats ? stats.points : '—'} icon={Calendar} tone={{ text: 'text-onpanel-ink', bg: 'bg-accent-indigo/15' }} />
+          </div>
+        </ScrollReveal>
 
         {/* Hero chart */}
-        <Panel className="mb-6 p-6 chart-on-dark" style={CHART_VARS}>
-          <div className="mb-5 flex items-start justify-between">
-            <div>
-              <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-                Resistance rate over time
+        <ScrollReveal index={1}>
+          <Panel className="mb-6 p-6 chart-on-dark" style={CHART_VARS}>
+            <div className="mb-5 flex items-start justify-between">
+              <div>
+                <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                  Resistance rate over time
+                </div>
+                <div className="mt-0.5 font-display text-[18px] font-semibold text-onpanel-ink">
+                  {antibiotic} {organism !== 'all' && `· ${organism}`}
+                </div>
               </div>
-              <div className="mt-0.5 font-display text-[18px] font-semibold text-onpanel-ink">
-                {antibiotic} {organism !== 'all' && `· ${organism}`}
+              <button
+                onClick={() => setDrawerOpen(true)}
+                className="flex items-center gap-1.5 rounded-full border border-onpanel-faint/30 bg-panel-raised px-3 py-1.5 font-mono text-[11px] font-medium text-onpanel-ink transition-colors hover:border-accent-blue hover:text-accent-blue"
+              >
+                <Sparkles size={12} /> Explain Trend
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="h-64 animate-pulse rounded-[10px] bg-panel-raised" />
+            ) : error ? (
+              <div className="flex h-64 items-center justify-center font-sans text-[14px] text-onpanel-faint">{error}</div>
+            ) : chartData.length === 0 ? (
+              <div className="flex h-64 items-center justify-center font-sans text-[14px] text-onpanel-faint">
+                No data available for this combination.
               </div>
-            </div>
-            <button
-              onClick={() => setDrawerOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-onpanel-faint/30 bg-panel-raised px-3 py-1.5 font-mono text-[11px] font-medium text-onpanel-ink transition-colors hover:border-accent-blue hover:text-accent-blue"
-            >
-              <Sparkles size={12} /> Explain Trend
-            </button>
-          </div>
-
-          {loading ? (
-            <div className="h-64 animate-pulse rounded-[10px] bg-panel-raised" />
-          ) : error ? (
-            <div className="flex h-64 items-center justify-center font-sans text-[14px] text-onpanel-faint">{error}</div>
-          ) : chartData.length === 0 ? (
-            <div className="flex h-64 items-center justify-center font-sans text-[14px] text-onpanel-faint">
-              No data available for this combination.
-            </div>
-          ) : (
-            <AreaChart data={chartData} aspectRatio="16 / 6">
-              <Grid horizontal />
-              <Area dataKey="rate" stroke="#0071E3" fill="#0071E3" fillOpacity={0.15} strokeWidth={2} curve={curveLinear} />
-              <XAxis />
-              <ChartTooltip />
-            </AreaChart>
-          )}
-        </Panel>
-
-        {/* Organism comparison overlay */}
-        <Panel className="mb-6 p-6 chart-on-dark" style={CHART_VARS}>
-          <div className="mb-5">
-            <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-              Organism comparison
-            </div>
-            <div className="mt-0.5 font-display text-[18px] font-semibold text-onpanel-ink">
-              {antibiotic} across top organisms
-            </div>
-          </div>
-
-          {organismOverlayLoading || organismOverlay.length === 0 ? (
-            <div className="h-56 animate-pulse rounded-[10px] bg-panel-raised" />
-          ) : (
-            <ChartLegendHoverProvider hoveredIndex={hoveredOrganismIndex} onHoverChange={setHoveredOrganismIndex}>
-              <LineChart data={organismOverlay} aspectRatio="16 / 5" animationDuration={0}>
+            ) : (
+              <AreaChart data={chartData} aspectRatio="16 / 6">
                 <Grid horizontal />
-                {validOrganisms.map((org, i) => (
-                  <Line key={org} dataKey={org} stroke={ORGANISM_LINE_COLORS[i]} strokeWidth={2} curve={curveLinear} fadeEdges={false} />
-                ))}
+                <Area dataKey="rate" stroke="#0071E3" fill="#0071E3" fillOpacity={0.15} strokeWidth={2} curve={curveLinear} />
                 <XAxis />
                 <ChartTooltip />
-              </LineChart>
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5">
-                {validOrganisms.map((org, i) => (
-                  <div
-                    key={org}
-                    onMouseEnter={() => setHoveredOrganismIndex(i)}
-                    onMouseLeave={() => setHoveredOrganismIndex(null)}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-full px-2 py-1 font-mono text-[11px] text-onpanel-muted transition-colors hover:bg-panel-raised"
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ORGANISM_LINE_COLORS[i] }} />
-                    {org}
-                  </div>
-                ))}
+              </AreaChart>
+            )}
+          </Panel>
+        </ScrollReveal>
+
+        {/* Organism comparison overlay */}
+        <ScrollReveal index={2}>
+          <Panel className="mb-6 p-6 chart-on-dark" style={CHART_VARS}>
+            <div className="mb-5">
+              <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                Organism comparison
               </div>
-            </ChartLegendHoverProvider>
-          )}
-        </Panel>
+              <div className="mt-0.5 font-display text-[18px] font-semibold text-onpanel-ink">
+                {antibiotic} across top organisms
+              </div>
+            </div>
+
+            {organismOverlayLoading || organismOverlay.length === 0 ? (
+              <div className="h-56 animate-pulse rounded-[10px] bg-panel-raised" />
+            ) : (
+              <ChartLegendHoverProvider hoveredIndex={hoveredOrganismIndex} onHoverChange={setHoveredOrganismIndex}>
+                <LineChart data={organismOverlay} aspectRatio="16 / 5" animationDuration={0}>
+                  <Grid horizontal />
+                  {validOrganisms.map((org, i) => (
+                    <Line key={org} dataKey={org} stroke={ORGANISM_LINE_COLORS[i]} strokeWidth={2} curve={curveLinear} fadeEdges={false} />
+                  ))}
+                  <XAxis />
+                  <ChartTooltip />
+                </LineChart>
+                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5">
+                  {validOrganisms.map((org, i) => (
+                    <div
+                      key={org}
+                      onMouseEnter={() => setHoveredOrganismIndex(i)}
+                      onMouseLeave={() => setHoveredOrganismIndex(null)}
+                      className="flex cursor-pointer items-center gap-1.5 rounded-full px-2 py-1 font-mono text-[11px] text-onpanel-muted transition-colors hover:bg-panel-raised"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ORGANISM_LINE_COLORS[i] }} />
+                      {org}
+                    </div>
+                  ))}
+                </div>
+              </ChartLegendHoverProvider>
+            )}
+          </Panel>
+        </ScrollReveal>
 
         {/* AWaRe tier comparison + Rising trend callout */}
-        <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
-          <Panel className="p-5 lg:col-span-3">
-            <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-              Avg resistance by WHO AWaRe tier
-            </div>
-            {overviewLoading ? (
-              <div className="h-24 animate-pulse rounded-[10px] bg-panel-raised" />
-            ) : (
-              <div className="space-y-3">
-                {tierAverages.map((t) => (
-                  <div key={t.tier}>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <span className={`font-mono text-[12px] font-medium ${TIER_TONE[t.tier].text}`}>{t.tier}</span>
-                      <span className="font-mono text-[12px] text-onpanel-muted">{t.avg}% · {t.count} antibiotics</span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-panel-border">
-                      <motion.div
-                        className={`h-full rounded-full ${TIER_TONE[t.tier].bar}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${t.avg}%` }}
-                        transition={{ duration: 0.6 }}
-                      />
-                    </div>
-                  </div>
-                ))}
+        <ScrollReveal index={3}>
+          <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-5">
+            <Panel className="p-5 lg:col-span-3">
+              <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                Avg resistance by WHO AWaRe tier
               </div>
-            )}
-          </Panel>
-
-          <Panel className="p-5 lg:col-span-2">
-            <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-              <Flame size={13} className="text-resistant" /> Steepest rising trend
-            </div>
-            {overviewLoading || !risingTrend ? (
-              <div className="h-24 animate-pulse rounded-[10px] bg-panel-raised" />
-            ) : (
-              <>
-                <div className="rounded-[12px] bg-resistant/10 p-3">
-                  <div className="font-display text-[20px] font-semibold text-onpanel-ink">{risingTrend.top.code}</div>
-                  <div className="mt-0.5 flex items-center gap-1 font-mono text-[12px] font-medium text-resistant">
-                    <ArrowUp size={12} /> +{risingTrend.top.delta}% over period
-                  </div>
-                </div>
-                {risingTrend.runnersUp.length > 0 && (
-                  <div className="mt-3 space-y-1.5">
-                    {risingTrend.runnersUp.map((r) => (
-                      <div key={r.code} className="flex items-center justify-between font-mono text-[12px]">
-                        <span className="text-onpanel-muted">{r.code}</span>
-                        <span className={r.delta > 0 ? 'text-resistant' : 'text-susceptible'}>
-                          {r.delta > 0 ? '+' : ''}{r.delta}%
-                        </span>
+              {overviewLoading ? (
+                <div className="h-24 animate-pulse rounded-[10px] bg-panel-raised" />
+              ) : (
+                <div className="space-y-3">
+                  {tierAverages.map((t) => (
+                    <div key={t.tier}>
+                      <div className="mb-1.5 flex items-center justify-between">
+                        <span className={`font-mono text-[12px] font-medium ${TIER_TONE[t.tier].text}`}>{t.tier}</span>
+                        <span className="font-mono text-[12px] text-onpanel-muted">{t.avg}% · {t.count} antibiotics</span>
                       </div>
-                    ))}
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-panel-border">
+                        <motion.div
+                          className={`h-full rounded-full ${TIER_TONE[t.tier].bar}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${t.avg}%` }}
+                          transition={{ duration: 0.6 }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+
+            <Panel className="p-5 lg:col-span-2">
+              <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                <Flame size={13} className="text-resistant" /> Steepest rising trend
+              </div>
+              {overviewLoading || !risingTrend ? (
+                <div className="h-24 animate-pulse rounded-[10px] bg-panel-raised" />
+              ) : (
+                <>
+                  <div className="rounded-[12px] bg-resistant/10 p-3">
+                    <div className="font-display text-[20px] font-semibold text-onpanel-ink">{risingTrend.top.code}</div>
+                    <div className="mt-0.5 flex items-center gap-1 font-mono text-[12px] font-medium text-resistant">
+                      <ArrowUp size={12} /> +{risingTrend.top.delta}% over period
+                    </div>
                   </div>
-                )}
-              </>
-            )}
-          </Panel>
-        </div>
+                  {risingTrend.runnersUp.length > 0 && (
+                    <div className="mt-3 space-y-1.5">
+                      {risingTrend.runnersUp.map((r) => (
+                        <div key={r.code} className="flex items-center justify-between font-mono text-[12px]">
+                          <span className="text-onpanel-muted">{r.code}</span>
+                          <span className={r.delta > 0 ? 'text-resistant' : 'text-susceptible'}>
+                            {r.delta > 0 ? '+' : ''}{r.delta}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </Panel>
+          </div>
+        </ScrollReveal>
 
         {/* Top / Bottom ranked lists */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Panel className="p-5">
-            <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-              <ArrowUp size={13} className="text-resistant" /> Most resistant now
-            </div>
-            {overviewLoading ? (
-              <div className="h-40 animate-pulse rounded-[10px] bg-panel-raised" />
-            ) : (
-              <div className="space-y-2">
-                {rankedLists.top.map((s, i) => (
-                  <div key={s.code} className="flex items-center gap-3">
-                    <span className="w-4 shrink-0 font-mono text-[11px] text-onpanel-faint">{i + 1}</span>
-                    <span className="flex-1 truncate font-mono text-[13px] font-medium text-onpanel-ink">{s.code}</span>
-                    <span className="font-mono text-[13px] font-semibold text-resistant">{s.latest}%</span>
-                  </div>
-                ))}
+        <ScrollReveal index={4}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Panel className="p-5">
+              <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                <ArrowUp size={13} className="text-resistant" /> Most resistant now
               </div>
-            )}
-          </Panel>
+              {overviewLoading ? (
+                <div className="h-40 animate-pulse rounded-[10px] bg-panel-raised" />
+              ) : (
+                <div className="space-y-2">
+                  {rankedLists.top.map((s, i) => (
+                    <div key={s.code} className="flex items-center gap-3">
+                      <span className="w-4 shrink-0 font-mono text-[11px] text-onpanel-faint">{i + 1}</span>
+                      <span className="flex-1 truncate font-mono text-[13px] font-medium text-onpanel-ink">{s.code}</span>
+                      <span className="font-mono text-[13px] font-semibold text-resistant">{s.latest}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
 
-          <Panel className="p-5">
-            <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-              <ArrowDown size={13} className="text-susceptible" /> Least resistant now
-            </div>
-            {overviewLoading ? (
-              <div className="h-40 animate-pulse rounded-[10px] bg-panel-raised" />
-            ) : (
-              <div className="space-y-2">
-                {rankedLists.bottom.map((s, i) => (
-                  <div key={s.code} className="flex items-center gap-3">
-                    <span className="w-4 shrink-0 font-mono text-[11px] text-onpanel-faint">{i + 1}</span>
-                    <span className="flex-1 truncate font-mono text-[13px] font-medium text-onpanel-ink">{s.code}</span>
-                    <span className="font-mono text-[13px] font-semibold text-susceptible">{s.latest}%</span>
-                  </div>
-                ))}
+            <Panel className="p-5">
+              <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                <ArrowDown size={13} className="text-susceptible" /> Least resistant now
               </div>
-            )}
-          </Panel>
-        </div>
+              {overviewLoading ? (
+                <div className="h-40 animate-pulse rounded-[10px] bg-panel-raised" />
+              ) : (
+                <div className="space-y-2">
+                  {rankedLists.bottom.map((s, i) => (
+                    <div key={s.code} className="flex items-center gap-3">
+                      <span className="w-4 shrink-0 font-mono text-[11px] text-onpanel-faint">{i + 1}</span>
+                      <span className="flex-1 truncate font-mono text-[13px] font-medium text-onpanel-ink">{s.code}</span>
+                      <span className="font-mono text-[13px] font-semibold text-susceptible">{s.latest}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+          </div>
+        </ScrollReveal>
 
-        <div className="mt-6">
-          <ResearchPapersPanel antibiotic={antibiotic} organism={organism} />
-        </div>
+        <ScrollReveal index={5}>
+          <div className="mt-6">
+            <ResearchPapersPanel antibiotic={antibiotic} organism={organism} />
+          </div>
+        </ScrollReveal>
 
         <ExplainTrendDrawer
           antibiotic={antibiotic}

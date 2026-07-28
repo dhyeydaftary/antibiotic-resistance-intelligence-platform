@@ -13,7 +13,7 @@ import QuestionBankPanel from '../components/explore/QuestionBankPanel';
 import Panel from '../components/app/Panel';
 import ScrollReveal from '../components/home/ScrollReveal';
 
-const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
+const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 function DatasetExplorerPage() {
   const location = useLocation();
