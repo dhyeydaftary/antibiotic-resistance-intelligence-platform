@@ -10,6 +10,7 @@ import HistoryTimeline from '../components/history/HistoryTimeline';
 import HistoryTable from '../components/history/HistoryTable';
 import EmptyHistory from '../components/history/EmptyHistory';
 import HistorySkeleton from '../components/history/HistorySkeleton';
+import ScrollReveal from '../components/home/ScrollReveal';
 
 const DEFAULT_FILTERS = {
   search: '', status: 'All', dateFrom: '', dateTo: '', antibiotic: 'All', organism: 'All', sort: 'newest',
@@ -217,28 +218,39 @@ const HistoryPage = () => {
         {loading ? (
           <HistorySkeleton />
         ) : rawRecords.length === 0 ? (
-          <EmptyHistory onNewPrediction={handleNewPrediction} />
+          <ScrollReveal index={4}>
+            <EmptyHistory onNewPrediction={handleNewPrediction} />
+          </ScrollReveal>
         ) : (
           <>
-            <HistoryStats stats={stats} />
-            <HistoryInsights summaries={summaries} />
+            <ScrollReveal index={0}>
+              <HistoryStats stats={stats} />
+            </ScrollReveal>
 
-            <HistoryFilterBar
-              filters={filters}
-              onFilterChange={setFilters}
-              onClear={() => setFilters(DEFAULT_FILTERS)}
-              antibioticOptions={antibioticOptions}
-              organismOptions={organismOptions}
-              antibioticStats={antibioticStats}
-              organismStats={organismStats}
-              totalResults={filteredSummaries.length}
-            />
+            <ScrollReveal index={1}>
+              <HistoryInsights summaries={summaries} />
+            </ScrollReveal>
 
-            {viewMode === 'timeline' ? (
-              <HistoryTimeline summaries={paginated} {...actionHandlers} />
-            ) : (
-              <HistoryTable summaries={paginated} currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} {...actionHandlers} />
-            )}
+            <ScrollReveal index={2}>
+              <HistoryFilterBar
+                filters={filters}
+                onFilterChange={setFilters}
+                onClear={() => setFilters(DEFAULT_FILTERS)}
+                antibioticOptions={antibioticOptions}
+                organismOptions={organismOptions}
+                antibioticStats={antibioticStats}
+                organismStats={organismStats}
+                totalResults={filteredSummaries.length}
+              />
+            </ScrollReveal>
+
+            <ScrollReveal index={3}>
+              {viewMode === 'timeline' ? (
+                <HistoryTimeline summaries={paginated} {...actionHandlers} />
+              ) : (
+                <HistoryTable summaries={paginated} currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} {...actionHandlers} />
+              )}
+            </ScrollReveal>
           </>
         )}
       </div>
