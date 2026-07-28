@@ -2,6 +2,7 @@ import { Cpu, Database, ShieldAlert, Users } from 'lucide-react';
 import AboutOpening from '../components/about/AboutOpening';
 import AboutGap from '../components/about/AboutGap';
 import AboutPhilosophy from '../components/about/AboutPhilosophy';
+import AboutCapabilityList from '../components/about/AboutCapabilityList';
 
 function InfoCard({ icon: Icon, label, id, children }) {
   return (
@@ -20,6 +21,7 @@ function AboutPage() {
       <AboutOpening />
       <AboutGap />
       <AboutPhilosophy />
+      <AboutCapabilityList />
 
       {/* TODO(about-redesign): everything below is the legacy compact layout.
           Will be replaced section-by-section per the redesign plan (Sections 2-13). */}
