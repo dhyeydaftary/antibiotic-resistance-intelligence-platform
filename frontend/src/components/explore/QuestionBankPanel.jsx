@@ -1,22 +1,64 @@
-// frontend/src/components/explore/QuestionBankPanel.jsx
-
 import { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { HelpCircle, ChevronDown } from 'lucide-react';
 import Panel from '../app/Panel';
 import { QUESTION_BANK } from '../../constants/exploreContent';
-import { QUESTION_ANSWERS } from '../../constants/questionAnswers';
+import { getAnswer } from '../../utils/questionAnswers';
 
 const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
-function QuestionBankPanel() {
-  const [expandedQuestions, setExpandedQuestions] = useState({});
+/**
+ * Questions are a static bank (see constants/exploreContent.js), but every
+ * answer is computed live from the real dataset-stats response passed in
+ * as `stats` — see utils/questionAnswers.js. No hardcoded statistics here.
+ */
+function QuestionCard({ q, i, isOpen, onToggle, stats }) {
+  return (
+    <div
+      className={`rounded-[10px] border transition-colors ${
+        isOpen ? 'border-accent-blue bg-panel-raised/60' : 'border-panel-border bg-panel-raised/40 hover:border-accent-blue/40'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-start gap-2.5 p-3.5 text-left"
+      >
+        <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-accent-blue" strokeWidth={1.75} />
+        <p className="flex-1 font-sans text-small text-onpanel-ink">{q}</p>
+        <ChevronDown
+          className={`mt-0.5 h-4 w-4 shrink-0 text-onpanel-faint transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <p className="border-t border-panel-border px-3.5 py-3 pl-[34px] font-sans text-small text-onpanel-muted">
+              {getAnswer(q, { stats })}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
-  const toggleQuestion = (question) => {
-    setExpandedQuestions(prev => ({
-      ...prev,
-      [question]: !prev[question]
-    }));
-  };
+function QuestionBankPanel({ stats }) {
+  const [openIndex, setOpenIndex] = useState(null);
+
+  // Two independent stacked columns instead of a CSS grid — a grid's rows
+  // sync height across columns, so expanding one question's answer was
+  // stretching its row-neighbor in the other column along with it. Plain
+  // flex columns don't share row tracks, so each side reflows on its own.
+  const indexed = QUESTION_BANK.map((q, i) => ({ q, i }));
+  const leftColumn = indexed.filter((_, idx) => idx % 2 === 0);
+  const rightColumn = indexed.filter((_, idx) => idx % 2 === 1);
 
   return (
     <Panel id="question-bank" className={`p-6 ${HOVER}`}>
@@ -25,50 +67,17 @@ function QuestionBankPanel() {
       </div>
       <h2 className="mb-4 font-display text-h3 text-onpanel-ink">Questions worth exploring</h2>
 
-      <div className="flex flex-wrap -mx-1.5">
-        {QUESTION_BANK.map((q, index) => {
-          const isExpanded = expandedQuestions[q];
-          const answer = QUESTION_ANSWERS[q];
-          
-          return (
-            <div 
-              key={q} 
-              className="w-full sm:w-1/2 px-1.5 mb-3"
-            >
-              <div 
-                className={`rounded-[10px] border transition-all duration-200 ${
-                  isExpanded 
-                    ? 'border-accent-blue bg-panel-raised/60' 
-                    : 'border-panel-border bg-panel-raised/40 hover:border-accent-blue/40'
-                }`}
-              >
-                <button
-                  onClick={() => toggleQuestion(q)}
-                  className="flex w-full items-start gap-2.5 p-3.5 text-left"
-                >
-                  <span className="font-mono text-caption text-onpanel-faint shrink-0">
-                    {index + 1}.
-                  </span>
-                  <span className="flex-1 font-sans text-small text-onpanel-ink">{q}</span>
-                  <ChevronDown 
-                    className={`h-4 w-4 shrink-0 text-onpanel-faint transition-transform duration-200 ${
-                      isExpanded ? 'rotate-180' : ''
-                    }`} 
-                    strokeWidth={1.75}
-                  />
-                </button>
-                
-                {isExpanded && answer && (
-                  <div className="border-t border-panel-border px-3.5 pb-4 pt-3">
-                    <p className="font-sans text-small text-onpanel-muted">
-                      <span className="font-semibold text-accent-blue">Answer:</span> {answer}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-3">
+          {leftColumn.map(({ q, i }) => (
+            <QuestionCard key={q} q={q} i={i} isOpen={openIndex === i} onToggle={() => setOpenIndex(openIndex === i ? null : i)} stats={stats} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-3">
+          {rightColumn.map(({ q, i }) => (
+            <QuestionCard key={q} q={q} i={i} isOpen={openIndex === i} onToggle={() => setOpenIndex(openIndex === i ? null : i)} stats={stats} />
+          ))}
+        </div>
       </div>
     </Panel>
   );

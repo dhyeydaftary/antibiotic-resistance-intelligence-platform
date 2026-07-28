@@ -1,17 +1,19 @@
-// frontend/src/pages/DatasetExplorerPage.jsx
-
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getDatasetStats } from '../api/datasetApi';
 import ExploreHero from '../components/explore/ExploreHero';
 import ExploreOverviewPanel from '../components/explore/ExploreOverviewPanel';
+import SunburstChart from '../components/explore/SunburstChart';
 import OrganismLibraryPanel from '../components/explore/OrganismLibraryPanel';
 import AntibioticLibraryPanel from '../components/explore/AntibioticLibraryPanel';
 import DatasetInsightPanel from '../components/explore/DatasetInsightPanel';
+import FeaturedPicksPanel from '../components/explore/FeaturedPicksPanel';
 import ResearchHubPanel from '../components/explore/ResearchHubPanel';
 import QuestionBankPanel from '../components/explore/QuestionBankPanel';
-import OrganismDistributionChart from '../components/explore/OrganismDistributionChart';
 import Panel from '../components/app/Panel';
+import ScrollReveal from '../components/home/ScrollReveal';
+
+const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 function DatasetExplorerPage() {
   const location = useLocation();
@@ -81,35 +83,54 @@ function DatasetExplorerPage() {
         )}
 
         {!loading && !error && stats && (
-          <div className="space-y-6">
-            <ExploreOverviewPanel stats={stats} />
+          <>
+            <ScrollReveal index={0}>
+              <ExploreOverviewPanel stats={stats} />
+            </ScrollReveal>
 
-            {/* DATA VISUALIZATION - MOVED UP */}
-            <Panel className="p-6">
-              <div className="mb-1 font-mono text-mono-label font-medium uppercase tracking-[0.1em] text-onpanel-faint">
-                Data Visualization
-              </div>
-              <h2 className="mb-4 font-display text-h3 text-onpanel-ink">Organism Distribution</h2>
-              <OrganismDistributionChart organisms={organisms} totalRows={stats.totalRows} />
-            </Panel>
+            <ScrollReveal index={1}>
+              <Panel className={`p-6 ${HOVER}`}>
+                <div className="mb-1 font-mono text-mono-label font-medium uppercase tracking-[0.1em] text-onpanel-faint">
+                  Organism Distribution
+                </div>
+                <h2 className="mb-4 font-display text-h3 text-onpanel-ink">A real 2-level breakdown</h2>
+                <SunburstChart organisms={organisms} totalRows={stats.totalRows} />
+              </Panel>
+            </ScrollReveal>
 
-            {/* AI INSIGHT - MOVED DOWN */}
-            <DatasetInsightPanel
-              stats={stats}
-              selectedOrganism={selectedOrganism}
-              selectedAntibiotic={selectedAntibiotic}
-            />
+            <ScrollReveal index={0}>
+              <FeaturedPicksPanel organisms={organisms} totalRows={stats.totalRows} />
+            </ScrollReveal>
 
-            <OrganismLibraryPanel
-              organisms={organisms}
-              totalRows={stats.totalRows}
-              selected={selectedOrganism}
-              onSelect={selectOrganism}
-            />
-            <AntibioticLibraryPanel selected={selectedAntibiotic} onSelect={selectAntibiotic} />
-            <ResearchHubPanel />
-            <QuestionBankPanel />
-          </div>
+            <ScrollReveal index={1}>
+              <DatasetInsightPanel
+                stats={stats}
+                selectedOrganism={selectedOrganism}
+                selectedAntibiotic={selectedAntibiotic}
+              />
+            </ScrollReveal>
+
+            <ScrollReveal index={0}>
+              <OrganismLibraryPanel
+                organisms={organisms}
+                totalRows={stats.totalRows}
+                selected={selectedOrganism}
+                onSelect={selectOrganism}
+              />
+            </ScrollReveal>
+
+            <ScrollReveal index={1}>
+              <AntibioticLibraryPanel selected={selectedAntibiotic} onSelect={selectAntibiotic} />
+            </ScrollReveal>
+
+            <ScrollReveal index={1}>
+              <ResearchHubPanel />
+            </ScrollReveal>
+
+            <ScrollReveal index={0}>
+              <QuestionBankPanel stats={stats} />
+            </ScrollReveal>
+          </>
         )}
       </div>
     </div>

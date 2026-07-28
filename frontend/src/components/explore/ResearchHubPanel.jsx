@@ -1,22 +1,20 @@
-// frontend/src/components/explore/ResearchHubPanel.jsx
-
 import { useState } from 'react';
-import { FileText, ChevronDown } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { FileText, ChevronDown, Info } from 'lucide-react';
 import Panel from '../app/Panel';
 import { RESEARCH_HUB } from '../../constants/exploreContent';
-import { RESEARCH_ANSWERS } from '../../constants/questionAnswers';
 
 const HOVER = 'transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
+/**
+ * IMPORTANT: RESEARCH_HUB items are placeholder headlines (see
+ * constants/exploreContent.js) — there is no real paper, no real backend,
+ * and no real summary behind any of them. Expanding a row must NOT show an
+ * invented "summary" — that would present made-up research findings as
+ * real ones. It shows an honest disclosure instead.
+ */
 function ResearchHubPanel() {
-  const [expandedItems, setExpandedItems] = useState({});
-
-  const toggleItem = (title) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [title]: !prev[title]
-    }));
-  };
+  const [openIndex, setOpenIndex] = useState(null);
 
   return (
     <Panel id="research-hub" className={`p-6 ${HOVER}`}>
@@ -26,14 +24,13 @@ function ResearchHubPanel() {
       <h2 className="mb-4 font-display text-h3 text-onpanel-ink">Recent AMR research</h2>
 
       <div className="divide-y divide-panel-border">
-        {RESEARCH_HUB.map((item) => {
-          const isExpanded = expandedItems[item.title];
-          const answer = RESEARCH_ANSWERS[item.title];
-          
+        {RESEARCH_HUB.map((item, i) => {
+          const isOpen = openIndex === i;
           return (
             <div key={item.title} className="py-3 first:pt-0 last:pb-0">
               <button
-                onClick={() => toggleItem(item.title)}
+                type="button"
+                onClick={() => setOpenIndex(isOpen ? null : i)}
                 className="flex w-full items-start gap-3 text-left"
               >
                 <FileText className="mt-0.5 h-4 w-4 shrink-0 text-onpanel-faint" strokeWidth={1.75} />
@@ -44,21 +41,33 @@ function ResearchHubPanel() {
                 <span className="shrink-0 rounded-full border border-panel-border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-onpanel-muted">
                   {item.tag}
                 </span>
-                <ChevronDown 
-                  className={`h-4 w-4 shrink-0 text-onpanel-faint transition-transform duration-200 ${
-                    isExpanded ? 'rotate-180' : ''
-                  }`} 
-                  strokeWidth={1.75}
+                <ChevronDown
+                  className={`mt-0.5 h-4 w-4 shrink-0 text-onpanel-faint transition-transform ${
+                    isOpen ? 'rotate-180' : ''
+                  }`}
                 />
               </button>
-              
-              {isExpanded && answer && (
-                <div className="mt-3 rounded-[10px] border border-accent-blue/20 bg-accent-blue/5 p-3.5">
-                  <p className="font-sans text-small text-onpanel-muted">
-                    <span className="font-semibold text-accent-blue">Summary:</span> {answer}
-                  </p>
-                </div>
-              )}
+
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-3 flex items-start gap-2.5 rounded-[10px] border border-panel-border bg-panel-raised/40 p-3.5">
+                      <Info className="mt-0.5 h-4 w-4 shrink-0 text-onpanel-faint" strokeWidth={1.75} />
+                      <p className="font-sans text-small text-onpanel-muted">
+                        This headline is placeholder content — there's no research-feed API or real paper behind it
+                        yet, so there's no real summary to show. Wire this up to an actual source before relying on
+                        it for anything factual.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           );
         })}
