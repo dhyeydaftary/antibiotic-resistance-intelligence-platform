@@ -10,6 +10,7 @@ import AboutAudience from '../components/about/AboutAudience';
 import AboutContributors from '../components/about/AboutContributors';
 import AboutAcknowledgements from '../components/about/AboutAcknowledgements';
 import AboutReferences from '../components/about/AboutReferences';
+import AboutMetadata from '../components/about/AboutMetadata';
 
 function InfoCard({ icon: Icon, label, id, children }) {
   return (
@@ -36,6 +37,7 @@ function AboutPage() {
       <AboutContributors />
       <AboutAcknowledgements />
       <AboutReferences />
+      <AboutMetadata />
 
       {/* TODO(about-redesign): everything below is the legacy compact layout.
           Will be replaced section-by-section per the redesign plan (Sections 2-13). */}
