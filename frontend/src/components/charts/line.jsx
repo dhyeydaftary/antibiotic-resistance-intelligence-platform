@@ -12,7 +12,6 @@ import {
   resolveDashTailBounds,
   usePathStrokeMetrics,
 } from "./path-stroke-utils";
-import { sanitizeSvgId } from "./sanitize-svg-id";
 import { SeriesDashTailOverlay } from "./series-dash-tail-overlay";
 import { SeriesHighlightLayer } from "./series-highlight-layer";
 import { SeriesHoverDim } from "./series-hover-dim";
@@ -188,7 +187,7 @@ export function Line({
   ]);
 
   const reactId = useId();
-  const gradientId = `line-gradient-${sanitizeSvgId(dataKey)}-${sanitizeSvgId(reactId)}`;
+  const gradientId = `line-gradient-${dataKey}-${reactId}`;
 
   const getY = useCallback((d) => {
     const value = d[dataKey];

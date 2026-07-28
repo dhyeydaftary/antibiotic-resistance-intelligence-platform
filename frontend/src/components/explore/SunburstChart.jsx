@@ -2,10 +2,17 @@ import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Self-contained 2-ring sunburst — zero dependencies, same convention as
-// MiniLineChart on Home. This is a genuine (if small) real hierarchy built
-// from the real dataset-stats response: inner ring = "Named organisms" vs
-// "Unknown" (both real groupings already present in organismDistribution),
-// outer ring = each individual organism, sized within its parent's arc.
+// MiniLineChart on Home. Real hierarchy from the real dataset-stats
+// response: inner ring = "Named organisms" vs "Unknown", outer ring = each
+// individual organism, sized within its parent's arc.
+//
+// TOOLTIP POSITIONING: this used to follow the raw mouse position, which
+// meant hovering a legend pill placed the tooltip directly on top of the
+// pill row, covering neighboring pill labels. Fixed by anchoring the
+// tooltip to the HOVERED ELEMENT's own bounding box instead of the cursor —
+// for legend pills it now floats above the whole row; for chart segments
+// it centers over the chart. Either way it can no longer land on top of
+// sibling content.
 
 const SIZE = 320;
 const CENTER = SIZE / 2;
@@ -14,9 +21,6 @@ const INNER_R1 = 84;
 const OUTER_R0 = 90;
 const OUTER_R1 = 142;
 
-// Monochrome blue shades only — the locked design system allows exactly
-// one accent color (accent-blue) plus semantic R/S/I colors, which don't
-// apply here since organisms aren't resistance results. No rainbow palette.
 const BLUE_SHADES = ['#0071E3', '#2B87E8', '#4C9CED', '#6EB1F1', '#8FC6F5', '#B0DBFA', '#D1EFFE'];
 const UNKNOWN_COLOR = '#6E6E73';
 
@@ -40,14 +44,9 @@ function arcPath(cx, cy, rInner, rOuter, startAngle, endAngle) {
   ].join(' ');
 }
 
-/**
- * organisms: real organismDistribution array — [{ organism, count }]
- * totalRows: real stats.totalRows
- */
 function SunburstChart({ organisms, totalRows }) {
   const containerRef = useRef(null);
-  const [hovered, setHovered] = useState(null);
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(null); // { key, label, count, top, left }
 
   if (!organisms || organisms.length === 0 || !totalRows) {
     return <p className="py-10 text-center font-sans text-small text-onpanel-faint">No organism data available.</p>;
@@ -64,14 +63,7 @@ function SunburstChart({ organisms, totalRows }) {
     { key: 'named', label: 'Named organisms', count: namedTotal, start: 0, end: namedAngleSpan, color: '#0071E3' },
   ];
   if (unknownTotal > 0) {
-    innerSegments.push({
-      key: 'unknown',
-      label: 'Unknown',
-      count: unknownTotal,
-      start: namedAngleSpan,
-      end: 360,
-      color: UNKNOWN_COLOR,
-    });
+    innerSegments.push({ key: 'unknown', label: 'Unknown', count: unknownTotal, start: namedAngleSpan, end: 360, color: UNKNOWN_COLOR });
   }
 
   let cursor = 0;
@@ -89,32 +81,45 @@ function SunburstChart({ organisms, totalRows }) {
     return seg;
   });
   if (unknownTotal > 0) {
-    outerSegments.push({
-      key: 'Unknown',
-      label: 'Unknown',
-      count: unknownTotal,
-      start: namedAngleSpan,
-      end: 360,
-      color: UNKNOWN_COLOR,
+    outerSegments.push({ key: 'Unknown', label: 'Unknown', count: unknownTotal, start: namedAngleSpan, end: 360, color: UNKNOWN_COLOR });
+  }
+
+  // Anchor to the hovered DOM element's own rect (relative to the shared
+  // container), never to the mouse — that's what keeps the tooltip from
+  // ever landing on top of a sibling pill.
+  function showTooltipFor(seg, targetEl) {
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const targetRect = targetEl.getBoundingClientRect();
+    
+    // Position tooltip above the hovered element with enough offset
+    // so it doesn't cover the label below
+    const tooltipWidth = 180;
+    const tooltipHeight = 70;
+    
+    let left = targetRect.left - containerRect.left + targetRect.width / 2 - tooltipWidth / 2;
+    let top = targetRect.top - containerRect.top - tooltipHeight - 12;
+    
+    // If not enough space above, place below
+    if (top < 10) {
+      top = targetRect.top - containerRect.top + targetRect.height + 12;
+    }
+    
+    // Keep within container bounds
+    const containerWidth = containerRef.current.offsetWidth;
+    if (left < 10) left = 10;
+    if (left + tooltipWidth > containerWidth - 10) left = containerWidth - tooltipWidth - 10;
+
+    setHovered({
+      ...seg,
+      top: top,
+      left: left,
     });
   }
 
-  function handleEnter(seg, ring, e) {
-    const rect = containerRef.current.getBoundingClientRect();
-    setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-    setHovered({ ...seg, ring });
-  }
-
-  function handleMove(e) {
-    if (!hovered) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  }
-
   return (
-    <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center">
-      <div ref={containerRef} className="relative shrink-0" onMouseLeave={() => setHovered(null)}>
-        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="300" height="300" onMouseMove={handleMove}>
+    <div ref={containerRef} className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-center" onMouseLeave={() => setHovered(null)}>
+      <div className="relative shrink-0">
+        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="300" height="300">
           {innerSegments.map((s) => (
             <path
               key={`inner-${s.key}`}
@@ -124,7 +129,7 @@ function SunburstChart({ organisms, totalRows }) {
               strokeWidth="1.5"
               opacity={hovered && hovered.key !== s.key ? 0.35 : 1}
               className="cursor-pointer transition-opacity duration-150"
-              onMouseEnter={(e) => handleEnter(s, 'inner', e)}
+              onMouseEnter={(e) => showTooltipFor(s, e.currentTarget)}
             />
           ))}
           {outerSegments.map((s) => (
@@ -137,7 +142,7 @@ function SunburstChart({ organisms, totalRows }) {
               opacity={hovered && hovered.key !== s.key ? 0.35 : 1}
               style={hovered?.key === s.key ? { filter: 'brightness(1.18)' } : undefined}
               className="cursor-pointer transition-all duration-150"
-              onMouseEnter={(e) => handleEnter(s, 'outer', e)}
+              onMouseEnter={(e) => showTooltipFor(s, e.currentTarget)}
             />
           ))}
           <text x={CENTER} y={CENTER - 6} textAnchor="middle" fill="#F5F5F7" fontSize="26" fontWeight="600" fontFamily="Space Grotesk, sans-serif">
@@ -147,24 +152,6 @@ function SunburstChart({ organisms, totalRows }) {
             ORGANISMS
           </text>
         </svg>
-
-        <AnimatePresence>
-          {hovered && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.15 }}
-              className="pointer-events-none absolute z-10 min-w-[140px] rounded-[10px] border border-panel-border bg-panel-raised p-2.5 shadow-panel-lg"
-              style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 10 }}
-            >
-              <p className="font-sans text-caption font-semibold text-onpanel-ink">{hovered.label}</p>
-              <p className="font-mono text-[11px] text-onpanel-muted">
-                {hovered.count.toLocaleString()} samples · {((hovered.count / grandTotal) * 100).toFixed(1)}%
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
       <div className="w-full min-w-0">
@@ -176,9 +163,9 @@ function SunburstChart({ organisms, totalRows }) {
             <button
               key={s.key}
               type="button"
-              onMouseEnter={(e) => handleEnter(s, 'outer', e)}
+              onMouseEnter={(e) => showTooltipFor(s, e.currentTarget)}
               onMouseLeave={() => setHovered(null)}
-              className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-left transition-colors ${
+              className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 transition-colors ${
                 hovered?.key === s.key ? 'border-accent-blue' : 'border-panel-border'
               }`}
             >
@@ -188,6 +175,28 @@ function SunburstChart({ organisms, totalRows }) {
           ))}
         </div>
       </div>
+
+      <AnimatePresence>
+        {hovered && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15 }}
+            className="pointer-events-none absolute z-20 min-w-[160px] rounded-[10px] border border-panel-border bg-panel-raised p-2.5 shadow-panel-lg"
+            style={{ 
+              top: hovered.top, 
+              left: hovered.left,
+              maxWidth: '200px',
+            }}
+          >
+            <p className="font-sans text-caption font-semibold text-onpanel-ink truncate">{hovered.label}</p>
+            <p className="font-mono text-[11px] text-onpanel-muted">
+              {hovered.count.toLocaleString()} samples · {((hovered.count / grandTotal) * 100).toFixed(1)}%
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

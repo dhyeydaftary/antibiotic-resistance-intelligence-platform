@@ -43,7 +43,7 @@ function HomeOverviewPanel({ stats, dailySeries }) {
   const resultTone = RESULT_TEXT[stats.mostCommonResult] || 'text-onpanel-ink';
 
   return (
-    <Panel className="p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg">
+    <Panel className="p-6 transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg">
       <div className="mb-1 font-mono text-mono-label font-medium uppercase tracking-[0.1em] text-onpanel-faint">
         Overview
       </div>
