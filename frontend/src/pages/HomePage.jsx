@@ -71,9 +71,6 @@ function computeStats(records) {
   };
 }
 
-// One real per-day series (not fake mock numbers) that HomeOverviewPanel
-// renders as an actual Bklit BarChart — see components/charts/bar-chart.jsx,
-// same component the Result page already uses.
 function buildDailySeries(records, days = 8) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -104,6 +101,7 @@ function buildDailySeries(records, days = 8) {
   });
 
   return buckets.map((b) => ({
+    date: b.date,
     label: b.label,
     total: b.total,
     avgConfidence: b.confCount ? Math.round(b.confSum / b.confCount) : 0,

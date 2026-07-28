@@ -1,10 +1,26 @@
 import { Activity, Calendar, ShieldCheck, Target } from 'lucide-react';
+import { curveLinear } from '@visx/curve';
 import Panel from '../app/Panel';
 import { useCountUp } from '../../hooks/useCountUp';
-import MiniLineChart from './MiniLineChart';
+import { AreaChart } from '../charts/area-chart';
+import { Area } from '../charts/area';
+import { Grid } from '../charts/grid';
+import { XAxis } from '../charts/x-axis';
+import { ChartTooltip } from '../charts/tooltip';
 
 const RESULT_LABELS = { R: 'Resistant', S: 'Susceptible', I: 'Intermediate' };
 const RESULT_TEXT = { R: 'text-resistant', S: 'text-susceptible', I: 'text-intermediate' };
+
+const CHART_VARS = {
+  '--chart-background': '#1D1D1F',
+  '--chart-foreground': '#F5F5F7',
+  '--chart-foreground-muted': '#98989D',
+  '--chart-line-primary': '#0071E3',
+  '--chart-line-secondary': '#98989D',
+  '--chart-crosshair': '#0071E3',
+  '--chart-grid': '#3A3A3C',
+  '--border': '#3A3A3C',
+};
 
 function Stat({ icon: Icon, label, value, hint }) {
   return (
@@ -60,7 +76,17 @@ function HomeOverviewPanel({ stats, dailySeries }) {
 
       <div>
         {dailySeries && dailySeries.length > 0 ? (
-          <MiniLineChart data={dailySeries} xKey="label" />
+          <div className="chart-on-dark" style={CHART_VARS}>
+            <div className="mb-3 font-mono text-[10px] font-medium uppercase tracking-[0.15em] text-onpanel-faint">
+              PREDICTIONS PER DAY
+            </div>
+            <AreaChart data={dailySeries} xDataKey="date" aspectRatio="5 / 1.6" margin={{ top: 10, right: 10, bottom: 24, left: 10 }}>
+              <Grid horizontal />
+              <Area dataKey="total" stroke="#0071E3" fill="#0071E3" fillOpacity={0.15} strokeWidth={2} curve={curveLinear} />
+              <XAxis />
+              <ChartTooltip />
+            </AreaChart>
+          </div>
         ) : (
           <p className="font-sans text-small text-onpanel-faint">No predictions yet this week.</p>
         )}
