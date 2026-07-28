@@ -35,7 +35,7 @@ function HomeToolsPanel() {
   }
 
   return (
-    <Panel className="p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg">
+    <Panel className="p-6 transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg">
       <div className="grid grid-cols-1 divide-y divide-panel-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="sm:pr-6">
           <Brain className="h-[18px] w-[18px] text-accent-blue" strokeWidth={1.75} />

@@ -21,7 +21,7 @@ function formatDate(dateStr) {
 function HomeResearchPanel({ recentPredictions }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-      <Panel className="p-6 lg:col-span-2 transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg">
+      <Panel className="p-6 lg:col-span-2 transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg">
         <div className="mb-2 font-mono text-mono-label font-medium uppercase tracking-[0.1em] text-onpanel-faint">
           Continue your research
         </div>
@@ -42,7 +42,7 @@ function HomeResearchPanel({ recentPredictions }) {
         </div>
       </Panel>
 
-      <Panel className="p-6 lg:col-span-3 transition-all duration-300 hover:-translate-y-1 hover:border-accent-blue/30 hover:shadow-panel-lg">
+      <Panel className="p-6 lg:col-span-3 transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <div className="mb-1 font-mono text-mono-label font-medium uppercase tracking-[0.1em] text-onpanel-faint">
