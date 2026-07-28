@@ -7,7 +7,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('token');
+  // "Remember me" logins are stored in localStorage; sessions without it
+  // are stored in sessionStorage (cleared when the tab closes). Check both,
+  // matching AuthContext's getStoredToken() logic exactly — otherwise a
+  // remembered session silently sends no Authorization header at all.
+  const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
