@@ -6,6 +6,7 @@ import AboutCapabilityList from '../components/about/AboutCapabilityList';
 import AboutBoundaryList from '../components/about/AboutBoundaryList';
 import AboutPipeline from '../components/about/AboutPipeline';
 import AboutExplainability from '../components/about/AboutExplainability';
+import AboutAudience from '../components/about/AboutAudience';
 
 function InfoCard({ icon: Icon, label, id, children }) {
   return (
@@ -28,6 +29,7 @@ function AboutPage() {
       <AboutBoundaryList />
       <AboutPipeline />
       <AboutExplainability />
+      <AboutAudience />
 
       {/* TODO(about-redesign): everything below is the legacy compact layout.
           Will be replaced section-by-section per the redesign plan (Sections 2-13). */}
