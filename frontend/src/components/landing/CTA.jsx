@@ -1,65 +1,75 @@
-import MagneticButton from "./MagneticButton";
-import ChapterKicker from "./ChapterKicker";
-import { motion } from "framer-motion";
+import { motion } from 'framer-motion';
+import MagneticButton from './MagneticButton';
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
+  }),
+};
 
 export default function CTA() {
   return (
-    <section
-      id="cta"
-      data-testid="cta-section"
-      className="relative bg-paper py-40 md:py-56 overflow-hidden"
-    >
-      {/* Faint bacterium outline echo */}
-      <svg
-        aria-hidden
-        viewBox="-200 -200 400 400"
-        className="absolute -right-16 -bottom-24 w-[80vw] max-w-[900px] opacity-[0.06] pointer-events-none"
-        fill="none"
-        stroke="#12141A"
-        strokeWidth="0.5"
-      >
-        <path d="M -140 0 C -140 -55, -80 -80, 0 -80 C 80 -80, 140 -55, 140 0 C 140 55, 80 80, 0 80 C -80 80, -140 55, -140 0 Z" />
-        <ellipse cx="0" cy="0" rx="128" ry="72" />
-        <ellipse cx="0" cy="0" rx="108" ry="60" />
-      </svg>
+    <section id="cta" data-testid="cta-section" className="bg-canvas-alt px-6 py-24 sm:py-32">
+      <div className="mx-auto max-w-3xl text-center">
+        <motion.h2
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          custom={0}
+          variants={fadeUp}
+          className="font-display text-[36px] font-semibold leading-[1.1] tracking-[-0.02em] text-page-ink sm:text-[52px]"
+        >
+          Explore one case.
+          <br />
+          Understand fifteen predictions.
+        </motion.h2>
 
-      <div className="relative max-w-[1400px] mx-auto px-6 md:px-14">
-        <div className="grid grid-cols-12 gap-6">
-          <div className="col-span-12 md:col-span-8 md:col-start-2">
-            <ChapterKicker className="mb-6">Ch. 07 · Try it</ChapterKicker>
-            <motion.h2
-              initial={{ y: 40, opacity: 0 }}
-              whileInView={{ y: 0, opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="font-serif font-light text-[10vw] md:text-[7vw] lg:text-[7rem] leading-[0.95] tracking-[-0.02em] text-ink text-balance"
-            >
-              Run one prediction.<br />
-              <em className="italic">See fifteen answers.</em>
-            </motion.h2>
+        <motion.p
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          custom={1}
+          variants={fadeUp}
+          className="mx-auto mt-5 max-w-lg font-sans text-[16px] leading-[1.65] text-page-muted"
+        >
+          AMR-Insight is free for students and academic researchers. Sign in, run a
+          prediction, and browse the underlying dataset — no clinical claims, no
+          hospital paperwork.
+        </motion.p>
 
-            <p className="mt-10 font-sans text-lg md:text-xl leading-relaxed text-ink/70 max-w-[620px]">
-              AMR-Insight is free for students and academic researchers. Sign in with
-              email, run a prediction, and browse the underlying dataset — no clinical
-              claims, no hospital paperwork, no fine print.
-            </p>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          custom={2}
+          variants={fadeUp}
+          className="mt-9 flex flex-wrap items-center justify-center gap-4"
+        >
+          <MagneticButton testId="cta-try-prediction" variant="primary" to="/predict">
+            Try a prediction
+          </MagneticButton>
+          <MagneticButton testId="cta-explore-research" variant="ghost" to="/about">
+            Explore the research
+          </MagneticButton>
+        </motion.div>
 
-            <div className="mt-12 flex flex-wrap gap-4 items-center">
-              <MagneticButton testId="cta-try-prediction" variant="primary" to="/predict">
-                Try a prediction
-              </MagneticButton>
-              <MagneticButton testId="cta-explore-research" variant="ghost" to="/about">
-                Explore the research
-              </MagneticButton>
-            </div>
-
-            <div className="mt-10 flex flex-wrap gap-6 font-mono text-[11px] tracking-[0.25em] uppercase text-ink/50">
-              <span>· Free for research</span>
-              <span>· No PHI required</span>
-              <span>· 10,710-record dataset</span>
-            </div>
-          </div>
-        </div>
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-100px' }}
+          custom={3}
+          variants={fadeUp}
+          className="mt-10 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-page-faint"
+        >
+          <span>Free for research</span>
+          <span className="text-canvas-hairline">·</span>
+          <span>No PHI required</span>
+          <span className="text-canvas-hairline">·</span>
+          <span>10,710-record dataset</span>
+        </motion.div>
       </div>
     </section>
   );

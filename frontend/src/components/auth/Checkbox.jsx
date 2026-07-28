@@ -1,56 +1,36 @@
 import { useId } from "react";
 import { Check } from "lucide-react";
 
-export const Checkbox = ({
-  checked,
-  onCheckedChange,
-  label,
-  id,
-  testId,
-  error,
-  ...props
-}) => {
+export const Checkbox = ({ checked, onCheckedChange, label, id, testId, error, ...props }) => {
   const autoId = useId();
   const inputId = id || autoId;
 
   return (
     <div>
-      <label
-        htmlFor={inputId}
-        className="flex items-start gap-3 cursor-pointer group select-none"
-      >
+      <label htmlFor={inputId} className="group flex cursor-pointer select-none items-start gap-3">
         <span className="relative mt-[3px]">
           <input
             id={inputId}
             type="checkbox"
-            className="sr-only peer"
+            className="peer sr-only"
             checked={checked}
             onChange={(e) => onCheckedChange?.(e.target.checked)}
             data-testid={testId}
             {...props}
           />
           <span
-            className={`amr-check-box peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${
-              checked
-                ? "bg-ink border-ink"
-                : "border-ink-faint group-hover:border-ink-soft"
-            } ${error ? "border-destructive" : ""}`}
+            className={`flex h-4 w-4 items-center justify-center rounded-[4px] border transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-accent-blue ${checked ? "border-accent-blue bg-accent-blue" : "border-panel-border group-hover:border-onpanel-faint"
+              } ${error ? "border-resistant" : ""}`}
           >
-            {checked ? (
-              <Check className="w-3 h-3 text-paper" />
-            ) : null}
+            {checked ? <Check className="h-3 w-3 text-white" /> : null}
           </span>
         </span>
-        <span className="text-[13.5px] leading-snug text-ink-soft group-hover:text-ink transition-colors">
+        <span className="font-sans text-[13.5px] leading-snug text-onpanel-muted transition-colors group-hover:text-onpanel-ink">
           {label}
         </span>
       </label>
       {error ? (
-        <p
-          role="alert"
-          className="mt-1.5 ml-7 text-[12.5px] text-destructive"
-          data-testid={testId ? `${testId}-error` : undefined}
-        >
+        <p role="alert" className="ml-7 mt-1.5 font-sans text-[12.5px] text-resistant" data-testid={testId ? `${testId}-error` : undefined}>
           {error}
         </p>
       ) : null}
