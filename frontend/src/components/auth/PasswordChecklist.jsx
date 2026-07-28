@@ -1,42 +1,24 @@
-import { Check, Minus } from "lucide-react";
+import { Check } from "lucide-react";
 
-export const PasswordChecklist = ({ results, testId }) => (
-  <ul
-    className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5"
-    data-testid={testId}
-    aria-label="Password requirements"
-  >
-    {results.map((r) => (
-      <li
-        key={r.key}
-        className="flex items-center gap-2 text-[12.5px]"
-        data-testid={`pw-rule-${r.key}`}
-        data-passed={r.passed}
-      >
+// Compact pill-chip layout instead of a stacked list — wraps into 1-2 lines
+// instead of taking up 5 full-width rows. If you had a specific reference
+// UI in mind, send it and I'll match it exactly.
+export const PasswordChecklist = ({ results = [], testId }) => {
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5" data-testid={testId}>
+      {results.map((r) => (
         <span
-          className={`inline-flex h-3.5 w-3.5 items-center justify-center border transition-colors ${
-            r.passed
-              ? "bg-success border-success text-paper"
-              : "border-ink-faint text-ink-faint"
-          }`}
-          aria-hidden="true"
+          key={r.key}
+          className={`flex items-center gap-1 rounded-full border px-2 py-0.5 font-sans text-[11px] transition-colors ${r.passed
+              ? "border-susceptible/30 bg-susceptible/10 text-susceptible"
+              : "border-panel-border text-onpanel-faint"
+            }`}
+          data-testid={testId ? `${testId}-${r.key}` : undefined}
         >
-          {r.passed ? (
-            <Check className="w-2.5 h-2.5" />
-          ) : (
-            <Minus className="w-2.5 h-2.5" />
-          )}
-        </span>
-        <span
-          className={
-            r.passed
-              ? "text-ink"
-              : "text-ink-muted"
-          }
-        >
+          {r.passed && <Check size={10} />}
           {r.label}
         </span>
-      </li>
-    ))}
-  </ul>
-);
+      ))}
+    </div>
+  );
+};

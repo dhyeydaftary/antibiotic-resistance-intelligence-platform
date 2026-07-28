@@ -1,55 +1,64 @@
-import { BacteriumMark } from "./BacteriumMark";
+import { Target, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
+import Panel from "../app/Panel";
 
-export const AuthLayout = ({ children, sideLabel = "SECURE ACCESS" }) => {
+export const AuthLayout = ({ children, sideLabel = "Secure access" }) => {
   return (
     <div
-      className="min-h-screen w-full grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]"
+      className="relative min-h-screen w-full bg-canvas"
       data-testid="auth-layout"
     >
-      {/* Left — editorial column */}
-      <aside className="relative hidden lg:flex flex-col justify-between border-r hairline p-12 xl:p-16 bg-paper">
+      <div className="mx-auto max-w-6xl px-6 py-8 sm:px-10">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-page-ink transition-colors hover:text-accent-blue"
+        >
+          <ArrowLeft size={12} />
+          Back to home
+        </Link>
+      </div>
 
-        <div className="max-w-lg">
-          <p className="font-mono-label text-ink-muted mb-8">
-            RESEARCH · V0.9 &nbsp;·&nbsp; WHO AWaRe / GLASS aligned
+      {/* One shared background — plain text on the left, the form as the
+          only floating card on the right. Not two colored sections. */}
+      <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 pb-16 sm:px-10 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
+        {/* Left — plain text, same background as everything else */}
+        <div className="hidden lg:block">
+          <div className="mb-8 flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-blue/10">
+              <Target size={16} className="text-accent-blue" strokeWidth={2.2} />
+            </div>
+            <span className="font-display text-[16px] font-semibold tracking-[-0.01em] text-page-ink">
+              AMR-Insight
+            </span>
+          </div>
+
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.15em] text-page-faint">
+            Evidence before confidence.
           </p>
-          <h1 className="font-serif-display text-5xl xl:text-6xl leading-[1.02] text-ink">
-            A single{" "}
-            <em className="italic text-ink-soft">bacterium</em>{" "}
-            can outpace <br /> an entire{" "}
-            <em className="italic text-ink-soft">
-              antibiotic era.
-            </em>
+          <h1 className="mt-4 font-display text-[40px] font-semibold leading-[1.1] tracking-[-0.015em] text-page-ink xl:text-[46px]">
+            One organism.
+            <br />
+            <span className="text-accent-blue">Fifteen predicted susceptibilities.</span>
           </h1>
-          <p className="mt-8 text-[15px] leading-relaxed text-ink-muted max-w-md">
-            AI-powered antibiotic resistance intelligence. Predict susceptibility
-            across 15 antibiotics from a validated public dataset, trained with
-            CatBoost, aligned with WHO reference systems.
+          <p className="mt-6 max-w-md font-sans text-[15px] leading-relaxed text-page-muted">
+            Fifteen independent CatBoost models estimate antibiotic susceptibility
+            from organism and patient context — with SHAP explainability and WHO
+            AWaRe alignment, while lab-based testing is still running.
           </p>
 
-          <div className="mt-10">
-            <BacteriumMark className="w-64 h-24 text-ink-soft" />
+          <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] font-medium text-page-faint">
+            <span>10,710 records · 15 antibiotics · 2020–2025</span>
           </div>
         </div>
 
-        <div className="flex items-center justify-between font-mono-label text-ink-muted">
-          <span>10,710 RECORDS · 15 ANTIBIOTICS · 2020–2025</span>
-          <span>{sideLabel}</span>
-        </div>
-      </aside>
+        {/* Right — the ONLY floating card on the page: the form itself */}
+        <Panel className="w-full !rounded-[26px] p-8 !shadow-panel-lg sm:p-10">{children}</Panel>
+      </div>
 
-      {/* Right — form column */}
-      <main className="relative flex flex-col min-h-screen">
-
-        <div className="flex-1 flex items-start sm:items-center justify-center px-6 sm:px-10 py-10 sm:py-14">
-          <div className="w-full max-w-md">{children}</div>
-        </div>
-
-        <footer className="px-6 sm:px-10 py-6 border-t hairline flex flex-wrap items-center justify-between gap-3 font-mono-label text-ink-muted">
-          <span>© AMR-INSIGHT · EDUCATIONAL USE</span>
-          <span>NOT A CLINICAL DEVICE</span>
-        </footer>
-      </main>
+      <footer className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 border-t border-canvas-hairline px-6 py-6 font-mono text-[10px] font-medium uppercase tracking-[0.1em] text-page-faint sm:px-10">
+        <span>© AMR-Insight · Educational use</span>
+        <span>{sideLabel} · Not a clinical device</span>
+      </footer>
     </div>
   );
 };

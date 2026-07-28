@@ -2,7 +2,6 @@ import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Toaster } from 'sonner';
 import Navbar from './components/common/Navbar';
-import AuthHeader from './components/common/AuthHeader';
 import AppRoutes from './routes/AppRoutes';
 import CommandPalette from './components/common/CommandPalette';
 
@@ -29,10 +28,12 @@ function App() {
     </AnimatePresence>
   );
 
+  // Auth pages now render as a single, self-contained page via AuthLayout
+  // (which includes its own "Back to home" link) — no separate top bar
+  // stacked above it anymore.
   if (isLandingPage || isAuthPage) {
     return (
       <>
-        {isAuthPage && <AuthHeader />}
         {routesWithTransition}
         <CommandPalette />
         <Toaster

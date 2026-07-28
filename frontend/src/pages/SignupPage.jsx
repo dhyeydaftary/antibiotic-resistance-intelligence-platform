@@ -67,12 +67,12 @@ function SignupPage() {
   };
 
   return (
-    <AuthLayout sideLabel="CREATE ACCOUNT">
+    <AuthLayout sideLabel="Create account">
       <FormHeader
-        kicker="NEW · RESEARCHER REGISTRATION"
+        kicker="New · Researcher registration"
         title={
           <>
-            Begin your <em className="italic">inquiry</em> into resistance.
+            Begin your <span className="text-accent-blue">inquiry</span> into resistance.
           </>
         }
         subtitle="Create an account to run predictions across 15 antibiotics on a validated public dataset."
@@ -91,7 +91,8 @@ function SignupPage() {
       <form onSubmit={onSubmit} noValidate className="space-y-6" data-testid="signup-form">
         <TextInput
           ref={nameRef}
-          label="FULL NAME"
+          label="Full name"
+          required
           autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -100,7 +101,8 @@ function SignupPage() {
           placeholder="Ada Lovelace"
         />
         <TextInput
-          label="EMAIL ADDRESS"
+          label="Email address"
+          required
           type="email"
           autoComplete="email"
           value={email}
@@ -112,7 +114,8 @@ function SignupPage() {
 
         <div>
           <PasswordInput
-            label="PASSWORD"
+            label="Password"
+            required
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -131,7 +134,8 @@ function SignupPage() {
         </div>
 
         <PasswordInput
-          label="CONFIRM PASSWORD"
+          label="Confirm password"
+          required
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
@@ -140,7 +144,7 @@ function SignupPage() {
           placeholder="••••••••"
         />
 
-        <div className="pt-2 space-y-3">
+        <div className="space-y-3 pt-2">
           <Checkbox
             checked={terms}
             onCheckedChange={setTerms}
@@ -149,7 +153,7 @@ function SignupPage() {
             label={
               <>
                 I agree to the{" "}
-                <a href="#" className="amr-link text-ink">
+                <a href="#" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
                   Terms &amp; Conditions
                 </a>
                 .
@@ -164,7 +168,7 @@ function SignupPage() {
             label={
               <>
                 I&rsquo;ve read and accept the{" "}
-                <a href="#" className="amr-link text-ink">
+                <a href="#" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
                   Privacy Policy
                 </a>
                 .
@@ -183,16 +187,16 @@ function SignupPage() {
         </PrimaryButton>
       </form>
 
-      <div className="mt-8 pt-6 border-t hairline flex items-center justify-between">
-        <span className="text-[13.5px] text-ink-muted">
+      <div className="mt-8 flex items-center justify-between border-t border-panel-border pt-6">
+        <span className="font-sans text-[13.5px] text-onpanel-muted">
           Already have an account?
         </span>
         <Link
           to="/login"
-          className="font-mono-label amr-link text-ink"
+          className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-accent-blue transition-colors hover:text-accent-blue-hover"
           data-testid="login-link"
         >
-          LOGIN →
+          Login →
         </Link>
       </div>
     </AuthLayout>
