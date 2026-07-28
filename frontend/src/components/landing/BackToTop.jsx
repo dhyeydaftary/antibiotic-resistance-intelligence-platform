@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { ArrowUp } from "lucide-react";
 
 /**
  * Floating back-to-top button. Uses the page's Lenis instance (via ref) so
@@ -40,23 +41,9 @@ export default function BackToTop({ lenisRef }) {
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.95 }}
-          className="fixed bottom-8 right-6 md:right-10 z-40 w-12 h-12 rounded-full flex items-center justify-center shadow-lg"
-          style={{ background: "#2C7A6B" }}
+          className="fixed bottom-8 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-accent-blue shadow-panel-lg hover:bg-accent-blue-hover md:right-10"
         >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#F7F5F0"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <line x1="12" y1="19" x2="12" y2="5" />
-            <polyline points="5 12 12 5 19 12" />
-          </svg>
+          <ArrowUp size={18} className="text-white" strokeWidth={2.2} />
         </motion.button>
       )}
     </AnimatePresence>
