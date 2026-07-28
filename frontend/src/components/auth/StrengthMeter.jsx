@@ -1,25 +1,31 @@
-// Restrained 4-segment strength indicator. No loud gradients.
+// A real progress bar: one solid color at a time, and that color itself
+// transitions as strength changes (red -> amber -> blue -> green), rather
+// than showing every color as a static band.
+const STRENGTH_COLOR = {
+  0: "#3A3A3C", // empty / neutral
+  1: "#FF3B30", // Weak
+  2: "#FF9F0A", // Fair
+  3: "#0071E3", // Good
+  4: "#30D158", // Strong
+};
+
 export const StrengthMeter = ({ strength = "empty", strengthIndex = 0 }) => {
-  const segments = [1, 2, 3, 4];
-  const fill = "#12141A"; // ink
-  const empty = "#DFDAD0"; // hairline
+  const widthPct = (strengthIndex / 4) * 100;
+  const color = STRENGTH_COLOR[strengthIndex] ?? STRENGTH_COLOR[0];
+
   return (
     <div
-      className="mt-4 flex items-center justify-between gap-4"
+      className="mt-4 flex items-center gap-3"
       data-testid="password-strength"
       data-strength={strength}
     >
-      <div className="flex-1 grid grid-cols-4 gap-1.5">
-        {segments.map((s) => (
-          <span
-            key={s}
-            aria-hidden="true"
-            className="h-[3px]"
-            style={{ background: s <= strengthIndex ? fill : empty }}
-          />
-        ))}
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel-border">
+        <div
+          className="h-full rounded-full transition-all duration-300 ease-out"
+          style={{ width: `${widthPct}%`, backgroundColor: color }}
+        />
       </div>
-      <span className="font-mono-label text-ink-muted min-w-[54px] text-right">
+      <span className="min-w-[54px] text-right font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-onpanel-faint">
         {strength === "empty" ? "—" : strength}
       </span>
     </div>
