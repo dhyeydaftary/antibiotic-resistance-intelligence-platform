@@ -1,14 +1,18 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { getPrediction } from '../api/predictionApi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, AlertCircle, ChevronDown, UploadCloud, CheckCircle2, XCircle } from 'lucide-react';
+import { getPrediction, extractReportFromPDF } from '../api/predictionApi';
 import { ORGANISM_OPTIONS } from '../constants/domainData';
 import Panel from '../components/app/Panel';
 import Toggle from '../components/app/Toggle';
 import PrimaryButton from '../components/app/PrimaryButton';
 
 const FIELD_COUNT = 9;
+const OPTIONAL_FIELD_COUNT = 24;
+
+const WARD_OPTIONS = ['General Ward', 'ICU'];
+const SPECIMEN_OPTIONS = ['Blood', 'Urine', 'Wound', 'Respiratory', 'Catheter'];
 
 const VALIDATORS = {
   age: (v) => {
@@ -41,6 +45,57 @@ const VALIDATORS = {
   },
 };
 
+// Optional new fields default to empty/false — none are required, none are
+// validated. Empty numeric fields and the "not specified" select option are
+// stripped out of the payload before submit so predict.py's own defaults
+// apply, exactly matching the same optional/default behavior the backend
+// already implements.
+const OPTIONAL_DEFAULTS = {
+  ward_type: '',
+  specimen_source: '',
+  previous_antibiotic_use: false,
+  ckd_status: false,
+  liver_disease: false,
+  cancer: false,
+  immunocompromised_status: false,
+  fever: false,
+  cough: false,
+  burning_urination: false,
+  wound_infection: false,
+  wbc: '',
+  neutrophils_pct: '',
+  lymphocytes_pct: '',
+  crp: '',
+  procalcitonin: '',
+  creatinine: '',
+  egfr: '',
+  temperature: '',
+  heart_rate: '',
+  respiratory_rate: '',
+  spo2: '',
+  weight_kg: '',
+  bmi: '',
+};
+
+const OPTIONAL_NUMERIC_FIELDS = [
+  'wbc', 'neutrophils_pct', 'lymphocytes_pct', 'crp', 'procalcitonin',
+  'creatinine', 'egfr', 'temperature', 'heart_rate', 'respiratory_rate',
+  'spo2', 'weight_kg', 'bmi',
+];
+
+// Every field the extraction endpoint can possibly return (7 core fields
+// minus year/month, which aren't derivable from a report — plus all 24
+// optional fields). Used to know how to type-convert each extracted value
+// when merging it into formData, and to size the "N of 31" messaging.
+const EXTRACTABLE_FIELD_COUNT = 31;
+const EXTRACTABLE_BOOLEAN_FIELDS = [
+  'diabetes', 'hypertension', 'hospital_before', 'previous_antibiotic_use',
+  'ckd_status', 'liver_disease', 'cancer', 'immunocompromised_status',
+  'fever', 'cough', 'burning_urination', 'wound_infection',
+];
+const EXTRACTABLE_NUMERIC_FIELDS = ['age', 'infection_freq', ...OPTIONAL_NUMERIC_FIELDS];
+const EXTRACTABLE_SELECT_FIELDS = ['gender', 'organism', 'ward_type', 'specimen_source'];
+
 function SectionLabel({ children }) {
   return (
     <div className="mb-3.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#8E8E93]">
@@ -68,11 +123,10 @@ function TextInput({ name, value, onChange, onBlur, type = 'text', error, touche
         value={value}
         onChange={onChange}
         onBlur={onBlur}
-        className={`w-full rounded-[10px] border bg-panel-raised px-3.5 py-2.5 font-sans text-[15px] text-onpanel-ink placeholder:text-onpanel-faint outline-none transition-all duration-150 ${
-          showError
+        className={`w-full rounded-[10px] border bg-panel-raised px-3.5 py-2.5 font-sans text-[15px] text-onpanel-ink placeholder:text-onpanel-faint outline-none transition-all duration-150 ${showError
             ? 'border-resistant focus:border-resistant focus:shadow-[0_0_0_4px_rgba(255,59,48,0.15)]'
             : 'border-panel-border focus:border-accent-blue focus:shadow-focus-ring'
-        }`}
+          }`}
         {...rest}
       />
       {showError && (
@@ -82,7 +136,7 @@ function TextInput({ name, value, onChange, onBlur, type = 'text', error, touche
   );
 }
 
-function SelectInput({ name, value, onChange, options }) {
+function SelectInput({ name, value, onChange, options, placeholder }) {
   return (
     <div className="relative">
       <select
@@ -91,6 +145,7 @@ function SelectInput({ name, value, onChange, options }) {
         onChange={onChange}
         className="w-full appearance-none rounded-[10px] border border-panel-border bg-panel-raised px-3.5 py-2.5 pr-9 font-sans text-[15px] text-onpanel-ink outline-none transition-all duration-150 focus:border-accent-blue focus:shadow-focus-ring cursor-pointer"
       >
+        {placeholder && <option value="">{placeholder}</option>}
         {options.map((opt) => (
           <option key={opt} value={opt} className="bg-panel-raised text-onpanel-ink">{opt}</option>
         ))}
@@ -107,6 +162,10 @@ function PredictionInputPage() {
   const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [showOptional, setShowOptional] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState(null);
+  const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     age: '',
@@ -118,6 +177,7 @@ function PredictionInputPage() {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
     organism: location.state?.organism || 'Escherichia coli',
+    ...OPTIONAL_DEFAULTS,
   });
 
   const [touched, setTouched] = useState({});
@@ -147,6 +207,14 @@ function PredictionInputPage() {
 
   const progress = filledCount / FIELD_COUNT;
 
+  const optionalFilledCount = useMemo(() => {
+    return Object.keys(OPTIONAL_DEFAULTS).filter((key) => {
+      const val = formData[key];
+      if (typeof val === 'boolean') return val === true;
+      return val !== '';
+    }).length;
+  }, [formData]);
+
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -157,6 +225,89 @@ function PredictionInputPage() {
 
   function handleBlur(e) {
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
+  }
+
+  function triggerFileUpload() {
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileSelect(e) {
+    const file = e.target.files?.[0];
+    // Reset so selecting the same file again still fires this handler
+    e.target.value = '';
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setUploadStatus({ type: 'error', message: 'Only PDF files are supported.' });
+      return;
+    }
+
+    setUploading(true);
+    setUploadStatus(null);
+
+    try {
+      const result = await extractReportFromPDF(file);
+
+      if (!result.success) {
+        setUploadStatus({
+          type: 'error',
+          message: result.error?.message || 'Could not read this report. Please fill the form manually.',
+        });
+        return;
+      }
+
+      const { extracted, missing, extractionAvailable } = result.data;
+
+      if (!extractionAvailable) {
+        setUploadStatus({
+          type: 'error',
+          message: 'Automatic extraction is unavailable right now. Please fill the form manually.',
+        });
+        return;
+      }
+
+      let filledCount = 0;
+      const fieldsToMerge = Object.entries(extracted).filter(
+        ([, value]) => value !== null && value !== undefined
+      );
+      filledCount = fieldsToMerge.length;
+
+      setFormData((prev) => {
+        const next = { ...prev };
+        fieldsToMerge.forEach(([key, value]) => {
+          if (!(key in next)) return; // ignore anything not on this form
+
+          if (EXTRACTABLE_BOOLEAN_FIELDS.includes(key)) {
+            next[key] = Boolean(value);
+          } else if (EXTRACTABLE_NUMERIC_FIELDS.includes(key)) {
+            next[key] = String(value);
+          } else if (EXTRACTABLE_SELECT_FIELDS.includes(key)) {
+            next[key] = value;
+          }
+        });
+        return next;
+      });
+
+      if (filledCount > 0) setShowOptional(true);
+
+      const missingCount = missing?.length ?? 0;
+      setUploadStatus({
+        type: filledCount > 0 ? 'success' : 'error',
+        message:
+          filledCount > 0
+            ? `Fields auto-filled from your report.${missingCount > 0 ? ' Some fields were not found — fill those in manually.' : ''
+            }`
+            : 'No matching fields were found in this report. Please fill the form manually.',
+      });
+    } catch (err) {
+      console.error(err);
+      setUploadStatus({
+        type: 'error',
+        message: 'Something went wrong reading this file. Please fill the form manually.',
+      });
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -174,12 +325,30 @@ function PredictionInputPage() {
     setLoading(true);
     try {
       const payload = {
-        ...formData,
         age: Number(formData.age),
+        gender: formData.gender,
+        diabetes: formData.diabetes,
+        hypertension: formData.hypertension,
+        hospital_before: formData.hospital_before,
         infection_freq: Number(formData.infection_freq),
         year: Number(formData.year),
         month: Number(formData.month),
+        organism: formData.organism,
       };
+
+      // Optional fields: only include a key if the user actually set it.
+      // Empty string ('' — untouched select/number field) and false-default
+      // toggles that were never touched are omitted rather than sent as
+      // empty/zero, so predict.py's own default-filling logic applies
+      // exactly as it does for a request that never mentions these fields.
+      Object.keys(OPTIONAL_DEFAULTS).forEach((key) => {
+        const val = formData[key];
+        if (typeof val === 'boolean') {
+          if (val === true) payload[key] = true;
+        } else if (val !== '') {
+          payload[key] = OPTIONAL_NUMERIC_FIELDS.includes(key) ? Number(val) : val;
+        }
+      });
 
       const result = await getPrediction(payload);
       navigate('/predict/result/live', { state: { prediction: result.data, inputData: payload } });
@@ -217,6 +386,65 @@ function PredictionInputPage() {
           <span>CatBoost models</span>
           <span className="text-canvas-hairline">·</span>
           <span>SHAP explainability</span>
+        </div>
+
+        {/* Report upload */}
+        <div className="mb-8 rounded-[10px] border border-panel-border bg-panel p-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span className="font-sans text-[14px] font-medium text-onpanel-ink">
+                Upload a lab report
+              </span>
+              <p className="mt-1 font-sans text-[12.5px] leading-[1.5] text-onpanel-faint">
+                We'll read the PDF and auto-fill matching fields below — you can review and edit everything before submitting.
+              </p>
+            </div>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={triggerFileUpload}
+                disabled={uploading}
+                className="flex items-center gap-2 rounded-[10px] border border-panel-border bg-panel-raised px-4 py-2.5 font-sans text-[14px] font-medium text-onpanel-ink transition-colors hover:border-accent-blue disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Reading report…
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud size={16} />
+                    Upload PDF
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {uploadStatus && (
+            <div
+              className={`mt-4 flex items-start gap-2.5 rounded-[10px] border px-4 py-3 ${uploadStatus.type === 'success'
+                  ? 'border-accent-blue/25 bg-accent-blue/10'
+                  : 'border-resistant/25 bg-resistant/10'
+                }`}
+            >
+              {uploadStatus.type === 'success' ? (
+                <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-accent-blue" />
+              ) : (
+                <XCircle size={16} className="mt-0.5 shrink-0 text-resistant" />
+              )}
+              <p className={`font-sans text-[13px] leading-[1.5] ${uploadStatus.type === 'success' ? 'text-accent-blue' : 'text-resistant'}`}>
+                {uploadStatus.message}
+              </p>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-5">
@@ -285,6 +513,134 @@ function PredictionInputPage() {
                   <SelectInput name="organism" value={formData.organism} onChange={handleChange} options={ORGANISM_OPTIONS} />
                 </Field>
               </div>
+
+              {/* --- Optional clinical details (24 new fields) --- */}
+              <div className="border-t border-panel-border pt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowOptional((prev) => !prev)}
+                  className="flex w-full items-center justify-between rounded-[10px] px-1 py-1 text-left transition-colors hover:opacity-80"
+                >
+                  <div>
+                    <span className="font-sans text-[15px] font-medium text-onpanel-ink">
+                      Additional clinical details
+                    </span>
+                    <span className="ml-2 font-mono text-[12px] text-onpanel-faint">
+                      {optionalFilledCount}/{OPTIONAL_FIELD_COUNT} set
+                    </span>
+                  </div>
+                  <motion.span animate={{ rotate: showOptional ? 180 : 0 }} transition={{ duration: 0.15 }}>
+                    <ChevronDown size={18} className="text-onpanel-faint" />
+                  </motion.span>
+                </button>
+                <p className="mt-1.5 font-sans text-[12.5px] leading-[1.5] text-onpanel-faint">
+                  Labs, vitals, comorbidities, and specimen context improve prediction accuracy.
+                </p>
+
+                <AnimatePresence initial={false}>
+                  {showOptional && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="space-y-8 pt-6">
+                        <div>
+                          <SectionLabel>Ward &amp; specimen</SectionLabel>
+                          <div className="grid grid-cols-2 gap-4">
+                            <Field label="Ward type">
+                              <SelectInput
+                                name="ward_type" value={formData.ward_type} onChange={handleChange}
+                                options={WARD_OPTIONS} placeholder="Not specified"
+                              />
+                            </Field>
+                            <Field label="Specimen source">
+                              <SelectInput
+                                name="specimen_source" value={formData.specimen_source} onChange={handleChange}
+                                options={SPECIMEN_OPTIONS} placeholder="Not specified"
+                              />
+                            </Field>
+                          </div>
+                        </div>
+
+                        <div>
+                          <SectionLabel>Additional history</SectionLabel>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <Toggle label="Previous antibiotic use" name="previous_antibiotic_use" checked={formData.previous_antibiotic_use} onChange={handleChange} />
+                            <Toggle label="Chronic kidney disease" name="ckd_status" checked={formData.ckd_status} onChange={handleChange} />
+                            <Toggle label="Liver disease" name="liver_disease" checked={formData.liver_disease} onChange={handleChange} />
+                            <Toggle label="Cancer" name="cancer" checked={formData.cancer} onChange={handleChange} />
+                            <Toggle label="Immunocompromised" name="immunocompromised_status" checked={formData.immunocompromised_status} onChange={handleChange} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <SectionLabel>Symptoms</SectionLabel>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <Toggle label="Fever" name="fever" checked={formData.fever} onChange={handleChange} />
+                            <Toggle label="Cough" name="cough" checked={formData.cough} onChange={handleChange} />
+                            <Toggle label="Burning urination" name="burning_urination" checked={formData.burning_urination} onChange={handleChange} />
+                            <Toggle label="Wound infection" name="wound_infection" checked={formData.wound_infection} onChange={handleChange} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <SectionLabel>Vitals &amp; body metrics</SectionLabel>
+                          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                            <Field label="Temperature (°C)">
+                              <TextInput name="temperature" type="number" step="0.1" value={formData.temperature} onChange={handleChange} placeholder="e.g. 37.2" />
+                            </Field>
+                            <Field label="Heart rate (bpm)">
+                              <TextInput name="heart_rate" type="number" value={formData.heart_rate} onChange={handleChange} placeholder="e.g. 82" />
+                            </Field>
+                            <Field label="Respiratory rate (breaths/min)">
+                              <TextInput name="respiratory_rate" type="number" value={formData.respiratory_rate} onChange={handleChange} placeholder="e.g. 16" />
+                            </Field>
+                            <Field label="SpO2 (%)">
+                              <TextInput name="spo2" type="number" value={formData.spo2} onChange={handleChange} placeholder="e.g. 98" />
+                            </Field>
+                            <Field label="Weight (kg)">
+                              <TextInput name="weight_kg" type="number" step="0.1" value={formData.weight_kg} onChange={handleChange} placeholder="e.g. 70" />
+                            </Field>
+                            <Field label="BMI (kg/m²)">
+                              <TextInput name="bmi" type="number" step="0.1" value={formData.bmi} onChange={handleChange} placeholder="e.g. 24.5" />
+                            </Field>
+                          </div>
+                        </div>
+
+                        <div>
+                          <SectionLabel>Lab values</SectionLabel>
+                          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                            <Field label="WBC (10³/µL)">
+                              <TextInput name="wbc" type="number" step="0.1" value={formData.wbc} onChange={handleChange} placeholder="e.g. 9.2" />
+                            </Field>
+                            <Field label="Neutrophils (%)">
+                              <TextInput name="neutrophils_pct" type="number" step="0.1" value={formData.neutrophils_pct} onChange={handleChange} placeholder="e.g. 65" />
+                            </Field>
+                            <Field label="Lymphocytes (%)">
+                              <TextInput name="lymphocytes_pct" type="number" step="0.1" value={formData.lymphocytes_pct} onChange={handleChange} placeholder="e.g. 25" />
+                            </Field>
+                            <Field label="CRP (mg/L)">
+                              <TextInput name="crp" type="number" step="0.1" value={formData.crp} onChange={handleChange} placeholder="e.g. 12" />
+                            </Field>
+                            <Field label="Procalcitonin (ng/mL)">
+                              <TextInput name="procalcitonin" type="number" step="0.01" value={formData.procalcitonin} onChange={handleChange} placeholder="e.g. 0.3" />
+                            </Field>
+                            <Field label="Creatinine (mg/dL)">
+                              <TextInput name="creatinine" type="number" step="0.01" value={formData.creatinine} onChange={handleChange} placeholder="e.g. 0.9" />
+                            </Field>
+                            <Field label="eGFR (mL/min/1.73m²)">
+                              <TextInput name="egfr" type="number" step="0.1" value={formData.egfr} onChange={handleChange} placeholder="e.g. 90" />
+                            </Field>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             {error && (
@@ -339,6 +695,14 @@ function PredictionInputPage() {
               <div><span className="text-onpanel-faint">month</span>: {formData.month}</div>
               <div className="truncate"><span className="text-onpanel-faint">organism</span>: {formData.organism}</div>
             </div>
+
+            {optionalFilledCount > 0 && (
+              <div className="mt-3 rounded-[10px] border border-accent-blue/25 bg-accent-blue/10 px-4 py-2.5">
+                <p className="font-sans text-[12px] text-accent-blue">
+                  + {optionalFilledCount} additional clinical field{optionalFilledCount !== 1 ? 's' : ''} set
+                </p>
+              </div>
+            )}
 
             <p className="mt-4 font-sans text-[12px] leading-[1.6] text-onpanel-faint">
               This request will be sent to 15 trained CatBoost models — one per antibiotic —
