@@ -1,9 +1,14 @@
 import pandas as pd
 import os
 import json
+import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARTIFACTS_DIR = os.path.join(BASE_DIR, 'ml_artifacts')
+
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+from constants import ORGANISM_LIST
 
 _df = None
 _antibiotic_columns = None
@@ -25,13 +30,6 @@ def _load_antibiotic_columns():
         with open(os.path.join(ARTIFACTS_DIR, 'antibiotic_columns.json')) as f:
             _antibiotic_columns = json.load(f)
     return _antibiotic_columns
-
-
-ORGANISM_LIST = [
-    'Acinetobacter baumannii', 'Citrobacter spp.', 'Enterobacteria spp.',
-    'Escherichia coli', 'Klebsiella pneumoniae', 'Morganella morganii',
-    'Proteus mirabilis', 'Pseudomonas aeruginosa', 'Serratia marcescens', 'Unknown'
-]
 
 
 def get_resistance_trend(antibiotic, organism=None):
