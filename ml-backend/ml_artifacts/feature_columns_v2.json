@@ -36,6 +36,8 @@
   "WBC",
   "Neutrophils_pct",
   "Lymphocytes_pct",
+  "Platelets",
+  "Hemoglobin",
   "CRP",
   "Procalcitonin",
   "Creatinine",
@@ -44,6 +46,8 @@
   "Heart_Rate",
   "Respiratory_Rate",
   "SpO2",
+  "Blood_Pressure_Systolic",
+  "Height_cm",
   "Weight_kg",
   "BMI"
 ]
