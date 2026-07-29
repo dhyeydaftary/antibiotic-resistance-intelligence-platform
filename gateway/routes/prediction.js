@@ -1,9 +1,16 @@
 const express = require('express');
 const axios = require('axios');
+const multer = require('multer');
+const FormData = require('form-data');
 const verifyToken = require('../middleware/verifyToken');
 const PredictionHistory = require('../models/PredictionHistory');
 
 const router = express.Router();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 router.post('/predict', verifyToken, async (req, res) => {
   try {
@@ -45,6 +52,53 @@ router.post('/predict', verifyToken, async (req, res) => {
       error: {
         code: 'INTERNAL_ERROR',
         message: 'Something went wrong while generating the prediction.',
+        field: null,
+      },
+    });
+  }
+});
+
+
+router.post('/extract-report', verifyToken, upload.single('report'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'A PDF file is required under the "report" field',
+          field: 'report',
+        },
+      });
+    }
+
+    const formData = new FormData();
+    formData.append('report', req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype,
+    });
+
+    const djangoResponse = await axios.post(
+      `${process.env.DJANGO_API_URL}/extract-report/`,
+      formData,
+      { headers: formData.getHeaders() }
+    );
+
+    res.status(200).json(djangoResponse.data);
+
+  } catch (err) {
+    if (err.response) {
+      return res.status(err.response.status).json(err.response.data);
+    }
+
+    console.error('Error in /extract-report:', err);
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Something went wrong while extracting the report.',
         field: null,
       },
     });
