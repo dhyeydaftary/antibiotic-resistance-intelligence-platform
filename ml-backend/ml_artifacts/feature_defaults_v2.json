@@ -1,0 +1,19 @@
+{
+  "WBC": 9.2,
+  "Neutrophils_pct": 61.7,
+  "Lymphocytes_pct": 28.2,
+  "Platelets": 257.0,
+  "Hemoglobin": 12.7,
+  "CRP": 16.1,
+  "Procalcitonin": 0.32,
+  "Creatinine": 0.64,
+  "eGFR": 71.2,
+  "Temperature": 37.2,
+  "Heart_Rate": 83.0,
+  "Respiratory_Rate": 17.0,
+  "SpO2": 96.9,
+  "Blood_Pressure_Systolic": 121.0,
+  "Height_cm": 163.9,
+  "Weight_kg": 70.7,
+  "BMI": 26.0
+}

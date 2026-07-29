@@ -164,6 +164,21 @@ def _build_confidence_text(predictions, low_confidence, high_confidence):
     return base
 
 
+def _is_named_category_present(feature_name, value):
+    """
+    Organism_* and Specimen_Source_* are one-hot dummies whose humanized text
+    names a specific category (e.g. "the organism (E. coli)"). That phrasing
+    is only accurate when the dummy's value is actually 1 for this patient —
+    a high |SHAP| magnitude at value 0 means the model found "not being this
+    category" informative, which is not the same claim. Returns False to
+    veto naming it in that case; True/None (not a named-category dummy, e.g.
+    a lab value or a Yes/No flag) means it's safe to attribute as-is.
+    """
+    if feature_name.startswith('Organism_') or feature_name.startswith('Specimen_Source_'):
+        return value == 1
+    return True
+
+
 def _build_plain_explanation(resistant, total):
     if not resistant:
         return (
@@ -171,15 +186,23 @@ def _build_plain_explanation(resistant, total):
             "clinical factor stands out as a driver of concern."
         )
 
-    # Aggregate top SHAP driver per resistant antibiotic, with signed magnitude
+    # Aggregate top SHAP driver per resistant antibiotic, with signed magnitude.
+    # Walk each antibiotic's ranked SHAP list and take the first feature that's
+    # actually safe to name for this specific patient (see
+    # _is_named_category_present) rather than blindly using rank 0 — the
+    # top-ranked feature by |SHAP| may be a category the patient doesn't have.
     driver_totals = {}
     driver_examples = {}
     for p in resistant:
-        if not p['shapExplanation']:
+        chosen = None
+        for feat in p['shapExplanation']:
+            if _is_named_category_present(feat['feature'], feat.get('value')):
+                chosen = feat
+                break
+        if chosen is None:
             continue
-        top = p['shapExplanation'][0]
-        feature = top['feature']
-        driver_totals[feature] = driver_totals.get(feature, 0) + abs(top['contribution'])
+        feature = chosen['feature']
+        driver_totals[feature] = driver_totals.get(feature, 0) + abs(chosen['contribution'])
         driver_examples.setdefault(feature, []).append(p['antibiotic'])
 
     if not driver_totals:
@@ -329,9 +352,35 @@ def _humanize_feature(feature_name):
         'Infection_Freq': "infection frequency",
         'Year': "the collection year",
         'Month': "the collection month",
+        # Synthetic clinical variables added for the expanded feature set
+        'Ward_Type': "ward type (ICU vs. general ward)",
+        'Previous_Antibiotic_Use': "recent prior antibiotic use",
+        'CKD_Status': "chronic kidney disease status",
+        'Liver_Disease': "liver disease status",
+        'Cancer': "cancer history",
+        'Immunocompromised_Status': "immunocompromised status",
+        'Fever': "presence of fever",
+        'Cough': "presence of cough",
+        'Burning_Urination': "burning urination symptom",
+        'Wound_Infection': "wound infection symptom",
+        'WBC': "white blood cell count",
+        'Neutrophils_pct': "neutrophil percentage",
+        'Lymphocytes_pct': "lymphocyte percentage",
+        'CRP': "C-reactive protein (CRP) level",
+        'Procalcitonin': "procalcitonin level",
+        'Creatinine': "creatinine level",
+        'eGFR': "kidney filtration rate (eGFR)",
+        'Temperature': "body temperature",
+        'Heart_Rate': "heart rate",
+        'Respiratory_Rate': "respiratory rate",
+        'SpO2': "blood oxygen saturation (SpO2)",
+        'Weight_kg': "weight",
+        'BMI': "body mass index (BMI)",
     }
     if feature_name in mapping:
         return mapping[feature_name]
     if feature_name.startswith('Organism_'):
         return f"the organism ({feature_name.replace('Organism_', '')})"
+    if feature_name.startswith('Specimen_Source_'):
+        return f"the specimen source ({feature_name.replace('Specimen_Source_', '')})"
     return feature_name
