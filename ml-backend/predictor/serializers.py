@@ -1,4 +1,12 @@
+import os
+import sys
+
 from rest_framework import serializers
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+from constants import ORGANISM_LIST
 
 
 class PredictionRequestSerializer(serializers.Serializer):
@@ -10,11 +18,43 @@ class PredictionRequestSerializer(serializers.Serializer):
     infection_freq = serializers.FloatField(min_value=0, max_value=3)
     year = serializers.IntegerField(min_value=2000, max_value=2030)
     month = serializers.IntegerField(min_value=1, max_value=12)
-    organism = serializers.ChoiceField(choices=[
-        'Acinetobacter baumannii', 'Citrobacter spp.', 'Enterobacteria spp.',
-        'Escherichia coli', 'Klebsiella pneumoniae', 'Morganella morganii',
-        'Proteus mirabilis', 'Pseudomonas aeruginosa', 'Serratia marcescens', 'Unknown'
-    ])
+    organism = serializers.ChoiceField(choices=ORGANISM_LIST)
+
+    # --- Optional synthetic clinical variables (28 total). Omitting any of
+    # these must not break a request — predict.py falls back to a
+    # conservative default (see NEW_BINARY_FIELDS/NEW_NUMERIC_FIELDS there). ---
+    ward_type = serializers.ChoiceField(
+        choices=['ICU', 'General Ward'], required=False, allow_null=True)
+    specimen_source = serializers.ChoiceField(
+        choices=['Blood', 'Urine', 'Wound', 'Respiratory', 'Catheter'],
+        required=False, allow_null=True)
+    previous_antibiotic_use = serializers.BooleanField(required=False, allow_null=True)
+    ckd_status = serializers.BooleanField(required=False, allow_null=True)
+    liver_disease = serializers.BooleanField(required=False, allow_null=True)
+    cancer = serializers.BooleanField(required=False, allow_null=True)
+    immunocompromised_status = serializers.BooleanField(required=False, allow_null=True)
+    fever = serializers.BooleanField(required=False, allow_null=True)
+    cough = serializers.BooleanField(required=False, allow_null=True)
+    burning_urination = serializers.BooleanField(required=False, allow_null=True)
+    wound_infection = serializers.BooleanField(required=False, allow_null=True)
+
+    # Bounds are real clinical reference ranges (wide enough to admit a
+    # genuinely sick patient), not the training dataset's narrow observed
+    # min/max — those were rejecting realistic severe cases (high fever,
+    # hypoxia, tachycardia, renal failure, etc.) with a 400 error.
+    wbc = serializers.FloatField(required=False, allow_null=True, min_value=0.1, max_value=50.0)
+    neutrophils_pct = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    lymphocytes_pct = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    crp = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=500)
+    procalcitonin = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    creatinine = serializers.FloatField(required=False, allow_null=True, min_value=0.1, max_value=15)
+    egfr = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=150)
+    temperature = serializers.FloatField(required=False, allow_null=True, min_value=30, max_value=43)
+    heart_rate = serializers.FloatField(required=False, allow_null=True, min_value=20, max_value=250)
+    respiratory_rate = serializers.FloatField(required=False, allow_null=True, min_value=4, max_value=60)
+    spo2 = serializers.FloatField(required=False, allow_null=True, min_value=50, max_value=100)
+    weight_kg = serializers.FloatField(required=False, allow_null=True, min_value=2, max_value=300)
+    bmi = serializers.FloatField(required=False, allow_null=True, min_value=8, max_value=80)
 
 
 class ShapFeatureSerializer(serializers.Serializer):

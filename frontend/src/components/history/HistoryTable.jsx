@@ -4,6 +4,7 @@ import { ChevronRight, ChevronLeft, FileDown, FileSpreadsheet, FileJson, ArrowUp
 import Panel from '../app/Panel';
 import PrimaryButton from '../app/PrimaryButton';
 import AntibioticChip from './AntibioticChip';
+import PatientContext from './PatientContext';
 
 const HistoryTable = ({ summaries, currentPage, totalPages, onPageChange, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) => {
   const [expandedId, setExpandedId] = useState(null);
@@ -72,6 +73,7 @@ const HistoryTable = ({ summaries, currentPage, totalPages, onPageChange, onView
                           Open full report <ArrowUpRight size={12} />
                         </PrimaryButton>
                       </div>
+                      <PatientContext inputData={s.inputData} />
                       <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
                         {s.predictions.map((p) => (
                           <AntibioticChip key={p.antibiotic} prediction={p} />
