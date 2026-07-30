@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 def trends_view(request):
     antibiotic = request.query_params.get('antibiotic')
     organism = request.query_params.get('organism', 'all')
+    ward_type = request.query_params.get('ward_type', 'all')
 
     if not antibiotic:
         return Response(
@@ -39,9 +40,15 @@ def trends_view(request):
         )
 
     try:
-        series = get_resistance_trend(antibiotic, organism)
+        series = get_resistance_trend(antibiotic, organism, ward_type)
     except ValueError as e:
-        field = "organism" if "organism" in str(e).lower() else "antibiotic"
+        msg_lower = str(e).lower()
+        if "ward_type" in msg_lower:
+            field = "ward_type"
+        elif "organism" in msg_lower:
+            field = "organism"
+        else:
+            field = "antibiotic"
         return Response(
             {
                 "success": False,

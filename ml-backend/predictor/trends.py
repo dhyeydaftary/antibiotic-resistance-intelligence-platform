@@ -5,6 +5,10 @@ import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARTIFACTS_DIR = os.path.join(BASE_DIR, 'ml_artifacts')
+PREDICTOR_DIR = os.path.dirname(os.path.abspath(__file__))
+
+AUGMENTED_DATASET_PATH = os.path.join(PREDICTOR_DIR, 'cleaned_dataset_augmented.csv')
+LEGACY_DATASET_PATH = os.path.join(ARTIFACTS_DIR, 'cleaned_dataset.csv')
 
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
@@ -12,15 +16,17 @@ from constants import ORGANISM_LIST
 
 _df = None
 _antibiotic_columns = None
+_has_ward_type = None
 
 
 def _load_data():
-    global _df
+    global _df, _has_ward_type
     if _df is None:
-        _df = pd.read_csv(
-            os.path.join(ARTIFACTS_DIR, 'cleaned_dataset.csv'),
-            parse_dates=['Collection_Date']
-        )
+        if os.path.exists(AUGMENTED_DATASET_PATH):
+            _df = pd.read_csv(AUGMENTED_DATASET_PATH, parse_dates=['Collection_Date'])
+        else:
+            _df = pd.read_csv(LEGACY_DATASET_PATH, parse_dates=['Collection_Date'])
+        _has_ward_type = 'Ward_Type' in _df.columns
     return _df
 
 
@@ -32,7 +38,7 @@ def _load_antibiotic_columns():
     return _antibiotic_columns
 
 
-def get_resistance_trend(antibiotic, organism=None):
+def get_resistance_trend(antibiotic, organism=None, ward_type=None):
     df = _load_data()
     antibiotic_columns = _load_antibiotic_columns()
 
@@ -42,10 +48,18 @@ def get_resistance_trend(antibiotic, organism=None):
     if organism and organism != 'all' and organism not in ORGANISM_LIST:
         raise ValueError(f"Unknown organism: {organism}")
 
+    if ward_type and ward_type != 'all' and not _has_ward_type:
+        raise ValueError("ward_type filter is unavailable: dataset has no Ward_Type column")
+    if ward_type and ward_type != 'all' and _has_ward_type and ward_type not in df['Ward_Type'].dropna().unique():
+        raise ValueError(f"Unknown ward_type: {ward_type}")
+
     data = df.dropna(subset=[antibiotic, 'Collection_Date'])
 
     if organism and organism != 'all':
         data = data[data['Organism'] == organism]
+
+    if ward_type and ward_type != 'all' and _has_ward_type:
+        data = data[data['Ward_Type'] == ward_type]
 
     data = data.copy()
     data['period'] = data['Collection_Date'].dt.to_period('M').astype(str)
