@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, Activity, Calendar, Database, Flame, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Activity, Calendar, Flame, ArrowUp, Sparkles } from 'lucide-react';
 import { getTrends } from '../api/trendsApi';
 import { getDatasetStats } from '../api/datasetApi';
 import { ORGANISM_OPTIONS, ANTIBIOTICS } from '../constants/domainData';
@@ -79,6 +79,7 @@ function StatCard({ label, value, icon: Icon, tone }) {
 function TrendsPage() {
   const [antibiotic, setAntibiotic] = useState('CIP');
   const [organism, setOrganism] = useState('all');
+  const [wardType, setWardType] = useState('all');
   const [series, setSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -88,6 +89,7 @@ function TrendsPage() {
   const [overviewLoading, setOverviewLoading] = useState(true);
 
   const [datasetStats, setDatasetStats] = useState(null);
+  const [wardTypeOptions, setWardTypeOptions] = useState([{ value: 'all', label: 'All wards' }]);
 
   const [organismOverlay, setOrganismOverlay] = useState([]);
   const [organismOverlayLoading, setOrganismOverlayLoading] = useState(true);
@@ -97,14 +99,14 @@ function TrendsPage() {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    getTrends(antibiotic, organism)
+    getTrends(antibiotic, organism, wardType)
       .then((result) => setSeries(result.data.series))
       .catch((err) => {
         setError('Failed to load trend data.');
         console.error(err);
       })
       .finally(() => setLoading(false));
-  }, [antibiotic, organism]);
+  }, [antibiotic, organism, wardType]);
 
   // Overview data (all 15 antibiotics, all organisms) — used for tier comparison, rising trend, top/bottom lists
   useEffect(() => {
@@ -123,10 +125,18 @@ function TrendsPage() {
     });
   }, []);
 
-  // Dataset context strip
+  // Dataset context strip + ward type options
   useEffect(() => {
     getDatasetStats()
-      .then((result) => setDatasetStats(result.data))
+      .then((result) => {
+        setDatasetStats(result.data);
+        if (result.data.wardTypeDistribution?.length) {
+          setWardTypeOptions([
+            { value: 'all', label: 'All wards' },
+            ...result.data.wardTypeDistribution.map((w) => ({ value: w.wardType, label: w.wardType })),
+          ]);
+        }
+      })
       .catch((err) => console.error('Failed to load dataset stats:', err));
   }, []);
 
@@ -223,10 +233,7 @@ function TrendsPage() {
     return { top: sorted[0], runnersUp: sorted.slice(1, 3) };
   }, [overviewStats]);
 
-  const rankedLists = useMemo(() => {
-    const sorted = [...overviewStats].sort((a, b) => b.latest - a.latest);
-    return { top: sorted.slice(0, 5), bottom: sorted.slice(-5).reverse() };
-  }, [overviewStats]);
+
 
   const organismOptions = [{ value: 'all', label: 'All organisms' }, ...ORGANISM_OPTIONS.map((o) => ({ value: o, label: o }))];
   const antibioticOptions = ANTIBIOTICS.map((a) => ({ value: a.code, label: a.code }));
@@ -258,6 +265,12 @@ function TrendsPage() {
             <span><span className="text-page-ink font-medium">{datasetStats.antibioticTargets}</span> antibiotics tracked</span>
             <span className="text-canvas-hairline">·</span>
             <span>{datasetStats.dateRange?.start} → {datasetStats.dateRange?.end}</span>
+            {datasetStats.wardTypeDistribution?.length > 0 && (
+              <>
+                <span className="text-canvas-hairline">·</span>
+                <span><span className="text-page-ink font-medium">{datasetStats.wardTypeDistribution.length}</span> ward types</span>
+              </>
+            )}
           </div>
         )}
 
@@ -271,6 +284,12 @@ function TrendsPage() {
             <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-onpanel-faint">Organism</span>
             <NativeSelect value={organism} onChange={setOrganism} options={organismOptions} />
           </div>
+          {wardTypeOptions.length > 1 && (
+            <div>
+              <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-onpanel-faint">Ward</span>
+              <NativeSelect value={wardType} onChange={setWardType} options={wardTypeOptions} />
+            </div>
+          )}
         </div>
 
         {/* Stat cards */}
@@ -427,47 +446,66 @@ function TrendsPage() {
           </div>
         </ScrollReveal>
 
-        {/* Top / Bottom ranked lists */}
+        {/* Resistance landscape — all antibiotics at a glance */}
         <ScrollReveal index={4}>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Panel className="p-5">
-              <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-                <ArrowUp size={13} className="text-resistant" /> Most resistant now
+          <Panel className="p-5">
+            <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+              Resistance landscape — all antibiotics
+            </div>
+            {overviewLoading ? (
+              <div className="h-40 animate-pulse rounded-[10px] bg-panel-raised" />
+            ) : (
+              <div className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+                {[...overviewStats]
+                  .sort((a, b) => b.latest - a.latest)
+                  .map((s) => {
+                    const tierDot =
+                      s.aware === 'Reserve'
+                        ? 'bg-onpanel-faint'
+                        : s.aware === 'Watch'
+                        ? 'bg-onpanel-muted'
+                        : 'bg-accent-blue';
+                    return (
+                      <div
+                        key={s.code}
+                        className="flex items-center gap-3 border-b border-panel-border py-2.5 last:border-b-0"
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 shrink-0 rounded-full ${tierDot}`}
+                          title={s.aware}
+                        />
+                        <span className="w-24 shrink-0 truncate font-mono text-[13px] font-medium text-onpanel-ink">
+                          {s.code}
+                        </span>
+                        <div className="flex-1">
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-panel-border">
+                            <div
+                              className="h-full rounded-full bg-accent-blue transition-all duration-500"
+                              style={{ width: `${Math.min(s.latest, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                        <span className="w-12 shrink-0 text-right font-mono text-[13px] font-semibold text-onpanel-ink">
+                          {s.latest}%
+                        </span>
+                        <span
+                          className={`w-14 shrink-0 text-right font-mono text-[11px] font-medium ${
+                            s.delta > 0
+                              ? 'text-resistant'
+                              : s.delta < 0
+                              ? 'text-susceptible'
+                              : 'text-onpanel-faint'
+                          }`}
+                        >
+                          {s.delta > 0 ? '+' : ''}
+                          {s.delta}%
+                        </span>
+                      </div>
+                    );
+                  })}
               </div>
-              {overviewLoading ? (
-                <div className="h-40 animate-pulse rounded-[10px] bg-panel-raised" />
-              ) : (
-                <div className="space-y-2">
-                  {rankedLists.top.map((s, i) => (
-                    <div key={s.code} className="flex items-center gap-3">
-                      <span className="w-4 shrink-0 font-mono text-[11px] text-onpanel-faint">{i + 1}</span>
-                      <span className="flex-1 truncate font-mono text-[13px] font-medium text-onpanel-ink">{s.code}</span>
-                      <span className="font-mono text-[13px] font-semibold text-resistant">{s.latest}%</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Panel>
-
-            <Panel className="p-5">
-              <div className="mb-3 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-                <ArrowDown size={13} className="text-susceptible" /> Least resistant now
-              </div>
-              {overviewLoading ? (
-                <div className="h-40 animate-pulse rounded-[10px] bg-panel-raised" />
-              ) : (
-                <div className="space-y-2">
-                  {rankedLists.bottom.map((s, i) => (
-                    <div key={s.code} className="flex items-center gap-3">
-                      <span className="w-4 shrink-0 font-mono text-[11px] text-onpanel-faint">{i + 1}</span>
-                      <span className="flex-1 truncate font-mono text-[13px] font-medium text-onpanel-ink">{s.code}</span>
-                      <span className="font-mono text-[13px] font-semibold text-susceptible">{s.latest}%</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Panel>
-          </div>
+            )}
+          </Panel>
         </ScrollReveal>
 
         <ScrollReveal index={5}>

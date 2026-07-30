@@ -1,22 +1,34 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Custom mix-blend-difference dot cursor.
  * Grows subtly on hover over data-cursor-hover elements.
+ *
+ * Position is written straight to the DOM via a ref on every mousemove,
+ * NOT through React state — a setState here would re-render this component
+ * on every single pixel of mouse movement (60-120+ times/sec), which is the
+ * actual cause of felt lag on this page. Direct style mutation costs nothing
+ * extra: the browser was already going to repaint for the cursor to move.
  */
 export default function Cursor() {
-  const [pos, setPos] = useState({ x: -100, y: -100 });
-  const [hover, setHover] = useState(false);
+  const dotRef = useRef(null);
 
   useEffect(() => {
     if (window.matchMedia("(hover: none)").matches) return;
 
-    const onMove = (e) => setPos({ x: e.clientX, y: e.clientY });
-    const onOver = (e) => {
-      const t = e.target;
-      if (t?.closest?.("[data-cursor-hover], a, button")) setHover(true);
-      else setHover(false);
+    const onMove = (e) => {
+      const el = dotRef.current;
+      if (!el) return;
+      el.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%,-50%)`;
     };
+    const onOver = (e) => {
+      const el = dotRef.current;
+      if (!el) return;
+      const t = e.target;
+      const isHover = !!t?.closest?.("[data-cursor-hover], a, button");
+      el.classList.toggle("hover-active", isHover);
+    };
+
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseover", onOver);
     return () => {
@@ -27,9 +39,10 @@ export default function Cursor() {
 
   return (
     <div
+      ref={dotRef}
       aria-hidden
-      className={`cursor-dot ${hover ? "hover-active" : ""}`}
-      style={{ transform: `translate(${pos.x}px, ${pos.y}px) translate(-50%,-50%)` }}
+      className="cursor-dot"
+      style={{ transform: "translate(-100px, -100px) translate(-50%,-50%)" }}
     />
   );
 }
