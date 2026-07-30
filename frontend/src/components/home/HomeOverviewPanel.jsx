@@ -35,7 +35,7 @@ function Stat({ icon: Icon, label, value, hint }) {
   );
 }
 
-function HomeOverviewPanel({ stats, dailySeries }) {
+function HomeOverviewPanel({ stats, dailySeries, datasetStats }) {
   const total = useCountUp(stats.total);
   const thisWeek = useCountUp(stats.thisWeek);
   const avgConfidence = useCountUp(stats.avgConfidence);
