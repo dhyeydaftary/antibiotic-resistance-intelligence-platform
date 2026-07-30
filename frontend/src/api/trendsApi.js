@@ -1,8 +1,8 @@
 import api from './axiosConfig';
 
-export async function getTrends(antibiotic, organism = 'all') {
+export async function getTrends(antibiotic, organism = 'all', wardType = 'all') {
   const response = await api.get('/predictor/trends', {
-    params: { antibiotic, organism },
+    params: { antibiotic, organism, ward_type: wardType },
   });
   return response.data;
 }
