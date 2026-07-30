@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getHistory } from '../api/historyApi';
+import { getDatasetStats } from '../api/datasetApi';
 import { useAuth } from '../context/AuthContext';
 import HomeHero from '../components/home/HomeHero';
 import HomeOverviewPanel from '../components/home/HomeOverviewPanel';
@@ -128,6 +129,7 @@ function HomePage() {
   const [stats, setStats] = useState(EMPTY_STATS);
   const [dailySeries, setDailySeries] = useState([]);
   const [recentPredictions, setRecentPredictions] = useState([]);
+  const [datasetStats, setDatasetStats] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +161,13 @@ function HomePage() {
     };
   }, []);
 
+  // Dataset stats — for augmented clinical headline pills
+  useEffect(() => {
+    getDatasetStats()
+      .then((result) => setDatasetStats(result.data))
+      .catch((err) => console.error('Failed to load dataset stats for Home:', err));
+  }, []);
+
   return (
     <div className="px-6 py-10 sm:py-12">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -168,7 +177,7 @@ function HomePage() {
           <div className="h-[260px] animate-pulse rounded-[20px] border border-panel-border bg-panel" />
         ) : (
           <ScrollReveal index={0}>
-            <HomeOverviewPanel stats={stats} dailySeries={dailySeries} />
+            <HomeOverviewPanel stats={stats} dailySeries={dailySeries} datasetStats={datasetStats} />
           </ScrollReveal>
         )}
 
@@ -179,7 +188,7 @@ function HomePage() {
           <HomeInsightPanel />
         </ScrollReveal>
         <ScrollReveal index={1}>
-          <HomeToolsPanel />
+          <HomeToolsPanel datasetStats={datasetStats} />
         </ScrollReveal>
         <ScrollReveal index={0}>
           <HomeQuoteBanner />

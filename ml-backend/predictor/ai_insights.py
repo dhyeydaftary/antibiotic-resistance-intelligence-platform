@@ -1,6 +1,14 @@
 import pandas as pd
 import os
 import json
+import re
+
+from google import genai
+
+try:
+    from decouple import config as decouple_config
+except ImportError:
+    decouple_config = None
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARTIFACTS_DIR = os.path.join(BASE_DIR, 'ml_artifacts')
@@ -164,6 +172,21 @@ def _build_confidence_text(predictions, low_confidence, high_confidence):
     return base
 
 
+def _is_named_category_present(feature_name, value):
+    """
+    Organism_* and Specimen_Source_* are one-hot dummies whose humanized text
+    names a specific category (e.g. "the organism (E. coli)"). That phrasing
+    is only accurate when the dummy's value is actually 1 for this patient —
+    a high |SHAP| magnitude at value 0 means the model found "not being this
+    category" informative, which is not the same claim. Returns False to
+    veto naming it in that case; True/None (not a named-category dummy, e.g.
+    a lab value or a Yes/No flag) means it's safe to attribute as-is.
+    """
+    if feature_name.startswith('Organism_') or feature_name.startswith('Specimen_Source_'):
+        return value == 1
+    return True
+
+
 def _build_plain_explanation(resistant, total):
     if not resistant:
         return (
@@ -171,15 +194,21 @@ def _build_plain_explanation(resistant, total):
             "clinical factor stands out as a driver of concern."
         )
 
-    # Aggregate top SHAP driver per resistant antibiotic, with signed magnitude
+    # Aggregate top SHAP driver per resistant antibiotic, with signed magnitude.
+    # Walk each antibiotic's ranked SHAP list and take the first feature that's
+    # actually attributable to this patient (see _is_named_category_present).
     driver_totals = {}
     driver_examples = {}
     for p in resistant:
-        if not p['shapExplanation']:
+        chosen = None
+        for feat in p['shapExplanation']:
+            if _is_named_category_present(feat['feature'], feat.get('value')):
+                chosen = feat
+                break
+        if chosen is None:
             continue
-        top = p['shapExplanation'][0]
-        feature = top['feature']
-        driver_totals[feature] = driver_totals.get(feature, 0) + abs(top['contribution'])
+        feature = chosen['feature']
+        driver_totals[feature] = driver_totals.get(feature, 0) + abs(chosen['contribution'])
         driver_examples.setdefault(feature, []).append(p['antibiotic'])
 
     if not driver_totals:
@@ -205,6 +234,109 @@ def _build_plain_explanation(resistant, total):
     )
 
 
+# --- Gemini-generated summary + recommended next steps -----------------
+#
+# Both are handed a GROUNDING FACTS dict built entirely from real, already-
+# computed numbers (counts, tier names, confidence values, historical case
+# count) — the same facts the template versions above use. The prompt
+# instructs Gemini to use ONLY these facts and never invent additional
+# antibiotic names, percentages, or statistics. On any failure (bad/missing
+# API key, malformed response, rate limit, network error), the caller falls
+# back to _build_summary() and the template-based next_steps list, so a
+# prediction can never fail or go incomplete because of this call.
+
+def _build_grounding_facts(
+    resistant, susceptible, intermediate, total,
+    reserve_resistant, watch_resistant, access_resistant,
+    low_confidence, high_confidence, historical_cases, risk_level,
+):
+    return {
+        "total_antibiotics": total,
+        "resistant_count": len(resistant),
+        "susceptible_count": len(susceptible),
+        "intermediate_count": len(intermediate),
+        "resistant_antibiotics": [p['antibiotic'] for p in resistant],
+        "susceptible_antibiotics": [p['antibiotic'] for p in susceptible],
+        "reserve_tier_resistant": [p['antibiotic'] for p in reserve_resistant],
+        "watch_tier_resistant": [p['antibiotic'] for p in watch_resistant],
+        "access_tier_resistant": [p['antibiotic'] for p in access_resistant],
+        "low_confidence_antibiotics": [
+            {"antibiotic": p['antibiotic'], "confidence": round(p['confidence'], 2)}
+            for p in low_confidence
+        ],
+        "high_confidence_antibiotics": [p['antibiotic'] for p in high_confidence],
+        "risk_level": risk_level,
+        "similar_historical_case_count": historical_cases['sampleSize'],
+    }
+
+
+GEMINI_PROMPT_TEMPLATE = """You are writing two short sections of a clinical research report on \
+predicted antibiotic resistance for a single patient case. This is a research/education tool, \
+NOT a clinical diagnosis system.
+
+You must use ONLY the facts given below. Do not invent, estimate, or assume any antibiotic name, \
+percentage, or statistic that is not explicitly present in these facts.
+
+FACTS (JSON):
+{facts_json}
+
+Write:
+1. "summary": a 2-4 sentence prose summary of these results, similar in tone to a radiology or \
+lab report summary — factual, precise, no speculation beyond the given facts.
+2. "recommendedNextSteps": a list of 3-5 short, actionable next-step strings for a clinician or \
+researcher reviewing this result (e.g. confirming with lab testing, consulting specialists for \
+concerning results, treating low-confidence predictions cautiously). Always include a step about \
+confirming with laboratory-based susceptibility testing before any treatment decision.
+
+Return ONLY valid JSON, no markdown code fences, no explanation text, in exactly this shape:
+{{"summary": "...", "recommendedNextSteps": ["...", "..."]}}
+"""
+
+
+def _strip_code_fences(text):
+    text = text.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    return text.strip()
+
+
+def _generate_llm_summary_and_next_steps(facts):
+    """
+    Returns (summary_or_None, next_steps_or_None, error_or_None).
+    Never raises — any failure is reported via the error slot so the caller
+    can fall back to the template versions.
+    """
+    api_key = None
+    if decouple_config is not None:
+        api_key = decouple_config("GEMINI_API_KEY", default=None)
+    if not api_key:
+        api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        return None, None, "GEMINI_API_KEY not configured"
+
+    try:
+        client = genai.Client(api_key=api_key)
+        prompt = GEMINI_PROMPT_TEMPLATE.format(facts_json=json.dumps(facts, indent=2))
+
+        response = client.models.generate_content(
+            model="gemini-flash-latest",
+            contents=prompt,
+        )
+        raw_text = _strip_code_fences(response.text)
+        parsed = json.loads(raw_text)
+
+        summary = parsed.get("summary")
+        next_steps = parsed.get("recommendedNextSteps")
+
+        if not summary or not isinstance(next_steps, list) or not next_steps:
+            return None, None, "Gemini response missing expected fields"
+
+        return summary, next_steps, None
+
+    except Exception as e:
+        return None, None, f"Gemini insight generation failed: {e}"
+
+
 def generate_ai_insights(patient_data, predictions):
     resistant = [p for p in predictions if p['result'] == 'R']
     susceptible = [p for p in predictions if p['result'] == 'S']
@@ -214,8 +346,6 @@ def generate_ai_insights(patient_data, predictions):
     reserve_resistant = [p for p in resistant if p['awareCategory'] == RESERVE_TIER]
     watch_resistant = [p for p in resistant if p['awareCategory'] == WATCH_TIER]
     access_resistant = [p for p in resistant if p['awareCategory'] == 'Access']
-
-    summary = _build_summary(resistant, susceptible, intermediate, total, reserve_resistant, watch_resistant)
 
     low_confidence = [p for p in predictions if p['confidence'] < LOW_CONFIDENCE_THRESHOLD]
     high_confidence = [p for p in predictions if p['confidence'] >= HIGH_CONFIDENCE_THRESHOLD]
@@ -261,42 +391,57 @@ def generate_ai_insights(patient_data, predictions):
         patient_data['organism'], patient_data['age']
     )
 
-    # --- Recommended Next Steps ---
-    next_steps = [
-        "Confirm findings with laboratory-based antibiotic susceptibility testing before any treatment decision.",
-    ]
+    # --- Summary + Recommended Next Steps: try Gemini first, grounded in
+    # the exact same facts the template versions use, then fall back to the
+    # deterministic templates on any failure. ---
+    facts = _build_grounding_facts(
+        resistant, susceptible, intermediate, total,
+        reserve_resistant, watch_resistant, access_resistant,
+        low_confidence, high_confidence, historical_cases, risk_level,
+    )
+    llm_summary, llm_next_steps, llm_error = _generate_llm_summary_and_next_steps(facts)
 
-    if resistant:
-        next_steps.append(
-            f"Review the SHAP explainability breakdown for {_join_names(p['antibiotic'] for p in resistant[:3])} "
-            f"to understand what's driving each resistant prediction."
-        )
+    if llm_summary and llm_next_steps:
+        summary = llm_summary
+        next_steps = llm_next_steps
     else:
-        next_steps.append(
-            "Review the SHAP explainability breakdown for each antibiotic to understand contributing factors."
-        )
+        summary = _build_summary(resistant, susceptible, intermediate, total, reserve_resistant, watch_resistant)
 
-    if reserve_resistant:
-        next_steps.append(
-            "Consult infectious disease guidance given predicted resistance to a Reserve-tier antibiotic."
-        )
-    elif len(watch_resistant) >= 3:
-        next_steps.append(
-            "Consider consulting infectious disease guidance given the limited predicted treatment options."
-        )
+        next_steps = [
+            "Confirm findings with laboratory-based antibiotic susceptibility testing before any treatment decision.",
+        ]
 
-    if low_confidence:
-        names = _join_names(p['antibiotic'] for p in low_confidence)
-        next_steps.append(
-            f"Treat the {names} prediction{'s' if len(low_confidence) > 1 else ''} as directional only — "
-            f"confidence fell below {int(LOW_CONFIDENCE_THRESHOLD * 100)}%, so prioritize lab confirmation here."
-        )
+        if resistant:
+            next_steps.append(
+                f"Review the SHAP explainability breakdown for {_join_names(p['antibiotic'] for p in resistant[:3])} "
+                f"to understand what's driving each resistant prediction."
+            )
+        else:
+            next_steps.append(
+                "Review the SHAP explainability breakdown for each antibiotic to understand contributing factors."
+            )
 
-    if historical_cases['sampleSize'] > 0:
-        next_steps.append(
-            f"Use the {historical_cases['sampleSize']} similar historical cases as context, "
-            f"not as a substitute for patient-specific testing."
-        )
+        if reserve_resistant:
+            next_steps.append(
+                "Consult infectious disease guidance given predicted resistance to a Reserve-tier antibiotic."
+            )
+        elif len(watch_resistant) >= 3:
+            next_steps.append(
+                "Consider consulting infectious disease guidance given the limited predicted treatment options."
+            )
+
+        if low_confidence:
+            names = _join_names(p['antibiotic'] for p in low_confidence)
+            next_steps.append(
+                f"Treat the {names} prediction{'s' if len(low_confidence) > 1 else ''} as directional only — "
+                f"confidence fell below {int(LOW_CONFIDENCE_THRESHOLD * 100)}%, so prioritize lab confirmation here."
+            )
+
+        if historical_cases['sampleSize'] > 0:
+            next_steps.append(
+                f"Use the {historical_cases['sampleSize']} similar historical cases as context, "
+                f"not as a substitute for patient-specific testing."
+            )
 
     disclaimer = (
         "This tool is intended for research and educational purposes only. It is not a substitute "
@@ -329,9 +474,35 @@ def _humanize_feature(feature_name):
         'Infection_Freq': "infection frequency",
         'Year': "the collection year",
         'Month': "the collection month",
+        # Synthetic clinical variables added for the expanded feature set
+        'Ward_Type': "ward type (ICU vs. general ward)",
+        'Previous_Antibiotic_Use': "recent prior antibiotic use",
+        'CKD_Status': "chronic kidney disease status",
+        'Liver_Disease': "liver disease status",
+        'Cancer': "cancer history",
+        'Immunocompromised_Status': "immunocompromised status",
+        'Fever': "presence of fever",
+        'Cough': "presence of cough",
+        'Burning_Urination': "burning urination symptom",
+        'Wound_Infection': "wound infection symptom",
+        'WBC': "white blood cell count",
+        'Neutrophils_pct': "neutrophil percentage",
+        'Lymphocytes_pct': "lymphocyte percentage",
+        'CRP': "C-reactive protein (CRP) level",
+        'Procalcitonin': "procalcitonin level",
+        'Creatinine': "creatinine level",
+        'eGFR': "kidney filtration rate (eGFR)",
+        'Temperature': "body temperature",
+        'Heart_Rate': "heart rate",
+        'Respiratory_Rate': "respiratory rate",
+        'SpO2': "blood oxygen saturation (SpO2)",
+        'Weight_kg': "weight",
+        'BMI': "body mass index (BMI)",
     }
     if feature_name in mapping:
         return mapping[feature_name]
     if feature_name.startswith('Organism_'):
         return f"the organism ({feature_name.replace('Organism_', '')})"
+    if feature_name.startswith('Specimen_Source_'):
+        return f"the specimen source ({feature_name.replace('Specimen_Source_', '')})"
     return feature_name

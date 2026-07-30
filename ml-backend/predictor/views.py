@@ -11,6 +11,9 @@ from .trends import get_resistance_trend
 from .ai_insights import generate_ai_insights
 from .trend_insights import generate_trend_insights
 from .pubmed_client import get_research_papers
+from .extract_report_llm import extract_report_fields_llm
+import pdfplumber
+import io
 
 
 logger = logging.getLogger(__name__)
@@ -20,6 +23,7 @@ logger = logging.getLogger(__name__)
 def trends_view(request):
     antibiotic = request.query_params.get('antibiotic')
     organism = request.query_params.get('organism', 'all')
+    ward_type = request.query_params.get('ward_type', 'all')
 
     if not antibiotic:
         return Response(
@@ -36,9 +40,15 @@ def trends_view(request):
         )
 
     try:
-        series = get_resistance_trend(antibiotic, organism)
+        series = get_resistance_trend(antibiotic, organism, ward_type)
     except ValueError as e:
-        field = "organism" if "organism" in str(e).lower() else "antibiotic"
+        msg_lower = str(e).lower()
+        if "ward_type" in msg_lower:
+            field = "ward_type"
+        elif "organism" in msg_lower:
+            field = "organism"
+        else:
+            field = "antibiotic"
         return Response(
             {
                 "success": False,
@@ -240,3 +250,119 @@ def research_papers_view(request):
         }, "error": None},
         status=status.HTTP_200_OK
     )
+
+
+@api_view(['POST'])
+def extract_report_view(request):
+    uploaded_file = request.FILES.get('report')
+ 
+    if not uploaded_file:
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "No file uploaded. Expected a PDF under the 'report' field.",
+                    "field": "report",
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+ 
+    if not uploaded_file.name.lower().endswith('.pdf'):
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Only PDF files are supported.",
+                    "field": "report",
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+ 
+    try:
+        with pdfplumber.open(io.BytesIO(uploaded_file.read())) as pdf:
+            report_text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+    except Exception:
+        logger.exception("Failed to read uploaded PDF in extract_report_view")
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "EXTRACTION_ERROR",
+                    "message": "Could not read this PDF. It may be corrupted, password-protected, or a scanned image rather than text.",
+                    "field": "report",
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+ 
+    if not report_text.strip():
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "EXTRACTION_ERROR",
+                    "message": "No readable text found in this PDF. It may be a scanned image — please fill the form manually.",
+                    "field": "report",
+                }
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+ 
+    try:
+        extracted, missing, llm_error = extract_report_fields_llm(report_text)
+    except Exception:
+        logger.exception("Unexpected error in extract_report_view")
+        return Response(
+            {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "Something went wrong while extracting report data.",
+                    "field": None,
+                }
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+ 
+    if llm_error:
+        # Extraction pipeline itself failed (API down, bad key, malformed
+        # response) — not a validation problem with the file. Return
+        # success so the frontend shows "auto-fill unavailable, please
+        # fill manually" rather than a hard error page; the form remains
+        # fully usable without extraction.
+        logger.warning(f"Report extraction fell back to manual entry: {llm_error}")
+        return Response(
+            {
+                "success": True,
+                "data": {
+                    "extracted": {},
+                    "missing": list(extracted.keys()) if extracted else [],
+                    "extractionAvailable": False,
+                },
+                "error": None,
+            },
+            status=status.HTTP_200_OK
+        )
+ 
+    return Response(
+        {
+            "success": True,
+            "data": {
+                "extracted": extracted,
+                "missing": missing,
+                "extractionAvailable": True,
+            },
+            "error": None,
+        },
+        status=status.HTTP_200_OK
+    )
+ 
