@@ -38,19 +38,23 @@ class PredictionRequestSerializer(serializers.Serializer):
     burning_urination = serializers.BooleanField(required=False, allow_null=True)
     wound_infection = serializers.BooleanField(required=False, allow_null=True)
 
-    wbc = serializers.FloatField(required=False, allow_null=True, min_value=2.0, max_value=30.0)
-    neutrophils_pct = serializers.FloatField(required=False, allow_null=True, min_value=20, max_value=95)
-    lymphocytes_pct = serializers.FloatField(required=False, allow_null=True, min_value=5, max_value=50)
-    crp = serializers.FloatField(required=False, allow_null=True, min_value=1, max_value=300)
-    procalcitonin = serializers.FloatField(required=False, allow_null=True, min_value=0.01, max_value=20)
-    creatinine = serializers.FloatField(required=False, allow_null=True, min_value=0.3, max_value=8.0)
-    egfr = serializers.FloatField(required=False, allow_null=True, min_value=5, max_value=130)
-    temperature = serializers.FloatField(required=False, allow_null=True, min_value=35.5, max_value=40.5)
-    heart_rate = serializers.FloatField(required=False, allow_null=True, min_value=50, max_value=150)
-    respiratory_rate = serializers.FloatField(required=False, allow_null=True, min_value=10, max_value=35)
-    spo2 = serializers.FloatField(required=False, allow_null=True, min_value=85, max_value=100)
-    weight_kg = serializers.FloatField(required=False, allow_null=True, min_value=20, max_value=160)
-    bmi = serializers.FloatField(required=False, allow_null=True, min_value=10, max_value=70)
+    # Bounds are real clinical reference ranges (wide enough to admit a
+    # genuinely sick patient), not the training dataset's narrow observed
+    # min/max — those were rejecting realistic severe cases (high fever,
+    # hypoxia, tachycardia, renal failure, etc.) with a 400 error.
+    wbc = serializers.FloatField(required=False, allow_null=True, min_value=0.1, max_value=50.0)
+    neutrophils_pct = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    lymphocytes_pct = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    crp = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=500)
+    procalcitonin = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
+    creatinine = serializers.FloatField(required=False, allow_null=True, min_value=0.1, max_value=15)
+    egfr = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=150)
+    temperature = serializers.FloatField(required=False, allow_null=True, min_value=30, max_value=43)
+    heart_rate = serializers.FloatField(required=False, allow_null=True, min_value=20, max_value=250)
+    respiratory_rate = serializers.FloatField(required=False, allow_null=True, min_value=4, max_value=60)
+    spo2 = serializers.FloatField(required=False, allow_null=True, min_value=50, max_value=100)
+    weight_kg = serializers.FloatField(required=False, allow_null=True, min_value=2, max_value=300)
+    bmi = serializers.FloatField(required=False, allow_null=True, min_value=8, max_value=80)
 
 
 class ShapFeatureSerializer(serializers.Serializer):
