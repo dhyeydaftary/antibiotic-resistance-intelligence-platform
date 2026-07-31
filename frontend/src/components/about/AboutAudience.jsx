@@ -33,7 +33,7 @@ export default function AboutAudience() {
         <section
             id="who-its-for"
             data-testid="about-audience-section"
-            className="bg-canvas px-6 py-20 sm:py-24"
+            className="bg-canvas px-6 py-12 sm:py-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div
@@ -42,7 +42,7 @@ export default function AboutAudience() {
                     viewport={{ once: true, margin: '-100px' }}
                     custom={0}
                     variants={fadeUp}
-                    className="mb-4 flex items-center gap-3"
+                    className="mb-2 flex items-center gap-3"
                 >
                     <span className="h-px w-6 bg-canvas-hairline" />
                     <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-page-faint">
@@ -56,12 +56,12 @@ export default function AboutAudience() {
                     viewport={{ once: true, margin: '-100px' }}
                     custom={1}
                     variants={fadeUp}
-                    className="max-w-lg font-display text-[28px] font-semibold leading-[1.2] tracking-[-0.015em] text-page-ink sm:text-[32px]"
+                    className="mb-8 max-w-lg font-display text-[28px] font-semibold leading-[1.2] tracking-[-0.015em] text-page-ink sm:text-[32px]"
                 >
                     Built for study, not for treatment decisions.
                 </motion.h2>
 
-                <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     {AUDIENCES.map((a, i) => (
                         <motion.div
                             key={a.label}
@@ -70,15 +70,20 @@ export default function AboutAudience() {
                             viewport={{ once: true, margin: '-80px' }}
                             custom={i + 2}
                             variants={fadeUp}
-                            className="rounded-[16px] border border-canvas-hairline bg-canvas-alt p-5"
+                            className="group"
                         >
-                            <a.icon size={18} className="text-accent-blue" strokeWidth={1.75} />
-                            <h3 className="mt-3 font-display text-[15px] font-semibold text-page-ink">
-                                {a.label}
-                            </h3>
-                            <p className="mt-1.5 font-sans text-[13px] leading-[1.6] text-page-muted">
-                                {a.body}
-                            </p>
+                            <div className="flex h-full flex-col rounded-[22px] border border-white/[0.1] bg-[#1C1C1E] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-accent-blue/50 hover:shadow-[0_16px_40px_rgba(0,0,0,0.22)]">
+                                {/* Icon Badge */}
+                                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border border-accent-blue/30 bg-accent-blue/15 transition-transform duration-300 group-hover:scale-105">
+                                    <a.icon size={18} className="text-accent-blue" strokeWidth={1.8} />
+                                </div>
+                                <h3 className="font-display text-[16px] font-semibold text-white">
+                                    {a.label}
+                                </h3>
+                                <p className="mt-2 font-sans text-[13.5px] leading-[1.65] text-neutral-300">
+                                    {a.body}
+                                </p>
+                            </div>
                         </motion.div>
                     ))}
                 </div>
@@ -91,8 +96,7 @@ export default function AboutAudience() {
                     variants={fadeUp}
                     className="mt-6 font-sans text-[13px] italic leading-[1.6] text-page-faint"
                 >
-                    Not built for clinicians, patients, or caregivers making real-world
-                    treatment decisions.
+                    Not built for clinicians, patients, or caregivers making real-world treatment decisions.
                 </motion.p>
             </div>
         </section>

@@ -42,22 +42,22 @@ function ShapBar({ index, label, value }) {
             variants={fadeUp}
             className="flex items-center gap-4 py-2.5"
         >
-            <span className="w-32 shrink-0 font-sans text-[13px] leading-[1.4] text-page-muted sm:w-40">
+            <span className="w-32 shrink-0 font-sans text-[13px] leading-[1.4] text-neutral-300 sm:w-40">
                 {label}
             </span>
             <div className="relative h-6 flex-1">
-                <div className="absolute inset-y-0 left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-canvas-hairline" />
+                <div className="absolute inset-y-0 left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
                 <motion.div
                     initial={{ width: 0 }}
                     whileInView={{ width: `${widthPct}%` }}
                     viewport={{ once: true, margin: '-60px' }}
                     transition={{ duration: 0.6, delay: 0.1 + index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-                    className={`absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full ${isPositive ? 'left-1/2 bg-accent-blue/70' : 'right-1/2 bg-page-faint/60'
+                    className={`absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full ${isPositive ? 'left-1/2 bg-accent-blue' : 'right-1/2 bg-neutral-500'
                         }`}
                     style={{ maxWidth: '50%' }}
                 />
             </div>
-            <span className="w-14 shrink-0 text-right font-mono text-[12px] text-page-faint">
+            <span className="w-14 shrink-0 text-right font-mono text-[12px] text-neutral-400">
                 {isPositive ? '+' : ''}
                 {value.toFixed(2)}
             </span>
@@ -70,7 +70,7 @@ export default function AboutExplainability() {
         <section
             id="explainability"
             data-testid="about-explainability-section"
-            className="bg-canvas-alt px-6 py-20 sm:py-24"
+            className="bg-canvas px-6 py-12 sm:py-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div
@@ -131,23 +131,23 @@ export default function AboutExplainability() {
                     viewport={{ once: true, margin: '-100px' }}
                     custom={3}
                     variants={fadeUp}
-                    className="mt-10 rounded-[16px] border border-canvas-hairline bg-canvas p-5 sm:p-7"
+                    className="mt-10 rounded-[24px] border border-white/[0.1] bg-[#1C1C1E] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] sm:p-8"
                 >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-canvas-hairline pb-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 pb-4">
                         <div>
-                            <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-page-faint">
+                            <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-400">
                                 Example prediction
                             </div>
-                            <div className="mt-1 font-display text-[16px] font-semibold text-page-ink">
+                            <div className="mt-1 font-display text-[16px] font-semibold text-white">
                                 {EXAMPLE.antibiotic} — {EXAMPLE.result}
                             </div>
                         </div>
-                        <div className="font-mono text-[13px] text-accent-blue">
+                        <div className="font-mono text-[13px] font-medium text-accent-blue">
                             {(EXAMPLE.confidence * 100).toFixed(1)}% confidence
                         </div>
                     </div>
 
-                    <p className="mt-4 font-sans text-[13px] leading-[1.6] text-page-faint">
+                    <p className="mt-4 font-sans text-[13.5px] leading-[1.6] text-neutral-300">
                         {EXAMPLE.patientContext}
                     </p>
 
@@ -157,7 +157,7 @@ export default function AboutExplainability() {
                         ))}
                     </div>
 
-                    <p className="mt-4 font-sans text-[12px] leading-[1.5] text-page-faint">
+                    <p className="mt-4 font-sans text-[12px] leading-[1.5] text-neutral-400">
                         Example explanation for one prediction, pulled from an actual
                         model run. Feature weights vary by case.
                     </p>

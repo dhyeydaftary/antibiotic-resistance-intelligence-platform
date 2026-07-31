@@ -29,7 +29,7 @@ export default function AboutFutureWork() {
         <section
             id="future-work"
             data-testid="about-future-work-section"
-            className="bg-canvas-alt px-6 py-20 sm:py-24"
+            className="bg-canvas px-6 py-12 sm:py-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div
@@ -87,7 +87,7 @@ export default function AboutFutureWork() {
                     variants={fadeUp}
                     className="mt-16 border-t border-canvas-hairline pt-12 text-center"
                 >
-                    <p className="mx-auto max-w-md font-serif text-[22px] font-medium italic leading-[1.5] tracking-[-0.005em] text-page-ink sm:text-[26px]">
+                    <p className="mx-auto max-w-md font-display text-[22px] font-semibold leading-[1.35] tracking-[-0.015em] text-page-ink sm:text-[26px]">
                         We'd rather be right about what we don't know than confident
                         about what we can't prove.
                     </p>

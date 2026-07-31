@@ -147,23 +147,23 @@ function ForgotPasswordPage() {
     <AuthLayout sideLabel="RECOVER ACCESS">
       <div className="mb-8" aria-label="Recovery progress">
         <ol
-          className="flex items-center gap-3 font-mono-label text-ink-muted"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono-label text-ink-muted"
           data-testid="fp-progress"
         >
           {STEPS.map((label, i) => (
             <li key={label} className="flex items-center gap-3">
               <span
-                className={`inline-flex h-5 w-5 items-center justify-center border ${
+                className={`inline-flex h-5 w-5 items-center justify-center border text-[11px] font-semibold ${
                   i < step
-                    ? "bg-ink border-ink text-paper"
+                    ? "bg-white border-white text-panel"
                     : i === step
-                      ? "border-ink text-ink"
-                      : "border-hairline text-ink-faint"
+                      ? "border-accent-blue text-accent-blue"
+                      : "border-white/25 text-white/30"
                 }`}
               >
                 {i + 1}
               </span>
-              <span className={i === step ? "text-ink" : "text-ink-muted"}>
+              <span className={i === step ? "text-white font-medium" : i < step ? "text-white/60" : "text-white/30"}>
                 {label}
               </span>
               {i < STEPS.length - 1 ? (
@@ -232,7 +232,7 @@ function ForgotPasswordPage() {
             subtitle={
               <>
                 We sent it to{" "}
-                <span className="text-ink font-medium">{email}</span>.
+                <span className="text-white font-medium">{email}</span>.
               </>
             }
           />
@@ -366,7 +366,7 @@ function ForgotPasswordPage() {
         </span>
         <Link
           to="/login"
-          className="font-mono-label amr-link text-ink"
+          className="font-mono-label amr-link text-white/70 hover:text-white"
           data-testid="fp-back-login"
         >
           BACK TO SIGN IN →

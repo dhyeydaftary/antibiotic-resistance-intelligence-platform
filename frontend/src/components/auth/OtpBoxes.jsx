@@ -78,7 +78,7 @@ export const OtpBoxes = ({
 
   return (
     <div
-      className="flex items-center justify-between gap-2 sm:gap-3"
+      className="flex items-center gap-2"
       data-testid={testId}
       onPaste={handlePaste}
       role="group"
@@ -100,10 +100,10 @@ export const OtpBoxes = ({
           aria-label={`Digit ${i + 1}`}
           aria-invalid={invalid || undefined}
           data-testid={`${testId}-${i}`}
-          className={`otp-slot flex-1 min-w-0 h-14 sm:h-16 text-center text-2xl font-serif-display bg-transparent border-b-[1.5px] focus:outline-none transition-colors ${
+          className={`otp-slot w-10 shrink-0 h-10 text-center text-xl font-serif-display bg-transparent border-b-[1.5px] focus:outline-none transition-colors ${
             invalid
-              ? "border-destructive text-destructive"
-              : "border-hairline text-ink focus:border-ink"
+              ? "border-red-500 text-red-400"
+              : "border-white/30 text-white focus:border-white"
           }`}
         />
       ))}

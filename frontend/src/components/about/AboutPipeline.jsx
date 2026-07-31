@@ -45,7 +45,7 @@ export default function AboutPipeline() {
         <section
             id="how-it-was-built"
             data-testid="about-pipeline-section"
-            className="bg-canvas px-6 py-20 sm:py-24"
+            className="bg-canvas px-6 py-12 sm:py-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div
@@ -137,7 +137,7 @@ export default function AboutPipeline() {
                 </motion.div>
 
                 {/* Detail panel */}
-                <div className="mt-8 min-h-[92px] rounded-[16px] border border-canvas-hairline bg-canvas-alt p-5 sm:p-6">
+                <div className="mt-8 min-h-[92px] rounded-[22px] border border-white/[0.1] bg-[#1C1C1E] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
                     <AnimatePresence mode="wait">
                         <motion.p
                             key={activeIndex}
@@ -145,7 +145,7 @@ export default function AboutPipeline() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -6 }}
                             transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-                            className="font-sans text-[14px] leading-[1.65] text-page-muted"
+                            className="font-sans text-[14px] leading-[1.65] text-neutral-300"
                         >
                             <span className="mr-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-accent-blue">
                                 {String(activeIndex + 1).padStart(2, '0')} · {STAGES[activeIndex].label}

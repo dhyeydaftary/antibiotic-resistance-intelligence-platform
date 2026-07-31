@@ -23,7 +23,7 @@ export default function AboutBoundaryList() {
         <section
             id="what-it-is-not"
             data-testid="about-boundary-section"
-            className="bg-canvas-alt px-6 pb-20 sm:pb-24"
+            className="bg-canvas px-6 pb-12 sm:pb-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div
@@ -32,7 +32,7 @@ export default function AboutBoundaryList() {
                     viewport={{ once: true, margin: '-100px' }}
                     custom={0}
                     variants={fadeUp}
-                    className="mb-4 mt-14 flex items-center gap-3 sm:mt-16"
+                    className="mb-4 mt-8 flex items-center gap-3"
                 >
                     <span className="h-px w-6 bg-canvas-hairline" />
                     <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-page-faint">
