@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { TrendsSkeleton } from '../components/common/Skeletons';
 import { TrendingUp, TrendingDown, Minus, Activity, Calendar, Flame, ArrowUp, Sparkles } from 'lucide-react';
 import { getTrends } from '../api/trendsApi';
 import { getDatasetStats } from '../api/datasetApi';
@@ -323,7 +324,7 @@ function TrendsPage() {
             </div>
 
             {loading ? (
-              <div className="h-64 animate-pulse rounded-[10px] bg-panel-raised" />
+              <TrendsSkeleton />
             ) : error ? (
               <div className="flex h-64 items-center justify-center font-sans text-[14px] text-onpanel-faint">{error}</div>
             ) : chartData.length === 0 ? (
@@ -354,7 +355,7 @@ function TrendsPage() {
             </div>
 
             {organismOverlayLoading || organismOverlay.length === 0 ? (
-              <div className="h-56 animate-pulse rounded-[10px] bg-panel-raised" />
+              <TrendsSkeleton />
             ) : (
               <ChartLegendHoverProvider hoveredIndex={hoveredOrganismIndex} onHoverChange={setHoveredOrganismIndex}>
                 <LineChart data={organismOverlay} aspectRatio="16 / 5" animationDuration={0}>

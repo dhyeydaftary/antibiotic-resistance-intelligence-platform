@@ -65,7 +65,10 @@ function HomeToolsPanel({ datasetStats }) {
           </div>
 
           {loadingTrends ? (
-            <div className="h-20 animate-pulse rounded-[10px] bg-panel-raised" />
+            <div className="h-20 animate-pulse rounded-[10px] bg-panel-raised/80 space-y-2 p-3">
+              <div className="h-4 w-20 bg-panel/50 rounded" />
+              <div className="h-3 w-32 bg-panel/50 rounded" />
+            </div>
           ) : risingTrend ? (
             <>
               <div className="rounded-[10px] bg-resistant/10 p-3">

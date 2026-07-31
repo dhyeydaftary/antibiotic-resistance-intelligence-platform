@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DatasetExplorerSkeleton } from '../components/common/Skeletons';
 import { useLocation } from 'react-router-dom';
 import { getDatasetStats } from '../api/datasetApi';
 import ExploreHero from '../components/explore/ExploreHero';
@@ -81,7 +82,7 @@ function DatasetExplorerPage() {
         <ExploreHero />
 
         {loading && (
-          <div className="h-[260px] animate-pulse rounded-[20px] border border-panel-border bg-panel" />
+          <DatasetExplorerSkeleton />
         )}
 
         {error && (
