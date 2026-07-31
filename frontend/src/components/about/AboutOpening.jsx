@@ -14,7 +14,7 @@ export default function AboutOpening() {
         <section
             id="opening"
             data-testid="about-opening-section"
-            className="bg-canvas px-6 pt-10 pb-16 sm:pt-14 sm:pb-20"
+            className="bg-canvas px-6 pt-8 pb-12 sm:pt-12 sm:pb-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div

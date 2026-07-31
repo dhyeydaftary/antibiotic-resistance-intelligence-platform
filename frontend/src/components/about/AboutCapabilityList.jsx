@@ -53,7 +53,7 @@ export default function AboutCapabilityList() {
         <section
             id="what-it-is"
             data-testid="about-capability-section"
-            className="bg-canvas-alt px-6 pt-20 sm:pt-24"
+            className="bg-canvas px-6 pt-12 sm:pt-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div

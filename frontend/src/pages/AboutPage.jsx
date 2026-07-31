@@ -12,22 +12,38 @@ import AboutReferences from '../components/about/AboutReferences';
 import AboutMetadata from '../components/about/AboutMetadata';
 import AboutFutureWork from '../components/about/AboutFutureWork';
 
+/* Thin hairline divider between every section */
+function Divider() {
+  return <div className="mx-auto max-w-3xl border-b border-canvas-hairline" />;
+}
+
 function AboutPage() {
   return (
-    <div>
+    <div className="bg-canvas">
       <AboutOpening />
+      <Divider />
       <AboutGap />
+      <Divider />
       <AboutPhilosophy />
+      <Divider />
       <AboutCapabilityList />
       <AboutBoundaryList />
+      <Divider />
       <AboutPipeline />
+      <Divider />
       <AboutExplainability />
+      <Divider />
       <AboutAudience />
+      <Divider />
       <AboutContributors />
+      <Divider />
       <AboutAcknowledgements />
-      <AboutReferences />
-      <AboutMetadata />
+      <Divider />
       <AboutFutureWork />
+      <Divider />
+      <AboutMetadata />
+      <Divider />
+      <AboutReferences />
     </div>
   );
 }

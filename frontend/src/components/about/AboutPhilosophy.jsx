@@ -14,7 +14,7 @@ export default function AboutPhilosophy() {
         <section
             id="philosophy"
             data-testid="about-philosophy-section"
-            className="bg-canvas px-6 py-28 sm:py-36"
+            className="bg-canvas px-6 py-12 sm:py-16"
         >
             <div className="mx-auto max-w-2xl text-center">
                 <motion.span
@@ -35,7 +35,7 @@ export default function AboutPhilosophy() {
                     custom={1}
                     variants={fadeUp}
                 >
-                    <p className="font-serif text-[34px] font-medium italic leading-[1.25] tracking-[-0.01em] text-page-ink sm:text-[42px]">
+                    <p className="font-display text-[34px] font-semibold leading-[1.2] tracking-[-0.02em] text-page-ink sm:text-[42px]">
                         Evidence before confidence.
                     </p>
                 </motion.blockquote>

@@ -33,7 +33,7 @@ export default function AboutAcknowledgements() {
         <section
             id="acknowledgements"
             data-testid="about-acknowledgements-section"
-            className="bg-canvas px-6 py-16 sm:py-20"
+            className="bg-canvas px-6 py-10 sm:py-12"
         >
             <div className="mx-auto max-w-2xl">
                 <motion.div

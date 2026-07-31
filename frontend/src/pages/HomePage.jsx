@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { HomeOverviewSkeleton, HomeToolsSkeleton } from '../components/common/Skeletons';
 import { getHistory } from '../api/historyApi';
 import { getDatasetStats } from '../api/datasetApi';
 import { useAuth } from '../context/AuthContext';
@@ -174,25 +175,30 @@ function HomePage() {
         <HomeHero name={user?.name?.split(' ')[0] || 'there'} />
 
         {loading ? (
-          <div className="h-[260px] animate-pulse rounded-[20px] border border-panel-border bg-panel" />
+          <div className="space-y-6">
+            <HomeOverviewSkeleton />
+            <HomeToolsSkeleton />
+          </div>
         ) : (
-          <ScrollReveal index={0}>
-            <HomeOverviewPanel stats={stats} dailySeries={dailySeries} datasetStats={datasetStats} />
-          </ScrollReveal>
-        )}
+          <>
+            <ScrollReveal index={0}>
+              <HomeOverviewPanel stats={stats} dailySeries={dailySeries} datasetStats={datasetStats} />
+            </ScrollReveal>
 
-        <ScrollReveal index={1}>
-          <HomeResearchPanel recentPredictions={recentPredictions} />
-        </ScrollReveal>
-        <ScrollReveal index={0}>
-          <HomeInsightPanel />
-        </ScrollReveal>
-        <ScrollReveal index={1}>
-          <HomeToolsPanel datasetStats={datasetStats} />
-        </ScrollReveal>
-        <ScrollReveal index={0}>
-          <HomeQuoteBanner />
-        </ScrollReveal>
+            <ScrollReveal index={1}>
+              <HomeResearchPanel recentPredictions={recentPredictions} />
+            </ScrollReveal>
+            <ScrollReveal index={0}>
+              <HomeInsightPanel />
+            </ScrollReveal>
+            <ScrollReveal index={1}>
+              <HomeToolsPanel datasetStats={datasetStats} />
+            </ScrollReveal>
+            <ScrollReveal index={0}>
+              <HomeQuoteBanner />
+            </ScrollReveal>
+          </>
+        )}
       </div>
     </div>
   );

@@ -26,7 +26,7 @@ export default function AboutMetadata() {
         <section
             id="platform-metadata"
             data-testid="about-metadata-section"
-            className="bg-canvas px-6 py-16 sm:py-20"
+            className="bg-canvas px-6 py-10 sm:py-12"
         >
             <div className="mx-auto max-w-2xl">
                 <motion.div

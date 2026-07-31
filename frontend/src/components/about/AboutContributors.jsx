@@ -11,36 +11,28 @@ const fadeUp = {
 
 const CONTRIBUTORS = [
     {
-        name: 'Dhyey',
-        area: 'ML backend & gateway',
-        body: 'Built the Django/CatBoost prediction backend (15 per-antibiotic models, SHAP explainability) and the Node/Express/MongoDB gateway (auth, history, email). Originally scaffolded the frontend before handoff.',
+        name: 'Dhyey Daftary',
+        area: 'ML Backend & Gateway',
+        body: 'Built the Django/CatBoost prediction backend (15 per-antibiotic models, SHAP explainability) and the Node/Express/MongoDB gateway (auth, history, email).',
     },
     {
-        name: 'Urva',
-        area: 'Frontend',
+        name: 'Urva Shah',
+        area: 'Frontend Lead',
         body: 'Owns the React/Vite frontend — design system, page architecture, and the interface across Predict, History, Trends, and this About page.',
     },
     {
-        name: 'Ansh',
-        area: 'Frontend styling support',
-        body: "Supporting Urva on frontend styling.",
+        name: 'Ansh Patel',
+        area: 'Frontend Styling',
+        body: 'Supporting Urva on frontend styling and design implementation across the platform.',
     },
 ];
-
-function Initials({ name }) {
-    return (
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-blue/10 font-display text-[13px] font-semibold text-accent-blue">
-            {name.charAt(0)}
-        </span>
-    );
-}
 
 export default function AboutContributors() {
     return (
         <section
             id="contributors"
             data-testid="about-contributors-section"
-            className="bg-canvas-alt px-6 py-20 sm:py-24"
+            className="bg-canvas px-6 py-12 sm:py-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div
@@ -49,7 +41,7 @@ export default function AboutContributors() {
                     viewport={{ once: true, margin: '-100px' }}
                     custom={0}
                     variants={fadeUp}
-                    className="mb-4 flex items-center gap-3"
+                    className="mb-2 flex items-center gap-3"
                 >
                     <span className="h-px w-6 bg-canvas-hairline" />
                     <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-page-faint">
@@ -63,7 +55,7 @@ export default function AboutContributors() {
                     viewport={{ once: true, margin: '-100px' }}
                     custom={1}
                     variants={fadeUp}
-                    className="max-w-lg font-display text-[28px] font-semibold leading-[1.2] tracking-[-0.015em] text-page-ink sm:text-[32px]"
+                    className="mb-1 max-w-lg font-display text-[28px] font-semibold leading-[1.2] tracking-[-0.015em] text-page-ink sm:text-[32px]"
                 >
                     Who built this.
                 </motion.h2>
@@ -74,13 +66,12 @@ export default function AboutContributors() {
                     viewport={{ once: true, margin: '-100px' }}
                     custom={2}
                     variants={fadeUp}
-                    className="mt-3 max-w-xl font-sans text-[14px] leading-[1.6] text-page-faint"
+                    className="mb-8 mt-2 max-w-xl font-sans text-[14px] leading-[1.6] text-page-faint"
                 >
-                    AMR-Insight began as a combined Full Stack Development and
-                    Python/FCSP university semester project.
+                    A 3-person team — Full Stack Development + Python/FCSP university semester project.
                 </motion.p>
 
-                <div className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     {CONTRIBUTORS.map((c, i) => (
                         <motion.div
                             key={c.name}
@@ -89,18 +80,26 @@ export default function AboutContributors() {
                             viewport={{ once: true, margin: '-80px' }}
                             custom={i + 3}
                             variants={fadeUp}
-                            className="rounded-[16px] border border-canvas-hairline bg-canvas p-5"
+                            className="group"
                         >
-                            <Initials name={c.name} />
-                            <h3 className="mt-3 font-display text-[15px] font-semibold text-page-ink">
-                                {c.name}
-                            </h3>
-                            <div className="mt-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-accent-blue">
-                                {c.area}
+                            <div className="flex h-full flex-col rounded-[22px] border border-white/[0.1] bg-[#1C1C1E] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out hover:-translate-y-1 hover:border-accent-blue/50 hover:shadow-[0_16px_40px_rgba(0,0,0,0.22)]">
+                                {/* Avatar Badge */}
+                                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-full border border-accent-blue/30 bg-accent-blue/15 font-display text-[15px] font-bold text-accent-blue transition-transform duration-300 group-hover:scale-105">
+                                    {c.name.charAt(0)}
+                                </div>
+                                {/* Name */}
+                                <h3 className="font-display text-[16px] font-semibold text-white">
+                                    {c.name}
+                                </h3>
+                                {/* Role */}
+                                <p className="mt-0.5 font-mono text-[10.5px] font-medium uppercase tracking-[0.08em] text-accent-blue">
+                                    {c.area}
+                                </p>
+                                {/* Body */}
+                                <p className="mt-3 font-sans text-[13.5px] leading-[1.65] text-neutral-300">
+                                    {c.body}
+                                </p>
                             </div>
-                            <p className="mt-2.5 font-sans text-[13px] leading-[1.6] text-page-muted">
-                                {c.body}
-                            </p>
                         </motion.div>
                     ))}
                 </div>

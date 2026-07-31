@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ResearchPapersSkeleton } from '../common/Skeletons';
 import { motion } from 'framer-motion';
 import { BookOpen, ExternalLink, FileWarning } from 'lucide-react';
 import { getResearchPapers } from '../../api/trendsApi';
@@ -44,11 +45,7 @@ function ResearchPapersPanel({ antibiotic, organism }) {
       </div>
 
       {loading && (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-24 animate-pulse rounded-[14px] bg-panel-raised" />
-          ))}
-        </div>
+        <ResearchPapersSkeleton />
       )}
 
       {error && (

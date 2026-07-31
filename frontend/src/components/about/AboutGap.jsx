@@ -14,7 +14,7 @@ export default function AboutGap() {
         <section
             id="the-gap"
             data-testid="about-gap-section"
-            className="bg-canvas-alt px-6 py-20 sm:py-24"
+            className="bg-canvas px-6 py-12 sm:py-14"
         >
             <div className="mx-auto max-w-3xl">
                 <motion.div
