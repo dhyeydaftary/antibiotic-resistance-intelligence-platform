@@ -49,13 +49,7 @@ function App() {
 
   return (
     <>
-      <div
-        className="min-h-screen bg-canvas"
-        style={{
-          backgroundImage: 'radial-gradient(circle, #C7C7CC 1.2px, transparent 1.2px)',
-          backgroundSize: '24px 24px',
-        }}
-      >
+      <div className="min-h-screen bg-canvas">
         <Navbar />
         {routesWithTransition}
       </div>

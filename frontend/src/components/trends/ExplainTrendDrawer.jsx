@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ExplainTrendSkeleton } from '../common/Skeletons';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Sparkles, TrendingUp, TrendingDown, Minus, AlertTriangle,
@@ -158,11 +159,7 @@ function ExplainTrendDrawer({ antibiotic, organism, isOpen, onClose }) {
               {/* Scrollable body */}
               <div className="flex-1 overflow-y-auto px-6">
                 {loading && (
-                  <div className="space-y-4 py-5">
-                    <div className="h-20 animate-pulse rounded-[14px] bg-panel-raised" />
-                    <div className="h-32 animate-pulse rounded-[14px] bg-panel-raised" />
-                    <div className="h-20 animate-pulse rounded-[14px] bg-panel-raised" />
-                  </div>
+                  <ExplainTrendSkeleton />
                 )}
 
                 {error && (
