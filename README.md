@@ -222,7 +222,7 @@ All endpoints are served through the gateway at `/api/predictor` and `/api/auth`
 }
 ```
 
-Full endpoint reference (all 6 `predictor` routes, all 7 `auth` routes, error-code catalog): [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
+Full endpoint reference (all 7 `predictor` routes — 6 proxied to Django, plus `/history` querying MongoDB directly — all 7 `auth` routes, and the shared error-code catalog): [`docs/api/endpoint-reference.md`](docs/api/endpoint-reference.md), with the machine-readable contract at [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 
 ## Security
 
