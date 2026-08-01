@@ -14,7 +14,7 @@ A research and education tool that predicts antibiotic resistance across 15 anti
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](frontend/package.json)
 [![Node](https://img.shields.io/badge/Node%2FExpress-5-339933?logo=node.js&logoColor=white)](gateway/package.json)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)](gateway/package.json)
-[![License](https://img.shields.io/badge/license-TBD-lightgrey)](#license)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 </div>
 
@@ -273,7 +273,7 @@ Not yet open to external contributors — this is currently a 3-person academic 
 
 ## License
 
-**To be finalized.** No license has been selected yet; this repository is not currently licensed for reuse. This section will be updated once a LICENSE decision is made
+Licensed under the [Apache License, Version 2.0](LICENSE).
 
 ## Acknowledgements
 

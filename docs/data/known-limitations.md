@@ -87,7 +87,7 @@ The following are explicit, deliberate scope decisions for the current release, 
 - **Authentication** — email/OTP verification and JWT sessions only; two-factor authentication beyond signup/reset OTP is deferred, not implemented.
 - **Email delivery is sandbox-tier.** The gateway's transactional email sends from Resend's default sandbox sender address, which restricts delivery to the registered account's own email — this is a scoping decision appropriate for a project at this stage, not a production email configuration.
 - **No production threat model yet** — a full security review is planned once production deployment itself is scoped.
-- **Not open to external contributors** — this is currently a 3-person team project; no `LICENSE` has been finalized yet, so the repository isn't currently licensed for reuse.
+- **Not open to external contributors** — this is currently a 3-person team project. The repository is licensed under [Apache License 2.0](../../LICENSE), but that governs reuse of the code, not acceptance of outside contributions, which isn't happening yet regardless of licensing.
 
 The following are genuine current gaps, stated plainly rather than reframed as decisions:
 

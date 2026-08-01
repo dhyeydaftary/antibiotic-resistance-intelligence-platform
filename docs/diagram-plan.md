@@ -10,7 +10,7 @@ review_frequency: on-doc-set-change
 
 ## 1. Executive Summary
 
-This is a planning document only — no diagrams are generated here. It audits every documentation file in AMR-Insight's planned and existing documentation set (per the [Documentation Master Blueprint](DOCUMENTATION_BLUEPRINT.md)) and recommends, file by file, whether it needs a Claude-generated conceptual diagram, a Mermaid technical diagram, both, or neither.
+This is a planning document only — no diagrams are generated here. It audits every documentation file in AMR-Insight's planned and existing documentation set (per the Documentation Master Blueprint, the internal planning document this project's structure was built from — not itself part of this repository) and recommends, file by file, whether it needs a Claude-generated conceptual diagram, a Mermaid technical diagram, both, or neither.
 
 Of roughly 40 files audited: **3 already have the diagrams they need** (root README, ADR-0001), **~18 genuinely benefit from a new diagram**, and **~19 are correctly diagram-free** — reference tables, lists, and prose that a diagram would only decorate, not clarify. That split is deliberate: this plan follows the standing rule that a diagram must earn its place, not fill space.
 
