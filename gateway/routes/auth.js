@@ -9,9 +9,22 @@ const {
   compareOtp,
   getOtpExpiry,
   isExpired,
+  MAX_OTP_ATTEMPTS,
 } = require('../utils/otpUtil');
+const { validatePassword } = require('../utils/passwordPolicy');
+const { verifyLimiter, emailSendLimiter, signupLimiter } = require('../middleware/authRateLimiters');
 
 const router = express.Router();
+
+// Standard shape for a "too many failed attempts" response — mirrors the
+// error envelope used everywhere else in this file.
+function lockedResponse(res, message) {
+  return res.status(429).json({
+    success: false,
+    data: null,
+    error: { code: 'OTP_LOCKED', message, field: null },
+  });
+}
 
 function signToken(userId) {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -32,7 +45,7 @@ function toPublicUser(user) {
 // (name/password updated, new OTP issued) rather than blocked — this
 // prevents users who abandoned verification from being permanently stuck.
 // ---------------------------------------------------------------
-router.post('/signup', async (req, res) => {
+router.post('/signup', signupLimiter, async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -48,6 +61,15 @@ router.post('/signup', async (req, res) => {
           message: 'Name, email, and password are all required',
           field: null,
         },
+      });
+    }
+
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        error: { code: 'VALIDATION_ERROR', message: pwCheck.message, field: 'password' },
       });
     }
 
@@ -76,6 +98,7 @@ router.post('/signup', async (req, res) => {
       existingUser.passwordHash = passwordHash;
       existingUser.otp = otpHash;
       existingUser.otpExpiry = otpExpiry;
+      existingUser.otpAttempts = 0; // fresh code -> fresh attempt budget
       user = await existingUser.save();
     } else {
       user = await User.create({
@@ -84,6 +107,7 @@ router.post('/signup', async (req, res) => {
         passwordHash,
         otp: otpHash,
         otpExpiry,
+        otpAttempts: 0,
         isVerified: false,
       });
     }
@@ -122,7 +146,7 @@ router.post('/signup', async (req, res) => {
 // so the frontend can redirect to /verify-email instead of showing a
 // generic auth failure.
 // ---------------------------------------------------------------
-router.post('/login', async (req, res) => {
+router.post('/login', verifyLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -215,7 +239,7 @@ router.post('/login', async (req, res) => {
 // clears the OTP fields, and issues a JWT (auto-login — per project
 // decision, no separate login step needed after verification).
 // ---------------------------------------------------------------
-router.post('/verify-otp', async (req, res) => {
+router.post('/verify-otp', verifyLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
 
@@ -244,6 +268,10 @@ router.post('/verify-otp', async (req, res) => {
       });
     }
 
+    if (user.otpAttempts >= MAX_OTP_ATTEMPTS) {
+      return lockedResponse(res, 'Too many incorrect attempts. Please request a new code.');
+    }
+
     if (isExpired(user.otpExpiry)) {
       return res.status(400).json({
         success: false,
@@ -254,6 +282,14 @@ router.post('/verify-otp', async (req, res) => {
 
     const matches = await compareOtp(code, user.otp);
     if (!matches) {
+      user.otpAttempts += 1;
+      if (user.otpAttempts >= MAX_OTP_ATTEMPTS) {
+        // Invalidate the code outright rather than just blocking further
+        // guesses — forces a fresh code via /resend-otp.
+        user.otp = null;
+        user.otpExpiry = null;
+      }
+      await user.save();
       return res.status(400).json({
         success: false,
         data: null,
@@ -264,6 +300,7 @@ router.post('/verify-otp', async (req, res) => {
     user.isVerified = true;
     user.otp = null;
     user.otpExpiry = null;
+    user.otpAttempts = 0;
     await user.save();
 
     if (!user.hasReceivedWelcomeEmail) {
@@ -299,7 +336,7 @@ router.post('/verify-otp', async (req, res) => {
 // POST /resend-otp
 // Regenerates and re-sends the signup verification OTP.
 // ---------------------------------------------------------------
-router.post('/resend-otp', async (req, res) => {
+router.post('/resend-otp', emailSendLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -331,6 +368,7 @@ router.post('/resend-otp', async (req, res) => {
     const otp = generateOtp();
     user.otp = await hashOtp(otp);
     user.otpExpiry = getOtpExpiry();
+    user.otpAttempts = 0; // fresh code -> fresh attempt budget
     await user.save();
 
     const emailResult = await sendOtpEmail(user.email, otp, 'verify');
@@ -360,7 +398,7 @@ router.post('/resend-otp', async (req, res) => {
 // it's the same 6-digit-OTP mechanism as signup, since the frontend uses
 // the same OTP-box UI for both flows) and emails it.
 // ---------------------------------------------------------------
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', emailSendLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -384,6 +422,7 @@ router.post('/forgot-password', async (req, res) => {
     const code = generateOtp();
     user.resetToken = await hashOtp(code);
     user.resetTokenExpiry = getOtpExpiry();
+    user.resetAttempts = 0; // fresh code -> fresh attempt budget
     await user.save();
 
     const emailResult = await sendOtpEmail(user.email, code, 'reset');
@@ -413,7 +452,7 @@ router.post('/forgot-password', async (req, res) => {
 // NOT clear the code, since the user still needs to submit a new password
 // afterward. Real re-validation happens again in /reset-password below.
 // ---------------------------------------------------------------
-router.post('/verify-reset-otp', async (req, res) => {
+router.post('/verify-reset-otp', verifyLimiter, async (req, res) => {
   try {
     const { email, code } = req.body;
 
@@ -434,6 +473,10 @@ router.post('/verify-reset-otp', async (req, res) => {
       });
     }
 
+    if (user.resetAttempts >= MAX_OTP_ATTEMPTS) {
+      return lockedResponse(res, 'Too many incorrect attempts. Please request a new code.');
+    }
+
     if (isExpired(user.resetTokenExpiry)) {
       return res.status(400).json({
         success: false,
@@ -444,6 +487,13 @@ router.post('/verify-reset-otp', async (req, res) => {
 
     const matches = await compareOtp(code, user.resetToken);
     if (!matches) {
+      user.resetAttempts += 1;
+      if (user.resetAttempts >= MAX_OTP_ATTEMPTS) {
+        // Invalidate the code outright — forces a fresh code via /forgot-password.
+        user.resetToken = null;
+        user.resetTokenExpiry = null;
+      }
+      await user.save();
       return res.status(400).json({
         success: false,
         data: null,
@@ -473,7 +523,7 @@ router.post('/verify-reset-otp', async (req, res) => {
 // client only calls this after a successful /verify-reset-otp) and, if
 // valid, updates the password and clears the reset fields.
 // ---------------------------------------------------------------
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', verifyLimiter, async (req, res) => {
   try {
     const { email, code, password } = req.body;
 
@@ -488,6 +538,15 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
+      return res.status(400).json({
+        success: false,
+        data: null,
+        error: { code: 'VALIDATION_ERROR', message: pwCheck.message, field: 'password' },
+      });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
@@ -495,6 +554,10 @@ router.post('/reset-password', async (req, res) => {
         data: null,
         error: { code: 'NOT_FOUND', message: 'No account matches that email', field: 'email' },
       });
+    }
+
+    if (user.resetAttempts >= MAX_OTP_ATTEMPTS) {
+      return lockedResponse(res, 'Too many incorrect attempts. Please request a new code.');
     }
 
     if (isExpired(user.resetTokenExpiry)) {
@@ -507,6 +570,13 @@ router.post('/reset-password', async (req, res) => {
 
     const matches = await compareOtp(code, user.resetToken);
     if (!matches) {
+      user.resetAttempts += 1;
+      if (user.resetAttempts >= MAX_OTP_ATTEMPTS) {
+        // Invalidate the code outright — forces a fresh code via /forgot-password.
+        user.resetToken = null;
+        user.resetTokenExpiry = null;
+      }
+      await user.save();
       return res.status(400).json({
         success: false,
         data: null,
@@ -517,6 +587,7 @@ router.post('/reset-password', async (req, res) => {
     user.passwordHash = await bcrypt.hash(password, 10);
     user.resetToken = null;
     user.resetTokenExpiry = null;
+    user.resetAttempts = 0;
     await user.save();
 
     res.status(200).json({

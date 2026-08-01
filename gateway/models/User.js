@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  otpAttempts: {
+    type: Number,
+    default: 0,
+  },
   resetToken: {
     type: String,
     default: null,
@@ -33,6 +37,10 @@ const userSchema = new mongoose.Schema({
   resetTokenExpiry: {
     type: Date,
     default: null,
+  },
+  resetAttempts: {
+    type: Number,
+    default: 0,
   },
   hasReceivedWelcomeEmail: {
     type: Boolean,
