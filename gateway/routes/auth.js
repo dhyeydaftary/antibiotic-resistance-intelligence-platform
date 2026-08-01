@@ -13,6 +13,7 @@ const {
 } = require('../utils/otpUtil');
 const { validatePassword } = require('../utils/passwordPolicy');
 const { verifyLimiter, emailSendLimiter, signupLimiter } = require('../middleware/authRateLimiters');
+const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
@@ -26,8 +27,12 @@ function lockedResponse(res, message) {
   });
 }
 
-function signToken(userId) {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
+function signToken(userId, tokenVersion, remember = false) {
+  return jwt.sign(
+    { userId, tokenVersion },
+    process.env.JWT_SECRET,
+    { expiresIn: remember ? '7d' : '24h' }
+  );
 }
 
 function toPublicUser(user) {
@@ -148,7 +153,7 @@ router.post('/signup', signupLimiter, async (req, res) => {
 // ---------------------------------------------------------------
 router.post('/login', verifyLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, remember } = req.body;
 
     if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
       return res.status(400).json({
@@ -208,7 +213,7 @@ router.post('/login', verifyLimiter, async (req, res) => {
       );
     }
 
-    const token = signToken(user._id);
+    const token = signToken(user._id, user.tokenVersion, remember === true);
 
     res.status(200).json({
       success: true,
@@ -311,7 +316,7 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
       );
     }
 
-    const token = signToken(user._id);
+    const token = signToken(user._id, user.tokenVersion);
 
     res.status(200).json({
       success: true,
@@ -588,6 +593,7 @@ router.post('/reset-password', verifyLimiter, async (req, res) => {
     user.resetToken = null;
     user.resetTokenExpiry = null;
     user.resetAttempts = 0;
+    user.tokenVersion += 1; // invalidate every token issued before this reset
     await user.save();
 
     res.status(200).json({
@@ -598,6 +604,45 @@ router.post('/reset-password', verifyLimiter, async (req, res) => {
 
   } catch (err) {
     console.error('Error in /reset-password:', err);
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.', field: null },
+    });
+  }
+});
+
+
+// ---------------------------------------------------------------
+// POST /logout-everywhere
+// Invalidates every token currently issued to this account by bumping
+// tokenVersion — the token used to make this request itself stops being
+// valid as a side effect, since it no longer matches the new version.
+// Requires an already-valid token (verifyToken) rather than just an email,
+// so this can't be used to lock another account out.
+// ---------------------------------------------------------------
+router.post('/logout-everywhere', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        data: null,
+        error: { code: 'NOT_FOUND', message: 'Account not found', field: null },
+      });
+    }
+
+    user.tokenVersion += 1;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      data: null,
+      error: null,
+    });
+
+  } catch (err) {
+    console.error('Error in /logout-everywhere:', err);
     res.status(500).json({
       success: false,
       data: null,
