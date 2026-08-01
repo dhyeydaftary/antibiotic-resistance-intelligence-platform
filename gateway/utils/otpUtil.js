@@ -1,16 +1,19 @@
 const bcrypt = require('bcrypt');
+const { randomInt } = require('crypto');
 
 const OTP_LENGTH = 6;
 const OTP_TTL_MINUTES = 10;
 const SALT_ROUNDS = 10;
+const MAX_OTP_ATTEMPTS = 5;
 
 /**
  * Generates a random 6-digit numeric code as a string (e.g. "042917").
+ * Uses crypto.randomInt (CSPRNG, uniform distribution, no modulo bias)
+ * rather than Math.random(), which is not cryptographically secure.
  */
 function generateOtp() {
-  const min = 0;
-  const max = 10 ** OTP_LENGTH - 1;
-  const num = Math.floor(min + Math.random() * (max - min + 1));
+  const max = 10 ** OTP_LENGTH; // exclusive upper bound for randomInt
+  const num = randomInt(0, max);
   return String(num).padStart(OTP_LENGTH, '0');
 }
 
@@ -49,4 +52,5 @@ module.exports = {
   getOtpExpiry,
   isExpired,
   OTP_TTL_MINUTES,
+  MAX_OTP_ATTEMPTS,
 };
