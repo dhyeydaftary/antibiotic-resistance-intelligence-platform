@@ -23,9 +23,9 @@ export async function signup({ name, email, password }) {
   }
 }
 
-export async function login({ email, password }) {
+export async function login({ email, password, remember = false }) {
   try {
-    const response = await api.post('/auth/login', { email, password });
+    const response = await api.post('/auth/login', { email, password, remember });
     const { data } = response.data;
     return { ok: true, token: data.token, user: data.user, email: data.user.email };
   } catch (err) {

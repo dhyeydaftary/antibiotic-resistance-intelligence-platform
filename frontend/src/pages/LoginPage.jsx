@@ -61,7 +61,7 @@ function LoginPage() {
     if (!isFormValid) return;
 
     setLoading(true);
-    const res = await login({ email, password });
+    const res = await login({ email, password, remember });
     setLoading(false);
     if (res.ok) {
       authLogin(res.token, res.user, remember);
