@@ -208,7 +208,7 @@ def predict_view(request):
             "data": {
                 "predictions": predictions,
                 "aiInsights": ai_insights,
-                "modelVersion": "v1.0",
+                "modelVersion": "v3",
             },
             "error": None,
         },

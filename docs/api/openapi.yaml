@@ -1,0 +1,669 @@
+openapi: 3.0.3
+info:
+  title: AMR-Insight Gateway API
+  description: >
+    The Node/Express gateway's public API surface. All endpoints are served
+    under this single base — the frontend never calls the Django ML backend
+    directly (see ADR-0001). Seven `/api/auth` routes handle authentication;
+    seven `/api/predictor` routes handle predictions, history, and trend
+    data. Six of the seven predictor routes proxy to Django; `/history`
+    queries MongoDB directly.
+  version: "1.0"
+servers:
+  - url: http://localhost:5000/api
+    description: Local development
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          nullable: true
+          example: null
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+            field:
+              type: string
+              nullable: true
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+
+    Prediction:
+      type: object
+      properties:
+        antibiotic:
+          type: string
+          example: CIP
+        result:
+          type: string
+          enum: [Resistant, Susceptible, Intermediate]
+        awareCategory:
+          type: string
+          enum: [Access, Watch, Reserve]
+        confidence:
+          type: number
+          format: float
+          example: 0.8123
+        shapExplanation:
+          type: array
+          items:
+            type: object
+            properties:
+              feature: { type: string }
+              contribution: { type: number }
+              direction: { type: string, enum: [positive, negative] }
+              value: { type: number }
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid JWT
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          examples:
+            noToken:
+              value: { success: false, data: null, error: { code: AUTH_ERROR, message: "No token provided", field: null } }
+            invalidToken:
+              value: { success: false, data: null, error: { code: AUTH_ERROR, message: "Invalid or expired token", field: null } }
+    ValidationError:
+      description: Missing or malformed request fields
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    InternalError:
+      description: Unhandled server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/signup:
+    post:
+      summary: Create an unverified account and send a verification OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '201':
+          description: Account created, OTP sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      email: { type: string }
+                  error: { nullable: true, example: null }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/login:
+    post:
+      summary: Authenticate and receive a JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      token: { type: string }
+                      user: { $ref: '#/components/schemas/User' }
+                  error: { nullable: true, example: null }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '403':
+          description: Account exists but is not yet verified (code NOT_VERIFIED)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/verify-otp:
+    post:
+      summary: Verify signup OTP; on success, marks the account verified and returns a JWT (auto-login)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string }
+                code: { type: string }
+      responses:
+        '200':
+          description: Verified — token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      token: { type: string }
+                      user: { $ref: '#/components/schemas/User' }
+        '400': { description: "Validation error, ALREADY_VERIFIED, OTP_EXPIRED, or OTP_INCORRECT" }
+        '404': { description: "NOT_FOUND — no account matches the email" }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/resend-otp:
+    post:
+      summary: Regenerate and resend the signup verification OTP
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        '200': { description: "OTP resent" }
+        '400': { description: "Validation error or ALREADY_VERIFIED" }
+        '404': { description: "NOT_FOUND" }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/forgot-password:
+    post:
+      summary: Generate and email a password-reset code
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        '200': { description: "Reset code sent" }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: "NOT_FOUND" }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/verify-reset-otp:
+    post:
+      summary: Check a reset code without consuming it (UI step 2 → 3 transition)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string }
+                code: { type: string }
+      responses:
+        '200': { description: "Code valid" }
+        '400': { description: "Validation error, OTP_EXPIRED, or OTP_INCORRECT" }
+        '404': { description: "NOT_FOUND" }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/reset-password:
+    post:
+      summary: Re-validate the reset code and update the password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code, password]
+              properties:
+                email: { type: string }
+                code: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: "Password updated" }
+        '400': { description: "Validation error, OTP_EXPIRED, or OTP_INCORRECT" }
+        '404': { description: "NOT_FOUND" }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /predictor/predict:
+    post:
+      summary: Run all 15 antibiotic models against patient/clinical input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: See docs/api/endpoint-reference.md for the full field list
+      responses:
+        '200':
+          description: Predictions generated and saved to history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      predictions:
+                        type: array
+                        items: { $ref: '#/components/schemas/Prediction' }
+                      aiInsights: { type: object }
+                      modelVersion: { type: string, example: "v3" }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /predictor/extract-report:
+    post:
+      summary: Upload a PDF lab report; Gemini extracts structured fields
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [report]
+              properties:
+                report:
+                  type: string
+                  format: binary
+      responses:
+        '200': { description: "Extraction result (passed through from Django)" }
+        '400':
+          description: "No file provided under the 'report' field"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /predictor/trends:
+    get:
+      summary: Monthly resistance-rate trend for one antibiotic, optionally filtered by organism/ward type
+      parameters:
+        - in: query
+          name: antibiotic
+          required: true
+          schema: { type: string }
+          description: One of the 15 antibiotic column names (e.g. CIP, AMC)
+        - in: query
+          name: organism
+          required: false
+          schema: { type: string, default: all }
+          description: One of the 10 organism levels, or "all"
+        - in: query
+          name: ward_type
+          required: false
+          schema: { type: string, default: all }
+          description: "Ignored (no error) if the dataset has no Ward_Type column; otherwise must be a real ward type value or 'all'"
+      responses:
+        '200':
+          description: Monthly time series
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      antibiotic: { type: string }
+                      organism: { type: string }
+                      series:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            period: { type: string, example: "2024-03", description: "YYYY-MM" }
+                            resistanceRate: { type: number, format: float, description: "0-1, rounded to 4 decimal places" }
+                            sampleSize: { type: integer }
+        '400':
+          description: "VALIDATION_ERROR — missing 'antibiotic', or an unknown antibiotic/organism/ward_type value"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /predictor/dataset-stats:
+    get:
+      summary: Aggregate statistics over the full training dataset
+      description: >
+        No query parameters. Never returns 400 — the view has no validation
+        path, only 500 on an unexpected error. The five fields below
+        (wardTypeDistribution through vitalsLabsSummary) are present because
+        this deployment's dataset includes the augmented synthetic columns
+        (see docs/data/synthetic-feature-methodology.md); code comments
+        indicate they'd be omitted if only the un-augmented dataset existed,
+        though that fallback path is not currently reachable in this
+        deployment.
+      responses:
+        '200':
+          description: Dataset statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      totalRows: { type: integer }
+                      totalColumns: { type: integer }
+                      antibioticTargets: { type: integer, example: 15 }
+                      dateRange:
+                        type: object
+                        properties:
+                          start: { type: string, format: date, nullable: true }
+                          end: { type: string, format: date, nullable: true }
+                      organismDistribution:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            organism: { type: string }
+                            count: { type: integer }
+                      wardTypeDistribution:
+                        type: array
+                        items:
+                          type: object
+                          properties: { wardType: { type: string }, count: { type: integer } }
+                      specimenSourceDistribution:
+                        type: array
+                        items:
+                          type: object
+                          properties: { specimenSource: { type: string }, count: { type: integer } }
+                      comorbidityPrevalence:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field: { type: string }
+                            yesCount: { type: integer }
+                            total: { type: integer }
+                            prevalence: { type: number, format: float, description: "0-1, rounded to 4 decimal places" }
+                      symptomPrevalence:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field: { type: string }
+                            yesCount: { type: integer }
+                            total: { type: integer }
+                            prevalence: { type: number, format: float }
+                      vitalsLabsSummary:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field: { type: string }
+                            min: { type: number, format: float }
+                            mean: { type: number, format: float }
+                            max: { type: number, format: float }
+                            sampleSize: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /predictor/explain-trend:
+    get:
+      summary: Deterministic, non-LLM narrative explanation of a resistance trend
+      description: >
+        Calls the same trend series as /trends internally, then builds a
+        rule-based explanation from it — no Gemini call anywhere in this
+        path (see ADR-0004).
+      parameters:
+        - in: query
+          name: antibiotic
+          required: true
+          schema: { type: string }
+        - in: query
+          name: organism
+          required: false
+          schema: { type: string, default: all }
+      responses:
+        '200':
+          description: Trend insights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      antibiotic: { type: string }
+                      organism: { type: string }
+                      insights:
+                        type: object
+                        properties:
+                          summary: { type: string }
+                          keyObservations:
+                            type: object
+                            nullable: true
+                            description: "null only if the series is empty (no data for this antibiotic/organism combination)"
+                            properties:
+                              highest:
+                                type: object
+                                properties: { period: { type: string }, resistanceRate: { type: number }, sampleSize: { type: integer } }
+                              lowest:
+                                type: object
+                                properties: { period: { type: string }, resistanceRate: { type: number }, sampleSize: { type: integer } }
+                              stability: { type: string }
+                              standardDeviation: { type: number, format: float }
+                          possibleCauses:
+                            type: array
+                            items: { type: string }
+                            description: "Up to 3 entries. Strictly data-grounded — only flags small sample sizes or gaps between recorded months, never speculative clinical/epidemiological causes (see code comment in _build_possible_causes)"
+                          clinicalRelevance:
+                            type: string
+                            nullable: true
+                            description: "One paragraph, varies by the antibiotic's WHO AWaRe tier (Access/Watch/Reserve). null only if the series is empty"
+                          aiForecast:
+                            type: object
+                            nullable: true
+                            description: "null if fewer than the minimum required periods of data exist for a linear projection"
+                            properties:
+                              projectedNextMonthRate: { type: number, format: float }
+                              direction: { type: string }
+                              confidenceNote: { type: string }
+                              basis: { type: string }
+                              disclaimer: { type: string, example: "This is an AI-generated statistical projection, not a clinical or epidemiological forecast." }
+                          sources:
+                            type: object
+                            properties:
+                              internalDataset: { type: boolean, example: true }
+                              recordsUsed: { type: integer }
+                              periodsCovered:
+                                type: integer
+                                description: "Present only when the series is non-empty"
+        '400':
+          description: "VALIDATION_ERROR — missing 'antibiotic', or an unknown antibiotic/organism value"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /predictor/research-papers:
+    get:
+      summary: Real PubMed search results for an antibiotic/organism, cached
+      description: >
+        No AI summarization or rewriting — title, journal, publication date,
+        a verbatim abstract excerpt, and a direct PubMed link only, per the
+        code's own docstring. Results are cached in-process for a fixed TTL
+        per (antibiotic, organism) pair. If the upstream PubMed request
+        itself fails (network error, timeout, non-2xx), the function
+        catches it internally and returns an empty list — this degrades to
+        a 200 response with papers: [], not a 500 error; the view's 500
+        path only fires for a genuinely unexpected exception elsewhere.
+      parameters:
+        - in: query
+          name: antibiotic
+          required: true
+          schema: { type: string }
+        - in: query
+          name: organism
+          required: false
+          schema: { type: string, default: all }
+      responses:
+        '200':
+          description: Papers (possibly an empty list — not an error state)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      antibiotic: { type: string }
+                      organism: { type: string }
+                      papers:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            pmid: { type: string }
+                            title: { type: string }
+                            journal: { type: string, nullable: true }
+                            publicationDate:
+                              type: string
+                              description: "Year only, a MEDLINE-format date string, or the literal 'Date unavailable' if PubMed provided neither"
+                            abstractExcerpt: { type: string, nullable: true, description: "Truncated verbatim excerpt, null if no abstract was available" }
+                            url: { type: string, format: uri }
+        '400':
+          description: "VALIDATION_ERROR — missing 'antibiotic'"
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /predictor/history:
+    get:
+      summary: Query the caller's own prediction history from MongoDB (not proxied to Django)
+      parameters:
+        - in: query
+          name: result
+          schema: { type: string, enum: [Resistant, Susceptible, Intermediate] }
+        - in: query
+          name: antibiotic
+          schema: { type: string }
+        - in: query
+          name: confidenceMin
+          schema: { type: number }
+        - in: query
+          name: confidenceMax
+          schema: { type: number }
+        - in: query
+          name: organism
+          schema: { type: string }
+        - in: query
+          name: dateFrom
+          schema: { type: string, format: date }
+        - in: query
+          name: dateTo
+          schema: { type: string, format: date }
+        - in: query
+          name: search
+          schema: { type: string }
+          description: Case-insensitive match against organism or antibiotic name
+      responses:
+        '200':
+          description: Matching history records, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      history:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            userId: { type: string }
+                            inputData: { type: object }
+                            predictions:
+                              type: array
+                              items: { $ref: '#/components/schemas/Prediction' }
+                            aiInsights: { type: object }
+                            createdAt: { type: string, format: date-time }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
