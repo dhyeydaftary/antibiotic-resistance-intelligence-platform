@@ -1,0 +1,5 @@
+# Additional dependency needed for this experiment only, beyond
+# ml-backend/requirements.txt (which is left untouched — this file is not
+# merged into it). Installed directly into the existing ml-backend-env
+# virtualenv for this benchmark.
+xgboost==3.3.0
