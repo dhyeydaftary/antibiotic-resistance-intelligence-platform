@@ -10,6 +10,7 @@ const {
   getOtpExpiry,
   isExpired,
   MAX_OTP_ATTEMPTS,
+  SALT_ROUNDS,
 } = require('../utils/otpUtil');
 const { validatePassword } = require('../utils/passwordPolicy');
 const { verifyLimiter, emailSendLimiter, signupLimiter } = require('../middleware/authRateLimiters');
@@ -24,6 +25,38 @@ function lockedResponse(res, message) {
     success: false,
     data: null,
     error: { code: 'OTP_LOCKED', message, field: null },
+  });
+}
+
+// Precomputed once at startup, not per request — the whole point is to burn
+// roughly the same CPU time a real bcrypt.compare() against a stored OTP/
+// reset-token hash would take. Re-hashing per request would defeat that (and
+// waste the exact cost we're trying to spend deliberately). Same SALT_ROUNDS
+// otpUtil.js uses for real OTP hashes, so the work factor — and therefore
+// the timing — matches exactly. The plaintext being hashed is arbitrary; it
+// is never compared against anything meaningful.
+const DUMMY_OTP_HASH = bcrypt.hashSync('timing-safety-dummy-value', SALT_ROUNDS);
+
+// Account-enumeration guard for the three code-checking flows below
+// (verify-otp, verify-reset-otp, reset-password): a nonexistent account has
+// no code to check against, so there's no way to "succeed" against it — but
+// returning a distinct 404 lets a client tell "wrong email" apart from
+// "right email, wrong code" purely from the response. Collapsing both into
+// the same incorrect-code shape/status removes that signal without
+// fabricating a fake success for something that didn't happen.
+//
+// Response-shape alone isn't enough, though: a real account's wrong-code
+// path always pays for a bcrypt.compare() against the stored hash, while a
+// nonexistent account previously skipped it entirely (no hash to compare
+// against) — measurably faster, and bcrypt is deliberately slow, so the gap
+// is not subtle. Running a compare against a dummy hash here closes that
+// timing side-channel, not just the response body.
+async function incorrectCodeResponse(code, res) {
+  await compareOtp(code, DUMMY_OTP_HASH);
+  return res.status(400).json({
+    success: false,
+    data: null,
+    error: { code: 'OTP_INCORRECT', message: 'Incorrect code', field: null },
   });
 }
 
@@ -258,11 +291,7 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        error: { code: 'NOT_FOUND', message: 'No account matches that email', field: 'email' },
-      });
+      return await incorrectCodeResponse(code, res);
     }
 
     if (user.isVerified) {
@@ -354,11 +383,15 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
     }
 
     const user = await User.findOne({ email });
+
+    // No account for this email: skip straight to the same generic success
+    // response used below, without touching the DB or sending anything —
+    // a client can't tell this apart from "account exists, code sent".
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        error: { code: 'NOT_FOUND', message: 'No account matches that email', field: 'email' },
+      return res.status(200).json({
+        success: true,
+        data: { email },
+        error: null,
       });
     }
 
@@ -383,7 +416,7 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { email: user.email },
+      data: { email },
       error: null,
     });
 
@@ -416,11 +449,15 @@ router.post('/forgot-password', emailSendLimiter, async (req, res) => {
     }
 
     const user = await User.findOne({ email });
+
+    // No account for this email: same generic success response as below,
+    // without touching the DB or sending anything — indistinguishable from
+    // "account exists, reset code sent".
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        error: { code: 'NOT_FOUND', message: 'No account matches that email', field: 'email' },
+      return res.status(200).json({
+        success: true,
+        data: { email },
+        error: null,
       });
     }
 
@@ -437,7 +474,7 @@ router.post('/forgot-password', emailSendLimiter, async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: { email: user.email },
+      data: { email },
       error: null,
     });
 
@@ -471,11 +508,7 @@ router.post('/verify-reset-otp', verifyLimiter, async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        error: { code: 'NOT_FOUND', message: 'No account matches that email', field: 'email' },
-      });
+      return await incorrectCodeResponse(code, res);
     }
 
     if (user.resetAttempts >= MAX_OTP_ATTEMPTS) {
@@ -554,11 +587,7 @@ router.post('/reset-password', verifyLimiter, async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        data: null,
-        error: { code: 'NOT_FOUND', message: 'No account matches that email', field: 'email' },
-      });
+      return await incorrectCodeResponse(code, res);
     }
 
     if (user.resetAttempts >= MAX_OTP_ATTEMPTS) {
