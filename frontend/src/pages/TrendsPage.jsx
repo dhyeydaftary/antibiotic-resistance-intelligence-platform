@@ -90,6 +90,7 @@ function TrendsPage() {
   const [overviewLoading, setOverviewLoading] = useState(true);
 
   const [datasetStats, setDatasetStats] = useState(null);
+  const [datasetStatsError, setDatasetStatsError] = useState(null);
   const [wardTypeOptions, setWardTypeOptions] = useState([{ value: 'all', label: 'All wards' }]);
 
   const [organismOverlay, setOrganismOverlay] = useState([]);
@@ -128,6 +129,7 @@ function TrendsPage() {
 
   // Dataset context strip + ward type options
   useEffect(() => {
+    setDatasetStatsError(null);
     getDatasetStats()
       .then((result) => {
         setDatasetStats(result.data);
@@ -138,7 +140,10 @@ function TrendsPage() {
           ]);
         }
       })
-      .catch((err) => console.error('Failed to load dataset stats:', err));
+      .catch((err) => {
+        setDatasetStatsError('Failed to load dataset overview.');
+        console.error('Failed to load dataset stats:', err);
+      });
   }, []);
 
   // Top organisms by record count, from dataset-stats (already sorted by backend)
@@ -259,6 +264,11 @@ function TrendsPage() {
         </div>
 
         {/* Dataset context strip */}
+        {datasetStatsError && (
+          <div className="mb-6 rounded-[12px] border border-resistant/30 bg-resistant/5 px-4 py-3 font-sans text-[13px] text-resistant">
+            {datasetStatsError}
+          </div>
+        )}
         {datasetStats && (
           <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-y border-canvas-hairline py-4 font-mono text-[12px] text-page-muted">
             <span><span className="text-page-ink font-medium">{datasetStats.totalRows?.toLocaleString()}</span> records</span>

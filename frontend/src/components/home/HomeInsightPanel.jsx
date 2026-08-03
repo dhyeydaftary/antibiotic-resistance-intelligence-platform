@@ -37,6 +37,7 @@ function ColumnHeader({ title, linkTo, linkLabel }) {
 function HomeInsightPanel() {
   const question = pickDailyQuestion();
   const [stats, setStats] = useState(null);
+  const [statsError, setStatsError] = useState(false);
   const [answerOpen, setAnswerOpen] = useState(false);
 
   useEffect(() => {
@@ -45,7 +46,10 @@ function HomeInsightPanel() {
       .then((result) => {
         if (!cancelled) setStats(result.data);
       })
-      .catch((err) => console.error('Failed to load dataset stats for Today\u2019s question:', err));
+      .catch((err) => {
+        if (!cancelled) setStatsError(true);
+        console.error('Failed to load dataset stats for Today\u2019s question:', err);
+      });
     return () => {
       cancelled = true;
     };
@@ -115,7 +119,9 @@ function HomeInsightPanel() {
                 className="overflow-hidden"
               >
                 <p className="mt-2 pl-7 font-sans text-caption text-onpanel-muted">
-                  {getAnswer(question, { stats })}
+                  {statsError
+                    ? 'Answer unavailable right now — dataset stats failed to load.'
+                    : getAnswer(question, { stats })}
                 </p>
               </motion.div>
             )}

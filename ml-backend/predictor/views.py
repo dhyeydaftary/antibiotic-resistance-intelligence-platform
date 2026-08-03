@@ -233,6 +233,15 @@ def research_papers_view(request):
 
     try:
         papers = get_research_papers(antibiotic, organism)
+    except ValueError as e:
+        return Response(
+            {"success": False, "data": None, "error": {
+                "code": "VALIDATION_ERROR",
+                "message": str(e),
+                "field": "organism",
+            }},
+            status=status.HTTP_400_BAD_REQUEST
+        )
     except Exception:
         logger.exception("Unexpected error in research_papers_view")
         return Response(
