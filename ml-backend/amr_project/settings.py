@@ -11,6 +11,24 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
 
 INTERNAL_API_KEY = config('INTERNAL_API_KEY', default='')
 
+# Tells Django to treat the request as secure (request.is_secure() == True)
+# when the proxy in front of it sets X-Forwarded-Proto: https, matching a
+# TLS-terminating reverse proxy setup — same underlying concern as the
+# gateway's `trust proxy` setting (gateway/index.js), applied on the Django
+# side. Standard Django security warning applies: this header must only be
+# trusted if the proxy is guaranteed to strip/overwrite any client-supplied
+# X-Forwarded-Proto before setting its own; otherwise a client could spoof
+# this header and make Django believe an insecure request is secure.
+#
+# Currently low-impact for this app specifically: InternalApiKeyMiddleware
+# (amr_project/middleware.py), not anything relying on request.is_secure(),
+# is the actual access-control boundary for this API. Configured now for
+# correctness/consistency and so it's already in place if SECURE_SSL_REDIRECT
+# is ever enabled later. Do NOT enable SECURE_SSL_REDIRECT here — it would
+# break local HTTP development, and there's no confirmed HTTPS deployment
+# target yet.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # This API has no user model and no DRF-level authentication — access
 # control is handled entirely by InternalApiKeyMiddleware (Django
 # middleware, runs before DRF's view dispatch). DRF's built-in defaults for
