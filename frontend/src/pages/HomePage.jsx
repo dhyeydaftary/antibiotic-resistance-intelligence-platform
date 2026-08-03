@@ -131,6 +131,7 @@ function HomePage() {
   const [dailySeries, setDailySeries] = useState([]);
   const [recentPredictions, setRecentPredictions] = useState([]);
   const [datasetStats, setDatasetStats] = useState(null);
+  const [datasetStatsError, setDatasetStatsError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -166,7 +167,10 @@ function HomePage() {
   useEffect(() => {
     getDatasetStats()
       .then((result) => setDatasetStats(result.data))
-      .catch((err) => console.error('Failed to load dataset stats for Home:', err));
+      .catch((err) => {
+        setDatasetStatsError('Some dataset-derived stats are unavailable right now.');
+        console.error('Failed to load dataset stats for Home:', err);
+      });
   }, []);
 
   return (
@@ -181,6 +185,11 @@ function HomePage() {
           </div>
         ) : (
           <>
+            {datasetStatsError && (
+              <div className="rounded-[12px] border border-resistant/30 bg-resistant/5 px-4 py-3 font-sans text-[13px] text-resistant">
+                {datasetStatsError}
+              </div>
+            )}
             <ScrollReveal index={0}>
               <HomeOverviewPanel stats={stats} dailySeries={dailySeries} datasetStats={datasetStats} />
             </ScrollReveal>
