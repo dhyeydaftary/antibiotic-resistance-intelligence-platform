@@ -1,9 +1,9 @@
 const express = require('express');
-const axios = require('axios');
 const multer = require('multer');
 const FormData = require('form-data');
 const verifyToken = require('../middleware/verifyToken');
 const PredictionHistory = require('../models/PredictionHistory');
+const djangoClient = require('../utils/djangoClient');
 
 const router = express.Router();
 
@@ -16,10 +16,7 @@ router.post('/predict', verifyToken, async (req, res) => {
   try {
     const patientData = req.body;
 
-    const djangoResponse = await axios.post(
-      `${process.env.DJANGO_API_URL}/predict/`,
-      patientData
-    );
+    const djangoResponse = await djangoClient.post('/predict/', patientData);
 
     const { predictions, aiInsights, modelVersion } = djangoResponse.data.data;
 
@@ -79,11 +76,9 @@ router.post('/extract-report', verifyToken, upload.single('report'), async (req,
       contentType: req.file.mimetype,
     });
 
-    const djangoResponse = await axios.post(
-      `${process.env.DJANGO_API_URL}/extract-report/`,
-      formData,
-      { headers: formData.getHeaders() }
-    );
+    const djangoResponse = await djangoClient.post('/extract-report/', formData, {
+      headers: formData.getHeaders(),
+    });
 
     res.status(200).json(djangoResponse.data);
 
@@ -108,10 +103,7 @@ router.post('/extract-report', verifyToken, upload.single('report'), async (req,
 
 router.get('/trends', verifyToken, async (req, res) => {
   try {
-    const djangoResponse = await axios.get(
-      `${process.env.DJANGO_API_URL}/trends/`,
-      { params: req.query }
-    );
+    const djangoResponse = await djangoClient.get('/trends/', { params: req.query });
 
     res.status(200).json(djangoResponse.data);
 
@@ -136,9 +128,7 @@ router.get('/trends', verifyToken, async (req, res) => {
 
 router.get('/dataset-stats', verifyToken, async (req, res) => {
   try {
-    const djangoResponse = await axios.get(
-      `${process.env.DJANGO_API_URL}/dataset-stats/`
-    );
+    const djangoResponse = await djangoClient.get('/dataset-stats/');
 
     res.status(200).json(djangoResponse.data);
 
@@ -163,10 +153,7 @@ router.get('/dataset-stats', verifyToken, async (req, res) => {
 
 router.get('/explain-trend', verifyToken, async (req, res) => {
   try {
-    const djangoResponse = await axios.get(
-      `${process.env.DJANGO_API_URL}/explain-trend/`,
-      { params: req.query }
-    );
+    const djangoResponse = await djangoClient.get('/explain-trend/', { params: req.query });
 
     res.status(200).json(djangoResponse.data);
 
@@ -191,10 +178,7 @@ router.get('/explain-trend', verifyToken, async (req, res) => {
 
 router.get('/research-papers', verifyToken, async (req, res) => {
   try {
-    const djangoResponse = await axios.get(
-      `${process.env.DJANGO_API_URL}/research-papers/`,
-      { params: req.query }
-    );
+    const djangoResponse = await djangoClient.get('/research-papers/', { params: req.query });
 
     res.status(200).json(djangoResponse.data);
 
