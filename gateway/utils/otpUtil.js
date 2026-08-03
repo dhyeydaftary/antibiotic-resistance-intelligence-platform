@@ -53,4 +53,5 @@ module.exports = {
   isExpired,
   OTP_TTL_MINUTES,
   MAX_OTP_ATTEMPTS,
+  SALT_ROUNDS,
 };
