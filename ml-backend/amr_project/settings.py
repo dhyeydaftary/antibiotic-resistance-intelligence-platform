@@ -11,6 +11,22 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
 
 INTERNAL_API_KEY = config('INTERNAL_API_KEY', default='')
 
+# This API has no user model and no DRF-level authentication — access
+# control is handled entirely by InternalApiKeyMiddleware (Django
+# middleware, runs before DRF's view dispatch). DRF's built-in defaults for
+# DEFAULT_AUTHENTICATION_CLASSES (SessionAuthentication, BasicAuthentication)
+# and UNAUTHENTICATED_USER all transitively depend on django.contrib.auth,
+# which isn't in INSTALLED_APPS (removed as unused in the Authorization
+# sub-phase) — leaving these at their defaults crashes perform_authentication()
+# with a RuntimeError the moment DRF tries to resolve AnonymousUser or, for
+# DEFAULT_AUTHENTICATION_CLASSES, the moment a request happens to carry a
+# Basic auth header. Disabling both removes the dependency on
+# django.contrib.auth entirely rather than papering over one crash site.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'UNAUTHENTICATED_USER': None,
+}
+
 
 # Application definition
 
