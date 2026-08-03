@@ -23,11 +23,18 @@ import re
 
 # pyrefly: ignore [missing-import]
 from google import genai
+from google.genai import types
 
 try:
     from decouple import config as decouple_config
 except ImportError:
     decouple_config = None
+
+# Bounded comfortably under the gateway's djangoClient timeout (30s — see
+# gateway/utils/djangoClient.js) so a slow/hanging Gemini call surfaces as a
+# clean fallback (partial/empty extraction) here, rather than the gateway
+# giving up first and masking what actually happened upstream.
+GEMINI_TIMEOUT_SECONDS = 20
 
 SPECIMEN_LEVELS = ["Blood", "Urine", "Wound", "Respiratory", "Catheter"]
 ORGANISM_LIST = [
@@ -129,7 +136,10 @@ def extract_report_fields_llm(report_text, api_key=None):
         return {}, list(FIELD_SCHEMA.keys()), "GEMINI_API_KEY not configured"
 
     try:
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_SECONDS * 1000),
+        )
         prompt = build_prompt(report_text)
 
         response = client.models.generate_content(

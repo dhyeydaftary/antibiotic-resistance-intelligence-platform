@@ -4,11 +4,18 @@ import json
 import re
 
 from google import genai
+from google.genai import types
 
 try:
     from decouple import config as decouple_config
 except ImportError:
     decouple_config = None
+
+# Bounded comfortably under the gateway's djangoClient timeout (30s — see
+# gateway/utils/djangoClient.js) so a slow/hanging Gemini call surfaces as a
+# clean fallback to the template-based summary here, rather than the
+# gateway giving up first and masking what actually happened upstream.
+GEMINI_TIMEOUT_SECONDS = 20
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ARTIFACTS_DIR = os.path.join(BASE_DIR, 'ml_artifacts')
@@ -315,7 +322,10 @@ def _generate_llm_summary_and_next_steps(facts):
         return None, None, "GEMINI_API_KEY not configured"
 
     try:
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=GEMINI_TIMEOUT_SECONDS * 1000),
+        )
         prompt = GEMINI_PROMPT_TEMPLATE.format(facts_json=json.dumps(facts, indent=2))
 
         response = client.models.generate_content(

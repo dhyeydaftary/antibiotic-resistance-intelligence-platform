@@ -6,6 +6,7 @@ const PredictionHistory = require('../models/PredictionHistory');
 const djangoClient = require('../utils/djangoClient');
 const { validatePredictionData } = require('../utils/predictionValidation');
 const { ORGANISM_LIST, ANTIBIOTIC_CODES, RESULT_VALUES } = require('../utils/domainAllowLists');
+const { readLimiter, expensiveLimiter } = require('../middleware/predictionRateLimiters');
 
 // Escapes regex metacharacters so a user-supplied search string is always
 // treated as a literal substring match, never as regex syntax — closes off
@@ -15,6 +16,43 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 const MAX_SEARCH_LENGTH = 100;
+
+// Shared handling for the repeated djangoClient error pattern across every
+// route below: a timeout (axios sets err.code === 'ECONNABORTED' when the
+// djangoClient timeout in utils/djangoClient.js is exceeded) gets a
+// specific, actionable error code instead of falling into the generic
+// INTERNAL_ERROR bucket — "the upstream service was too slow" is genuinely
+// different information from "something broke", worth surfacing distinctly
+// since it's cheap to do once here rather than duplicating the same check
+// in all 6 call sites.
+function handleDjangoError(err, res, logLabel, fallbackMessage) {
+  if (err.code === 'ECONNABORTED') {
+    return res.status(504).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'UPSTREAM_TIMEOUT',
+        message: 'The prediction service took too long to respond. Please try again.',
+        field: null,
+      },
+    });
+  }
+
+  if (err.response) {
+    return res.status(err.response.status).json(err.response.data);
+  }
+
+  console.error(logLabel, err);
+  return res.status(500).json({
+    success: false,
+    data: null,
+    error: {
+      code: 'INTERNAL_ERROR',
+      message: fallbackMessage,
+      field: null,
+    },
+  });
+}
 
 const router = express.Router();
 
@@ -38,7 +76,7 @@ const upload = multer({
   },
 });
 
-router.post('/predict', verifyToken, async (req, res) => {
+router.post('/predict', verifyToken, expensiveLimiter, async (req, res) => {
   try {
     const validation = validatePredictionData(req.body);
     if (!validation.valid) {
@@ -76,25 +114,12 @@ router.post('/predict', verifyToken, async (req, res) => {
     });
 
   } catch (err) {
-    if (err.response) {
-      return res.status(err.response.status).json(err.response.data);
-    }
-
-    console.error('Error in /predict:', err);
-    res.status(500).json({
-      success: false,
-      data: null,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Something went wrong while generating the prediction.',
-        field: null,
-      },
-    });
+    handleDjangoError(err, res, 'Error in /predict:', 'Something went wrong while generating the prediction.');
   }
 });
 
 
-router.post('/extract-report', verifyToken, upload.single('report'), async (req, res) => {
+router.post('/extract-report', verifyToken, expensiveLimiter, upload.single('report'), async (req, res) => {
   try {
     if (req.fileValidationError) {
       return res.status(400).json({
@@ -149,125 +174,60 @@ router.post('/extract-report', verifyToken, upload.single('report'), async (req,
     res.status(200).json(djangoResponse.data);
 
   } catch (err) {
-    if (err.response) {
-      return res.status(err.response.status).json(err.response.data);
-    }
-
-    console.error('Error in /extract-report:', err);
-    res.status(500).json({
-      success: false,
-      data: null,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Something went wrong while extracting the report.',
-        field: null,
-      },
-    });
+    handleDjangoError(err, res, 'Error in /extract-report:', 'Something went wrong while extracting the report.');
   }
 });
 
 
-router.get('/trends', verifyToken, async (req, res) => {
+router.get('/trends', verifyToken, readLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/trends/', { params: req.query });
 
     res.status(200).json(djangoResponse.data);
 
   } catch (err) {
-    if (err.response) {
-      return res.status(err.response.status).json(err.response.data);
-    }
-
-    console.error('Error in /trends:', err);
-    res.status(500).json({
-      success: false,
-      data: null,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Something went wrong while fetching trend data.',
-        field: null,
-      },
-    });
+    handleDjangoError(err, res, 'Error in /trends:', 'Something went wrong while fetching trend data.');
   }
 });
 
 
-router.get('/dataset-stats', verifyToken, async (req, res) => {
+router.get('/dataset-stats', verifyToken, readLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/dataset-stats/');
 
     res.status(200).json(djangoResponse.data);
 
   } catch (err) {
-    if (err.response) {
-      return res.status(err.response.status).json(err.response.data);
-    }
-
-    console.error('Error in /dataset-stats:', err);
-    res.status(500).json({
-      success: false,
-      data: null,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Something went wrong while fetching dataset statistics.',
-        field: null,
-      },
-    });
+    handleDjangoError(err, res, 'Error in /dataset-stats:', 'Something went wrong while fetching dataset statistics.');
   }
 });
 
 
-router.get('/explain-trend', verifyToken, async (req, res) => {
+router.get('/explain-trend', verifyToken, readLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/explain-trend/', { params: req.query });
 
     res.status(200).json(djangoResponse.data);
 
   } catch (err) {
-    if (err.response) {
-      return res.status(err.response.status).json(err.response.data);
-    }
-
-    console.error('Error in /explain-trend:', err);
-    res.status(500).json({
-      success: false,
-      data: null,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Something went wrong while generating the trend explanation.',
-        field: null,
-      },
-    });
+    handleDjangoError(err, res, 'Error in /explain-trend:', 'Something went wrong while generating the trend explanation.');
   }
 });
 
 
-router.get('/research-papers', verifyToken, async (req, res) => {
+router.get('/research-papers', verifyToken, expensiveLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/research-papers/', { params: req.query });
 
     res.status(200).json(djangoResponse.data);
 
   } catch (err) {
-    if (err.response) {
-      return res.status(err.response.status).json(err.response.data);
-    }
-
-    console.error('Error in /research-papers:', err);
-    res.status(500).json({
-      success: false,
-      data: null,
-      error: {
-        code: 'INTERNAL_ERROR',
-        message: 'Something went wrong while fetching research papers.',
-        field: null,
-      },
-    });
+    handleDjangoError(err, res, 'Error in /research-papers:', 'Something went wrong while fetching research papers.');
   }
 });
 
 
-router.get('/history', verifyToken, async (req, res) => {
+router.get('/history', verifyToken, readLimiter, async (req, res) => {
   try {
     const {
       result,
