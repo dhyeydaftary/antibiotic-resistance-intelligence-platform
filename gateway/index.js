@@ -8,6 +8,53 @@ const predictionRoutes = require('./routes/prediction');
 
 const app = express();
 
+// Trust exactly one reverse-proxy hop (e.g. a single load balancer/PaaS
+// router in front of the app) so Express derives req.ip from the
+// X-Forwarded-For header instead of the proxy's own socket address. This
+// matters directly for gateway/middleware/authRateLimiters.js's three
+// limiters, which key by req.ip with no custom keyGenerator: without this
+// setting behind a real proxy, every user shares one rate-limit bucket (the
+// proxy's IP). Set to the number 1 rather than `true` — express-rate-limit
+// (see gateway/node_modules/express-rate-limit/dist/index.cjs, the
+// `trustProxy` validation) treats `trust proxy: true` as trusting the entire
+// X-Forwarded-For chain, which lets a client spoof its own IP by sending a
+// fake header and trivially bypass IP-based rate limiting; `1` trusts only
+// the nearest hop, which the proxy itself controls.
+//
+// MUST be revisited when a real hosting platform is chosen: this value has
+// to match the actual number of proxy hops in front of the app. Too low (or
+// unset, the default) breaks rate limiting the way described above; too
+// high or `true` makes it spoofable. In local development, where there is
+// no proxy and no X-Forwarded-For header to (mis)trust, this setting is
+// inert — Express falls back to the direct socket address either way.
+app.set('trust proxy', 1);
+
+// HSTS: tells browsers to only ever contact this origin over HTTPS, once
+// they've seen this header over an actual HTTPS connection once. Plain
+// manual middleware rather than helmet — helmet isn't currently a
+// dependency, and pulling it in for one header while explicitly disabling
+// everything else it does (CSP, frameguard, etc., which belong to a later,
+// separate HTTP Security Headers sub-phase) would add a dependency and a
+// larger surface to configure correctly for less clarity than one line.
+//
+// max-age=31536000 (1 year) + includeSubDomains: the standard baseline
+// (OWASP/Mozilla) for a first HSTS rollout. `preload` is deliberately left
+// out for now — submitting to the browser preload list is essentially
+// permanent (removal takes months and requires shipping the removal to
+// users of every major browser first) and ties the commitment to a specific
+// domain. This app has no confirmed hosting platform or domain yet, so that
+// decision belongs to the actual deployment, not this pass.
+//
+// HSTS has no effect over plain HTTP — browsers only start enforcing it
+// after receiving this header on an HTTPS response, and ignore it entirely
+// otherwise. So this header is inert in local dev (HTTP) and only takes
+// effect once the app is actually served over HTTPS, which is expected at
+// this stage.
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
 // Comma-separated list of origins allowed to call this API from a browser.
 // Named to match ml-backend's own CORS_ALLOWED_ORIGINS setting (settings.py)
 // even though Django's is a hardcoded list rather than env-driven — same
