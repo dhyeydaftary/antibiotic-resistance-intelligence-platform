@@ -36,7 +36,10 @@ function HomeToolsPanel({ datasetStats }) {
             const first = Math.round(s[0].resistanceRate * 1000) / 10;
             return { code: a.code, latest, delta: Math.round((latest - first) * 10) / 10 };
           })
-          .catch(() => null)
+          .catch((err) => {
+            console.error(`Failed to load trend data for ${a.code}:`, err);
+            return null;
+          })
       )
     ).then((results) => {
       setOverviewStats(results.filter(Boolean));

@@ -1,7 +1,13 @@
 import os
+import sys
 import time
 import requests
 from xml.etree import ElementTree
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+from constants import ORGANISM_LIST
 
 TOOL_NAME = os.environ.get('PUBMED_TOOL_NAME', 'AMR-Insight')
 CONTACT_EMAIL = os.environ.get('PUBMED_CONTACT_EMAIL', '')
@@ -144,6 +150,9 @@ def get_research_papers(antibiotic, organism=None):
     AI-summarized or rewritten; if PubMed has nothing, we return an empty
     list and the frontend shows an honest empty state.
     """
+    if organism and organism != 'all' and organism not in ORGANISM_LIST:
+        raise ValueError(f"Unknown organism: {organism}")
+
     cache_key = (antibiotic, organism or 'all')
     cached = _cache.get(cache_key)
     if cached and (time.time() - cached[0]) < CACHE_TTL_SECONDS:
