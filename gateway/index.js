@@ -8,8 +8,29 @@ const predictionRoutes = require('./routes/prediction');
 
 const app = express();
 
+// Comma-separated list of origins allowed to call this API from a browser.
+// Named to match ml-backend's own CORS_ALLOWED_ORIGINS setting (settings.py)
+// even though Django's is a hardcoded list rather than env-driven — same
+// concept (which origins may call this service), same name, so anyone
+// familiar with one side immediately understands the other.
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin(origin, callback) {
+    // No Origin header at all means this isn't a browser cross-origin
+    // request — curl, Postman, server-to-server calls don't send one, and
+    // CORS has nothing to enforce against a client that isn't a browser
+    // subject to the same-origin policy in the first place.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(new Error('Not allowed by CORS'));
+  },
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
