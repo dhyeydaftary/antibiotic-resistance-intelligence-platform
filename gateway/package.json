@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test",
+    "coverage": "c8 --reporter=text --reporter=html node --test"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +28,8 @@
   },
   "devDependencies": {
     "@express-rate-limit/tsconfig": "^1.0.5",
-    "nodemon": "^3.1.14"
+    "c8": "^12.0.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }
