@@ -4,11 +4,13 @@ info:
   description: >
     The Node/Express gateway's public API surface. All endpoints are served
     under this single base — the frontend never calls the Django ML backend
-    directly (see ADR-0001). Seven `/api/auth` routes handle authentication;
-    seven `/api/predictor` routes handle predictions, history, and trend
-    data. Six of the seven predictor routes proxy to Django; `/history`
-    queries MongoDB directly.
-  version: "1.0"
+    directly (see ADR-0001). Eight `/api/auth` routes handle authentication
+    and session revocation; seven `/api/predictor` routes handle predictions,
+    history, and trend data. Six of the seven predictor routes proxy to
+    Django; `/history` queries MongoDB directly. Every route sits behind a
+    per-endpoint rate limit (see docs/api/endpoint-reference.md for exact
+    figures, since they don't fit cleanly into this schema-focused document).
+  version: "1.1"
 servers:
   - url: http://localhost:5000/api
     description: Local development
@@ -290,6 +292,30 @@ paths:
         '200': { description: "Password updated" }
         '400': { description: "Validation error, OTP_EXPIRED, or OTP_INCORRECT" }
         '404': { description: "NOT_FOUND" }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/logout-everywhere:
+    post:
+      summary: Invalidate every token issued to this account, including the one used to call it
+      description: >
+        Requires a valid, currently-unrevoked token — not just an email —
+        so this cannot be used to lock another account out. Bumps
+        tokenVersion, which is checked on every subsequent authenticated
+        request; the token used to make this call is itself invalidated as
+        a result.
+      responses:
+        '200':
+          description: Every session for this account is now invalidated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data: { type: object, nullable: true, example: null }
+                  error: { type: object, nullable: true, example: null }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { description: "NOT_FOUND — the account tied to this token no longer exists" }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /predictor/predict:
