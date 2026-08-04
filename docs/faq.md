@@ -76,7 +76,7 @@ Not yet — this is currently a 3-person team project. The real, currently-pract
 
 ### Is my data safe if I use this tool?
 
-See [`SECURITY.md`](../SECURITY.md) for the project's actual, honestly-stated security posture — including two real fixes already shipped (NoSQL injection defense, error-message sanitization) and the gaps that are known but not yet addressed (no rate limiting, no production threat model).
+See [`SECURITY.md`](../SECURITY.md) for the project's actual, honestly-stated security posture, and [`docs/security/threat-model.md`](security/threat-model.md) for the full, detailed account — this project completed a full security hardening pass (thirteen sub-phases plus two emergency hotfixes), including fixing a confirmed remote-code-execution vulnerability in a PDF-processing dependency, adding rate limiting and account lockout across every endpoint, and building a real automated test suite. A small number of known, deliberately-deferred gaps remain and are stated plainly in both documents rather than hidden.
 
 ## Related Documentation
 

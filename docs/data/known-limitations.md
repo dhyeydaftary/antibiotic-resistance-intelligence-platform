@@ -86,13 +86,12 @@ The following are explicit, deliberate scope decisions for the current release, 
 - **Single flat user type** — no role-based access control, no admin panel.
 - **Authentication** — email/OTP verification and JWT sessions only; two-factor authentication beyond signup/reset OTP is deferred, not implemented.
 - **Email delivery is sandbox-tier.** The gateway's transactional email sends from Resend's default sandbox sender address, which restricts delivery to the registered account's own email — this is a scoping decision appropriate for a project at this stage, not a production email configuration.
-- **No production threat model yet** — a full security review is planned once production deployment itself is scoped.
 - **Not open to external contributors** — this is currently a 3-person team project. The repository is licensed under [Apache License 2.0](../../LICENSE), but that governs reuse of the code, not acceptance of outside contributions, which isn't happening yet regardless of licensing.
 
 The following are genuine current gaps, stated plainly rather than reframed as decisions:
 
-- **No automated test suite exists in any of the three services.** The ML backend has a manual smoke-test script that runs two hardcoded scenarios and prints output for a human to review — it makes no assertions and produces no pass/fail signal. The gateway and frontend have no test files at all; the gateway's `npm test` script is the default placeholder Node generates, never replaced. The only real verification of model quality is the cross-validation baked into training itself, which validates the model, not the application code around it.
-- **No rate limiting, structured logging, or error-monitoring tooling** exists in the gateway. This isn't stated anywhere in code as an intentional omission — it's simply not present yet, and would need to be addressed before any production deployment.
+- **No frontend test suite exists.** The gateway and ML backend both now have real, automated, re-runnable test suites (98 tests total — see [`docs/security/threat-model.md`](../security/threat-model.md)'s Security Testing section), but the frontend has none. This was a deliberate scope decision for the security-focused test-writing pass specifically (the frontend doesn't independently enforce security logic — see [`docs/architecture/high-level-architecture.md`](../architecture/high-level-architecture.md)), not an oversight, but it remains a genuine gap for UI-behavior testing if that becomes a priority.
+- **No CI/CD pipeline exists yet** — both test suites and both dependency-vulnerability scanners (`pip-audit`, `npm audit`) currently run manually rather than automatically on every change. Tracked as planned work.
 
 ## A Named Technical Constraint
 

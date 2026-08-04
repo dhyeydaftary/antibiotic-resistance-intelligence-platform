@@ -30,6 +30,7 @@ Source: `ml-backend/.env.example`
 | `PUBMED_TOOL_NAME` | No | `'AMR-Insight'` | Identifies this app to NCBI's E-utilities API, per their usage policy |
 | `PUBMED_CONTACT_EMAIL` | No | `''` (empty) | Contact email sent to NCBI with each request — NCBI recommends providing one, but the code runs without it |
 | `PUBMED_API_KEY` | No | `''` (empty) | Raises NCBI's rate limit if provided; the Research Papers feature functions without it, just at a lower request rate |
+| `INTERNAL_API_KEY` | Effectively yes | `''` (empty) | The shared secret `InternalApiKeyMiddleware` checks (via constant-time comparison) on every `/api/predictor/` request; if empty, the middleware rejects every request from the gateway regardless of what key it sends — the entire predictor API surface becomes unusable even though Django itself still starts |
 
 ## Gateway (Node/Express)
 
@@ -42,6 +43,8 @@ Source: `gateway/.env.example`
 | `DJANGO_API_URL` | **Yes** | none | Base URL the gateway proxies all six ML-backed routes to; no fallback in `prediction.js` |
 | `RESEND_API_KEY` | **Yes** (for email features) | none | Required for signup/reset OTP emails and welcome emails to send at all |
 | `PORT` | No | `5000` | Port the Express server listens on |
+| `INTERNAL_API_KEY` | Effectively yes | none | Sent as the `X-Internal-Api-Key` header on every Django-proxied call (`djangoClient.js`) — confirmed the gateway process itself starts fine without it, it just silently sends an `undefined` header, so every Django-proxied route breaks while auth routes keep working |
+| `CORS_ALLOWED_ORIGINS` | No | `''` (empty) | Comma-separated list of browser origins allowed to call this API (`cors()` middleware); empty means no browser origin is allowed through — `.env.example` ships `http://localhost:5173` |
 
 ## Frontend (React/Vite)
 

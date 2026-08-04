@@ -46,10 +46,10 @@ This decision is evidenced two ways, and it's worth being precise about which is
 ```mermaid
 flowchart TD
     User(("User")) --> FE["React / Vite Frontend"]
-    FE -->|"JWT-authenticated REST"| GW["Node / Express Gateway"]
+    FE ==>|"JWT-authenticated REST"| GW["Node / Express Gateway"]
     GW -->|"auth, history"| DB[("MongoDB")]
     GW -->|"transactional email"| Resend["Resend"]
-    GW -->|"ML-backed endpoints"| ML["Django ML Backend"]
+    GW ==>|"ML-backed endpoints (internal API key)"| ML["Django ML Backend"]
     ML -->|"15x CatBoost + SHAP"| Models[("ml_artifacts/*.pkl")]
     ML -->|"insight generation, report extraction"| Gemini["Google Gemini"]
     ML -->|"research context"| PubMed["PubMed API"]

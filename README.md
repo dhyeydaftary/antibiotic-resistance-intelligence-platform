@@ -92,10 +92,10 @@ Three services: a React SPA talks to a Node/Express gateway, which owns authenti
 ```mermaid
 flowchart TD
     User(("User")) --> FE["React / Vite Frontend"]
-    FE -->|"JWT-authenticated REST"| GW["Node / Express Gateway"]
+    FE ==>|"JWT-authenticated REST"| GW["Node / Express Gateway"]
     GW -->|"auth, history"| DB[("MongoDB")]
     GW -->|"transactional email"| Resend["Resend"]
-    GW -->|"ML-backed endpoints"| ML["Django ML Backend"]
+    GW ==>|"ML-backed endpoints (internal API key)"| ML["Django ML Backend"]
     ML -->|"15x CatBoost + SHAP"| Models[("ml_artifacts/*.pkl")]
     ML -->|"insight generation, report extraction"| Gemini["Google Gemini"]
     ML -->|"research context"| PubMed["PubMed API"]
@@ -222,11 +222,11 @@ All endpoints are served through the gateway at `/api/predictor` and `/api/auth`
 }
 ```
 
-Full endpoint reference (all 7 `predictor` routes — 6 proxied to Django, plus `/history` querying MongoDB directly — all 7 `auth` routes, and the shared error-code catalog): [`docs/api/endpoint-reference.md`](docs/api/endpoint-reference.md), with the machine-readable contract at [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
+Full endpoint reference (all 7 `predictor` routes — 6 proxied to Django, plus `/history` querying MongoDB directly — all 8 `auth` routes, and the shared error-code catalog): [`docs/api/endpoint-reference.md`](docs/api/endpoint-reference.md), with the machine-readable contract at [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 
 ## Security
 
-JWT-based sessions with bcrypt-hashed passwords; signup and password-reset flows require email OTP verification via Resend. Single flat user type — no RBAC or admin panel by design, given the current scope and timeline. Two-factor authentication beyond OTP is deferred, not implemented. A full threat model, once production deployment is scoped, lives in [`docs/security/threat-model.md`](docs/security/threat-model.md).
+JWT-based sessions with bcrypt-hashed passwords and server-side revocation via a `tokenVersion` counter (invalidated on password reset or `POST /logout-everywhere`); signup, password-reset, and login flows are protected by email OTP verification, a separate per-account lockout on repeated failed logins, and per-endpoint rate limiting. Single flat user type — no RBAC or admin panel by design, given the current scope and timeline. Two-factor authentication beyond OTP is deferred, not implemented. This project completed a full security hardening pass — thirteen sequential sub-phases plus two emergency hotfixes, including a shared-secret trust boundary between the gateway and Django, a persistent audit trail, dependency-vulnerability scanning (including a fixed, confirmed RCE), and a 98-test automated suite. Full detail, including every known residual gap: [`docs/security/threat-model.md`](docs/security/threat-model.md) and [`SECURITY.md`](SECURITY.md).
 
 ## Development Workflow
 
