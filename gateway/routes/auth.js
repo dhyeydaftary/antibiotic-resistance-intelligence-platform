@@ -2,6 +2,8 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const SecurityEvent = require('../models/SecurityEvent');
+const { logError } = require('../utils/logger');
 const { sendOtpEmail, sendWelcomeEmail } = require('../utils/emailUtil');
 const {
   generateOtp,
@@ -88,6 +90,23 @@ function toPublicUser(user) {
   };
 }
 
+// Fire-and-forget write to the SecurityEvent audit trail — deliberately not
+// awaited. This write is never allowed to affect the actual HTTP response:
+// not its content (nothing about a SecurityEvent write is reflected in any
+// response body) and not its timing (a slow or failing Mongo write must not
+// add latency or a new failure mode to auth flows that don't already have
+// one). Calling this without awaiting, with the rejection handled right
+// here, guarantees that property structurally at every call site rather
+// than relying on each one to remember its own try/catch — the same
+// fire-and-forget shape already used for sendWelcomeEmail() below. Any
+// failure is logged (safe subset only — event metadata, never the
+// underlying error's full shape) and otherwise swallowed.
+function recordSecurityEvent(eventType, { email, userId = null, ip = null }) {
+  SecurityEvent.create({ eventType, email, userId, ip }).catch((err) => {
+    logError('Failed to write SecurityEvent', { eventType, email, error: err.message });
+  });
+}
+
 // ---------------------------------------------------------------
 // POST /signup
 // Creates an unverified account, generates an OTP, emails it.
@@ -164,9 +183,11 @@ router.post('/signup', signupLimiter, async (req, res) => {
 
     const emailResult = await sendOtpEmail(user.email, otp, 'verify');
     if (!emailResult.success) {
-      console.error('Signup OTP email failed to send:', emailResult.error);
+      logError('Signup OTP email failed to send', { error: emailResult.error });
       // Account still created — user can use /resend-otp to retry.
     }
+
+    recordSecurityEvent('SIGNUP', { email: user.email, userId: user._id, ip: req.ip });
 
     res.status(201).json({
       success: true,
@@ -177,7 +198,7 @@ router.post('/signup', signupLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /signup:', err);
+    logError('Error in /signup', { err });
     res.status(500).json({
       success: false,
       data: null,
@@ -224,6 +245,7 @@ router.post('/login', verifyLimiter, async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
+      recordSecurityEvent('LOGIN_FAILURE', { email, userId: null, ip: req.ip });
       return invalidCredentialsResponse();
     }
 
@@ -237,16 +259,34 @@ router.post('/login', verifyLimiter, async (req, res) => {
     // otherwise leak account existence the same way a distinct message
     // would (a nonexistent email can never be "locked").
     if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+      // A repeat attempt against an account that's already locked — the
+      // single strongest signal in this whole audit trail that a targeted
+      // attack may still be in progress, so it gets its own event rather
+      // than silently falling through unrecorded. Distinct from
+      // LOGIN_LOCKOUT (the one attempt that *causes* the lockout) and from
+      // a normal LOGIN_FAILURE against an active, unlocked account.
+      recordSecurityEvent('LOGIN_LOCKOUT', { email: user.email, userId: user._id, ip: req.ip });
       return invalidCredentialsResponse();
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       user.loginAttempts += 1;
+      // Distinguish the attempt that actually crosses the threshold (and
+      // therefore locks the account) from every other failed attempt, so
+      // the audit trail can tell "one more wrong password" apart from
+      // "this is the one that triggered a lockout".
+      let triggeredLockout = false;
       if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
         user.loginLockedUntil = new Date(Date.now() + LOGIN_LOCKOUT_MINUTES * 60 * 1000);
+        triggeredLockout = true;
       }
       await user.save();
+      recordSecurityEvent(triggeredLockout ? 'LOGIN_LOCKOUT' : 'LOGIN_FAILURE', {
+        email: user.email,
+        userId: user._id,
+        ip: req.ip,
+      });
       return invalidCredentialsResponse();
     }
 
@@ -276,11 +316,13 @@ router.post('/login', verifyLimiter, async (req, res) => {
       user.hasReceivedWelcomeEmail = true;
       await user.save();
       sendWelcomeEmail(user.email, user.name).catch((err) =>
-        console.error('Welcome email failed to send:', err)
+        logError('Welcome email failed to send', { err })
       );
     }
 
     const token = signToken(user._id, user.tokenVersion, remember === true);
+
+    recordSecurityEvent('LOGIN_SUCCESS', { email: user.email, userId: user._id, ip: req.ip });
 
     res.status(200).json({
       success: true,
@@ -292,7 +334,7 @@ router.post('/login', verifyLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /login:', err);
+    logError('Error in /login', { err });
     res.status(500).json({
       success: false,
       data: null,
@@ -371,11 +413,13 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
     user.otpAttempts = 0;
     await user.save();
 
+    recordSecurityEvent('EMAIL_VERIFIED', { email: user.email, userId: user._id, ip: req.ip });
+
     if (!user.hasReceivedWelcomeEmail) {
       user.hasReceivedWelcomeEmail = true;
       await user.save();
       sendWelcomeEmail(user.email, user.name).catch((err) =>
-        console.error('Welcome email failed to send:', err)
+        logError('Welcome email failed to send', { err })
       );
     }
 
@@ -391,7 +435,7 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /verify-otp:', err);
+    logError('Error in /verify-otp', { err });
     res.status(500).json({
       success: false,
       data: null,
@@ -445,7 +489,7 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
 
     const emailResult = await sendOtpEmail(user.email, otp, 'verify');
     if (!emailResult.success) {
-      console.error('Resend OTP email failed to send:', emailResult.error);
+      logError('Resend OTP email failed to send', { error: emailResult.error });
     }
 
     res.status(200).json({
@@ -455,7 +499,7 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /resend-otp:', err);
+    logError('Error in /resend-otp', { err });
     res.status(500).json({
       success: false,
       data: null,
@@ -503,7 +547,7 @@ router.post('/forgot-password', emailSendLimiter, async (req, res) => {
 
     const emailResult = await sendOtpEmail(user.email, code, 'reset');
     if (!emailResult.success) {
-      console.error('Forgot-password OTP email failed to send:', emailResult.error);
+      logError('Forgot-password OTP email failed to send', { error: emailResult.error });
     }
 
     res.status(200).json({
@@ -513,7 +557,7 @@ router.post('/forgot-password', emailSendLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /forgot-password:', err);
+    logError('Error in /forgot-password', { err });
     res.status(500).json({
       success: false,
       data: null,
@@ -580,7 +624,7 @@ router.post('/verify-reset-otp', verifyLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /verify-reset-otp:', err);
+    logError('Error in /verify-reset-otp', { err });
     res.status(500).json({
       success: false,
       data: null,
@@ -659,6 +703,8 @@ router.post('/reset-password', verifyLimiter, async (req, res) => {
     user.tokenVersion += 1; // invalidate every token issued before this reset
     await user.save();
 
+    recordSecurityEvent('PASSWORD_RESET', { email: user.email, userId: user._id, ip: req.ip });
+
     res.status(200).json({
       success: true,
       data: null,
@@ -666,7 +712,7 @@ router.post('/reset-password', verifyLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /reset-password:', err);
+    logError('Error in /reset-password', { err });
     res.status(500).json({
       success: false,
       data: null,
@@ -698,6 +744,8 @@ router.post('/logout-everywhere', verifyToken, async (req, res) => {
     user.tokenVersion += 1;
     await user.save();
 
+    recordSecurityEvent('LOGOUT_EVERYWHERE', { email: user.email, userId: user._id, ip: req.ip });
+
     res.status(200).json({
       success: true,
       data: null,
@@ -705,7 +753,7 @@ router.post('/logout-everywhere', verifyToken, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /logout-everywhere:', err);
+    logError('Error in /logout-everywhere', { err });
     res.status(500).json({
       success: false,
       data: null,
