@@ -99,6 +99,15 @@ function handleDjangoError(err, res, logLabel, fallbackMessage) {
 const router = express.Router();
 
 const PDF_MAGIC_BYTES = Buffer.from('%PDF-', 'ascii');
+// Every valid PDF must end with this trailer marker per the PDF spec —
+// checking for it, not just the header, meaningfully deepens the
+// pre-filter beyond "the first 5 bytes look right" (a %PDF--prefixed file
+// with garbage content after it would otherwise pass). Scanning a
+// generous tail window rather than requiring it be the literal last
+// bytes — some PDF writers append a small amount of trailing data
+// (whitespace, incremental-update markers) after the true %%EOF.
+const PDF_EOF_MARKER = Buffer.from('%%EOF', 'ascii');
+const PDF_EOF_SCAN_WINDOW = 2048;
 
 // First-pass filter: multer's fileFilter only sees what the client reports
 // (originalname, Content-Type of the multipart part) — it runs before any
@@ -190,8 +199,15 @@ router.post('/extract-report', verifyToken, expensiveLimiter, upload.single('rep
     // Real content check — the mimetype filter above only trusted the
     // client-supplied Content-Type; this checks the actual bytes now that
     // the whole file is in memory (multer.memoryStorage), before any of it
-    // is forwarded to Django.
-    if (!req.file.buffer.subarray(0, PDF_MAGIC_BYTES.length).equals(PDF_MAGIC_BYTES)) {
+    // is forwarded to Django. Both the header AND trailer must be present —
+    // this is still a cheap, lightweight pre-filter, not full PDF parsing
+    // (that's Django/pdfplumber's job downstream); it just now checks two
+    // structural markers instead of one.
+    const hasValidHeader = req.file.buffer.subarray(0, PDF_MAGIC_BYTES.length).equals(PDF_MAGIC_BYTES);
+    const tailStart = Math.max(0, req.file.buffer.length - PDF_EOF_SCAN_WINDOW);
+    const hasValidTrailer = req.file.buffer.subarray(tailStart).includes(PDF_EOF_MARKER);
+
+    if (!hasValidHeader || !hasValidTrailer) {
       return res.status(400).json({
         success: false,
         data: null,
