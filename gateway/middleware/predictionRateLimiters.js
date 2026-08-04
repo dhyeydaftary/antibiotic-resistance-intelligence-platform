@@ -26,9 +26,25 @@ function keyByUser(req) {
 // No external API cost — just a Mongo query or a read from Django's
 // in-memory dataset — so the budget is generous, mainly to blunt scripted
 // scraping/polling rather than cost control.
+//
+// max=300, not the originally-calibrated 30: the frontend legitimately
+// fires far more than one request per page visit against these routes.
+// HomePage's tools panel and TrendsPage's overview chart each loop over
+// all 15 antibiotics via Promise.all (see HomeToolsPanel.jsx,
+// TrendsPage.jsx) to build multi-antibiotic comparison views — visiting
+// Home alone costs ~15 requests, visiting Trends alone costs ~20 more
+// (hero chart + 15-antibiotic overview + dataset-stats + up to 4 for the
+// organism overlay), and all four read routes share this single budget.
+// A single realistic session (Home, Trends, History, Explore, with a
+// couple of page revisits) can legitimately reach 100+ requests with zero
+// abuse involved — the original max=30 was calibrated as if one page
+// view cost one request, which doesn't hold for this frontend's actual
+// design. 300 comfortably covers several full session's worth of normal
+// navigation while still blocking sustained scripted scraping, which
+// would need to run for a while to approach that volume.
 const readLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: keyByUser,
