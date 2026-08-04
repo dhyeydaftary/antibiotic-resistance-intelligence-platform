@@ -150,8 +150,21 @@ def get_research_papers(antibiotic, organism=None):
     AI-summarized or rewritten; if PubMed has nothing, we return an empty
     list and the frontend shows an honest empty state.
     """
-    if organism and organism != 'all' and organism not in ORGANISM_LIST:
-        raise ValueError(f"Unknown organism: {organism}")
+    if organism and organism != 'all':
+        """
+        Case-insensitive match against the canonical allow-list, then
+        normalize to that canonical casing — 'escherichia coli' now
+        validates the same as 'Escherichia coli', and everything
+        downstream (the PubMed query, the cache key) consistently uses
+        the one true casing regardless of what the caller sent. Without
+        this normalization, two differently-cased-but-identical requests
+        would also silently create two separate cache entries for what
+        is semantically the same query.
+        """
+        normalized = next((o for o in ORGANISM_LIST if o.lower() == organism.lower()), None)
+        if normalized is None:
+            raise ValueError(f"Unknown organism: {organism}")
+        organism = normalized
 
     cache_key = (antibiotic, organism or 'all')
     cached = _cache.get(cache_key)
