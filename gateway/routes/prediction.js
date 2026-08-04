@@ -1,5 +1,6 @@
 const express = require('express');
 const multer = require('multer');
+const crypto = require('crypto');
 const FormData = require('form-data');
 const verifyToken = require('../middleware/verifyToken');
 const PredictionHistory = require('../models/PredictionHistory');
@@ -202,12 +203,19 @@ router.post('/extract-report', verifyToken, expensiveLimiter, upload.single('rep
       });
     }
 
+    // Never forward the client-supplied filename — it's an arbitrary,
+    // attacker-controlled string with no legitimate use here (Django never
+    // echoes it back, and it's never displayed anywhere). Generating a
+    // fresh, safe filename server-side closes this unconditionally,
+    // regardless of how the form-data package or anything downstream
+    // happens to handle special characters in an untrusted string.
+    const safeFilename = `${crypto.randomUUID()}.pdf`;
+
     const formData = new FormData();
     formData.append('report', req.file.buffer, {
-      filename: req.file.originalname,
+      filename: safeFilename,
       contentType: req.file.mimetype,
     });
-
     const djangoResponse = await djangoClient.post('/extract-report/', formData, {
       headers: formData.getHeaders(),
     });
