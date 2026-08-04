@@ -115,3 +115,31 @@ STATIC_URL = 'static/'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
+
+
+# Explicit logging config so predictor/views.py's existing logger.exception()/
+# logger.warning() calls produce consistent, readable output instead of
+# relying on Python's bare default (which only formats level + message, no
+# timestamp or logger name — hard to correlate with anything). Console
+# handler only: no file handler, no rotation, no external log shipping,
+# since none of that infrastructure is confirmed for this project yet.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '{asctime} {levelname} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}

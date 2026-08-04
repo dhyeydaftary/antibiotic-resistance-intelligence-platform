@@ -1,5 +1,6 @@
 const { Resend } = require('resend');
 const { wrapEmail, ctaButton, featureRow, infoBox, divider, BRAND } = require('./emailLayout');
+const { logError } = require('./logger');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -54,12 +55,12 @@ async function sendOtpEmail(to, code, purpose = 'verify') {
     });
 
     if (result.error) {
-      console.error('Resend API error:', result.error);
+      logError('Resend API error', { error: result.error });
       return { success: false, error: result.error };
     }
     return { success: true, id: result.data?.id };
   } catch (err) {
-    console.error('Failed to send OTP email:', err);
+    logError('Failed to send OTP email', { err });
     return { success: false, error: err.message };
   }
 }
@@ -107,12 +108,12 @@ async function sendWelcomeEmail(to, name) {
     });
 
     if (result.error) {
-      console.error('Resend API error (welcome email):', result.error);
+      logError('Resend API error (welcome email)', { error: result.error });
       return { success: false, error: result.error };
     }
     return { success: true, id: result.data?.id };
   } catch (err) {
-    console.error('Failed to send welcome email:', err);
+    logError('Failed to send welcome email', { err });
     return { success: false, error: err.message };
   }
 }
