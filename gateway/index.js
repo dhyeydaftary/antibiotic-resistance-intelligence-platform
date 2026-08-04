@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
 
 const authRoutes = require('./routes/auth');
 const predictionRoutes = require('./routes/prediction');
@@ -30,29 +31,52 @@ const app = express();
 // inert — Express falls back to the direct socket address either way.
 app.set('trust proxy', 1);
 
-// HSTS: tells browsers to only ever contact this origin over HTTPS, once
-// they've seen this header over an actual HTTPS connection once. Plain
-// manual middleware rather than helmet — helmet isn't currently a
-// dependency, and pulling it in for one header while explicitly disabling
-// everything else it does (CSP, frameguard, etc., which belong to a later,
-// separate HTTP Security Headers sub-phase) would add a dependency and a
-// larger surface to configure correctly for less clarity than one line.
+// Security headers, via helmet — the scope grew from "just HSTS" (Transport
+// Security) to five headers (this sub-phase), which is exactly the point
+// past which hand-rolling stops making sense and helmet's purpose-built
+// config becomes the better call.
 //
-// max-age=31536000 (1 year) + includeSubDomains: the standard baseline
-// (OWASP/Mozilla) for a first HSTS rollout. `preload` is deliberately left
-// out for now — submitting to the browser preload list is essentially
-// permanent (removal takes months and requires shipping the removal to
-// users of every major browser first) and ties the commitment to a specific
-// domain. This app has no confirmed hosting platform or domain yet, so that
-// decision belongs to the actual deployment, not this pass.
+// This is a pure JSON API with no HTML/JS/CSS of its own, so the CSP is
+// deliberately maximally restrictive rather than helmet's own defaults
+// (which assume a self-hosted web app and allow 'self' for scripts,
+// styles, images, forms, etc. — none of which this service ever serves).
+// useDefaults: false is required for this — without it, helmet MERGES a
+// custom `directives` object with its own defaults rather than replacing
+// them, verified directly before writing this config.
 //
-// HSTS has no effect over plain HTTP — browsers only start enforcing it
-// after receiving this header on an HTTPS response, and ignore it entirely
-// otherwise. So this header is inert in local dev (HTTP) and only takes
-// effect once the app is actually served over HTTPS, which is expected at
-// this stage.
+// X-Frame-Options: DENY (helmet's own default is SAMEORIGIN) — there's no
+// legitimate reason for this API to be framed at all, not even
+// same-origin, since it serves no page to frame.
+//
+// Left at helmet's own defaults, verified directly rather than assumed:
+// Referrer-Policy (no-referrer), X-Content-Type-Options (nosniff), and HSTS
+// (max-age=31536000; includeSubDomains — identical to the manual value this
+// replaces, so no behavior change there). Same HSTS caveats as before still
+// apply: inert over plain HTTP, `preload` still deliberately excluded until
+// a real domain is confirmed.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  frameguard: { action: 'deny' },
+}));
+
+// Permissions-Policy: not implemented by helmet 8.x at all (the underlying
+// spec is still evolving upstream; helmet dropped support for it rather
+// than maintain an incomplete/shifting implementation) — confirmed directly
+// against the installed version rather than assumed. Denies the browser
+// features with no legitimate use in a JSON API, as defense-in-depth
+// against the unlikely case this response is ever rendered in a browsing
+// context at all (e.g. a misconfigured proxy).
 app.use((req, res, next) => {
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(), microphone=(), geolocation=(), payment=(), usb=(), fullscreen=(), display-capture=()'
+  );
   next();
 });
 
