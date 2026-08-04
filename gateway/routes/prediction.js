@@ -4,6 +4,7 @@ const FormData = require('form-data');
 const verifyToken = require('../middleware/verifyToken');
 const PredictionHistory = require('../models/PredictionHistory');
 const djangoClient = require('../utils/djangoClient');
+const { logError } = require('../utils/logger');
 const { validatePredictionData } = require('../utils/predictionValidation');
 const { ORGANISM_LIST, ANTIBIOTIC_CODES, RESULT_VALUES } = require('../utils/domainAllowLists');
 const { readLimiter, expensiveLimiter } = require('../middleware/predictionRateLimiters');
@@ -63,7 +64,8 @@ function handleDjangoError(err, res, logLabel, fallbackMessage) {
       return res.status(err.response.status).json(body);
     }
 
-    console.error(logLabel, 'unexpected non-envelope response from Django', {
+    logError(logLabel, {
+      detail: 'unexpected non-envelope response from Django',
       status: err.response.status,
       url: err.config?.url,
     });
@@ -74,7 +76,7 @@ function handleDjangoError(err, res, logLabel, fallbackMessage) {
     // outgoing request config, including headers, so logging the raw err
     // object risks leaking that key into server logs. Log a safe,
     // reduced subset instead.
-    console.error(logLabel, {
+    logError(logLabel, {
       message: err.message,
       code: err.code,
       url: err.config?.url,
@@ -361,7 +363,7 @@ router.get('/history', verifyToken, readLimiter, async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Error in /history:', err);
+    logError('Error in /history', { err });
     res.status(500).json({
       success: false,
       data: null,

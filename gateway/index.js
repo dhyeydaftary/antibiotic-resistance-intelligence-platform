@@ -5,6 +5,7 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/auth');
 const predictionRoutes = require('./routes/prediction');
+const { logInfo, logError } = require('./utils/logger');
 
 const app = express();
 
@@ -55,6 +56,27 @@ app.use((req, res, next) => {
   next();
 });
 
+// Minimal request/access log — custom middleware rather than morgan,
+// consistent with the "no new dependencies" choice in utils/logger.js.
+// Logs only method, path, status, and duration. Deliberately never logs
+// req.body: /login and /signup bodies contain plaintext passwords, and
+// logging them would defeat the entire point of hashing those passwords
+// before they're ever persisted. res.on('finish') fires once the response
+// has actually been sent, so res.statusCode reflects the real outcome
+// (including responses written by the global error handler below).
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+  res.on('finish', () => {
+    logInfo('HTTP request', {
+      method: req.method,
+      path: req.path,
+      status: res.statusCode,
+      durationMs: Date.now() - startedAt,
+    });
+  });
+  next();
+});
+
 // Comma-separated list of origins allowed to call this API from a browser.
 // Named to match ml-backend's own CORS_ALLOWED_ORIGINS setting (settings.py)
 // even though Django's is a hardcoded list rather than env-driven — same
@@ -96,7 +118,7 @@ app.get('/', (req, res) => {
 // caught the error. Never leak the raw error/stack to the client — log the
 // full detail server-side only.
 app.use((err, req, res, next) => {
-  console.error('Unhandled error reached global error handler:', err);
+  logError('Unhandled error reached global error handler', { err });
   res.status(500).json({
     success: false,
     data: null,
@@ -114,7 +136,7 @@ app.use((err, req, res, next) => {
 // versions. The process itself is still in a known-good state after this,
 // so there's no reason to exit.
 process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled promise rejection:', reason);
+  logError('Unhandled promise rejection', { reason });
 });
 
 // uncaughtException: per Node's own guidance, once this fires the process
@@ -125,19 +147,19 @@ process.on('unhandledRejection', (reason) => {
 // known-good process. Swallowing this and staying alive is the wrong
 // trade-off — a brief restart beats an indefinitely half-broken process.
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception — exiting process:', err);
+  logError('Uncaught exception — exiting process', { err });
   process.exit(1);
 });
 
 // Connect to MongoDB, then start the server
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
-    console.log('Connected to MongoDB');
+    logInfo('Connected to MongoDB');
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
-      console.log(`Gateway server running on port ${PORT}`);
+      logInfo('Gateway server running', { port: PORT });
     });
   })
   .catch((err) => {
-    console.error('MongoDB connection error:', err);
+    logError('MongoDB connection error', { err });
   });
