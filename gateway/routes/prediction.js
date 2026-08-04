@@ -39,10 +39,49 @@ function handleDjangoError(err, res, logLabel, fallbackMessage) {
   }
 
   if (err.response) {
-    return res.status(err.response.status).json(err.response.data);
+    const body = err.response.data;
+    // Only forward Django's error body if it matches this app's established,
+    // known-safe {success, data, error: {code, message, field}} envelope —
+    // every legitimate error this app produces (validation errors,
+    // InternalApiKeyMiddleware's 401, etc.) already takes this shape.
+    // Anything else — most importantly, Django's own HTML debug page if
+    // DEBUG is ever left on and an unhandled exception occurs — does NOT
+    // match this shape, and must never be forwarded to the client: that
+    // page can contain SECRET_KEY, other settings, and full local-variable
+    // dumps from the crash. When the shape doesn't match, fall through to
+    // the same generic INTERNAL_ERROR response used for every other
+    // unexpected failure, and log a safe summary (not the raw body) so
+    // it's still debuggable server-side.
+    const isSafeEnvelope =
+      body &&
+      typeof body === 'object' &&
+      body.success === false &&
+      body.error &&
+      typeof body.error.code === 'string';
+
+    if (isSafeEnvelope) {
+      return res.status(err.response.status).json(body);
+    }
+
+    console.error(logLabel, 'unexpected non-envelope response from Django', {
+      status: err.response.status,
+      url: err.config?.url,
+    });
+  } else {
+    // No response at all (e.g. ECONNREFUSED, DNS failure, Django down).
+    // djangoClient carries the internal service key as a default header
+    // (utils/djangoClient.js) — axios error objects include the full
+    // outgoing request config, including headers, so logging the raw err
+    // object risks leaking that key into server logs. Log a safe,
+    // reduced subset instead.
+    console.error(logLabel, {
+      message: err.message,
+      code: err.code,
+      url: err.config?.url,
+      method: err.config?.method,
+    });
   }
 
-  console.error(logLabel, err);
   return res.status(500).json({
     success: false,
     data: null,
