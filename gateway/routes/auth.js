@@ -18,6 +18,18 @@ const verifyToken = require('../middleware/verifyToken');
 
 const router = express.Router();
 
+// Login-specific lockout constants. Kept here rather than in otpUtil.js
+// since this isn't an OTP concern — it's a distinct, login-only defense.
+// Deliberately not paired with progressive/exponential delays: this app
+// already combines IP-based rate limiting (verifyLimiter) with this
+// per-account lockout, and OWASP treats these as alternative/complementary
+// mitigations rather than something requiring all three at once. Adding
+// delay-state tracking on top would be real complexity for marginal
+// benefit given what's already in place — a considered, deliberate choice,
+// not an oversight.
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MINUTES = 15;
+
 // Standard shape for a "too many failed attempts" response — mirrors the
 // error envelope used everywhere else in this file.
 function lockedResponse(res, message) {
@@ -200,31 +212,53 @@ router.post('/login', verifyLimiter, async (req, res) => {
       });
     }
 
+    const invalidCredentialsResponse = () => res.status(401).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'AUTH_ERROR',
+        message: 'Invalid email or password',
+        field: null,
+      },
+    });
+
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        data: null,
-        error: {
-          code: 'AUTH_ERROR',
-          message: 'Invalid email or password',
-          field: null,
-        },
-      });
+      return invalidCredentialsResponse();
+    }
+
+    // Live comparison against the current time, not a one-way flag — once
+    // loginLockedUntil passes, the account works again automatically, no
+    // explicit unlock action needed anywhere. Checked BEFORE bcrypt.compare
+    // so a locked account rejects every attempt during the window, even one
+    // with the correct password. The response is deliberately identical to
+    // every other failure case below (same status, same code, same
+    // message) — never revealing that lockout is active, which would
+    // otherwise leak account existence the same way a distinct message
+    // would (a nonexistent email can never be "locked").
+    if (user.loginLockedUntil && user.loginLockedUntil > new Date()) {
+      return invalidCredentialsResponse();
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        data: null,
-        error: {
-          code: 'AUTH_ERROR',
-          message: 'Invalid email or password',
-          field: null,
-        },
-      });
+      user.loginAttempts += 1;
+      if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
+        user.loginLockedUntil = new Date(Date.now() + LOGIN_LOCKOUT_MINUTES * 60 * 1000);
+      }
+      await user.save();
+      return invalidCredentialsResponse();
     }
+
+    // Correct password, and the account wasn't locked — clear any prior
+    // failed-attempt state so it doesn't linger after a legitimate login.
+    // Saved unconditionally, right here — the only other user.save() in
+    // this route only runs on someone's very first login ever
+    // (!hasReceivedWelcomeEmail), so relying on that would mean this reset
+    // never actually persists for any normal returning user.
+    user.loginAttempts = 0;
+    user.loginLockedUntil = null;
+    await user.save();
 
     if (!user.isVerified) {
       return res.status(403).json({
