@@ -7,6 +7,7 @@ db.sqlite3
 *.log
 media/
 staticfiles/
+.coverage
 
 # Node / React (frontend)
 node_modules/
@@ -15,6 +16,7 @@ dist/
 
 # Node / Express (gateway)
 gateway/node_modules/
+gateway/coverage/
 
 # Environment files (never commit secrets)
 .env
