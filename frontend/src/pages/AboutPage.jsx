@@ -1,54 +1,61 @@
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import usePageTitle from '../hooks/usePageTitle';
 import AboutOpening from '../components/about/AboutOpening';
 import AboutGap from '../components/about/AboutGap';
 import AboutPhilosophy from '../components/about/AboutPhilosophy';
-import AboutCapabilityList from '../components/about/AboutCapabilityList';
-import AboutBoundaryList from '../components/about/AboutBoundaryList';
+import AboutTrustBoundary from '../components/about/AboutTrustBoundary';
 import AboutPipeline from '../components/about/AboutPipeline';
 import AboutExplainability from '../components/about/AboutExplainability';
 import AboutAudience from '../components/about/AboutAudience';
 import AboutContributors from '../components/about/AboutContributors';
-import AboutAcknowledgements from '../components/about/AboutAcknowledgements';
-import AboutReferences from '../components/about/AboutReferences';
-import AboutMetadata from '../components/about/AboutMetadata';
+import AboutBackMatter from '../components/about/AboutBackMatter';
 import AboutFutureWork from '../components/about/AboutFutureWork';
 
-/* Thin hairline divider between every section */
-function Divider() {
-  return <div className="mx-auto max-w-3xl border-b border-canvas-hairline" />;
-}
-
 function AboutPage() {
-  usePageTitle('About');
-  
-  return (
-    <div className="bg-canvas">
-      <AboutOpening />
-      <Divider />
-      <AboutGap />
-      <Divider />
-      <AboutPhilosophy />
-      <Divider />
-      <AboutCapabilityList />
-      <AboutBoundaryList />
-      <Divider />
-      <AboutPipeline />
-      <Divider />
-      <AboutExplainability />
-      <Divider />
-      <AboutAudience />
-      <Divider />
-      <AboutContributors />
-      <Divider />
-      <AboutAcknowledgements />
-      <Divider />
-      <AboutFutureWork />
-      <Divider />
-      <AboutMetadata />
-      <Divider />
-      <AboutReferences />
-    </div>
-  );
+    usePageTitle('About');
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.hash) {
+            const targetId = location.hash.replace('#', '');
+            const elem = document.getElementById(targetId);
+            if (elem) {
+                elem.scrollIntoView({ behavior: 'instant', block: 'start' });
+            }
+        } else {
+            // Instant scroll to the very top when navigating to /about without a hash
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }
+    }, [location]);
+
+    return (
+        <div className="bg-canvas min-h-screen text-page-ink selection:bg-accent-blue selection:text-white">
+            {/* Act I: Premise (Section 1) & The Gap (Section 2) */}
+            <AboutOpening />
+            <AboutGap />
+
+            {/* Act II: Philosophy */}
+            <AboutPhilosophy />
+
+            {/* Act III: Trust Boundaries (Split-Screen Capability vs Limitation) */}
+            <AboutTrustBoundary />
+
+            {/* Act IV: Methodology & Explainability */}
+            <AboutPipeline />
+            <AboutExplainability />
+
+            {/* Act V: People & Purpose */}
+            <AboutAudience />
+            <AboutContributors />
+
+            {/* Act VI: Academic Back Matter (Appendix) */}
+            <AboutBackMatter />
+
+            {/* Act VII: Future Work & Closing Statement */}
+            <AboutFutureWork />
+        </div>
+    );
 }
 
 export default AboutPage;

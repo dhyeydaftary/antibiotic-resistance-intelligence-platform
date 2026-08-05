@@ -1,69 +1,26 @@
-import { motion } from 'framer-motion';
+import ResearchSection from './ResearchSection';
+import TrustBoundaryPanel from './TrustBoundaryPanel';
 
-const fadeUp = {
-    hidden: { opacity: 0, y: 14 },
-    visible: (i = 0) => ({
-        opacity: 1,
-        y: 0,
-        transition: { duration: 0.6, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] },
-    }),
-};
+const CLAIMS = [
+    { label: 'Calibrated Confidence', text: 'Every prediction ships with a calibrated predict_proba() confidence score.' },
+    { label: 'SHAP Explanation', text: 'Per-prediction feature attribution explains the model reasoning.' },
+    { label: 'AWaRe Grouping', text: 'Classified according to WHO AWaRe stewardship framework.' },
+    { label: 'Transparent Limits', text: 'Boundaries stated directly alongside capabilities.' },
+];
 
 export default function AboutPhilosophy() {
     return (
-        <section
+        <ResearchSection
             id="philosophy"
-            data-testid="about-philosophy-section"
-            className="bg-canvas px-6 py-12 sm:py-16"
+            testId="about-philosophy-section"
+            kicker="Our philosophy"
+            maxWidth="max-w-4xl"
         >
-            <div className="mx-auto max-w-2xl text-center">
-                <motion.span
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={0}
-                    variants={fadeUp}
-                    className="mb-8 inline-block font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-page-faint"
-                >
-                    Our philosophy
-                </motion.span>
-
-                <motion.blockquote
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={1}
-                    variants={fadeUp}
-                >
-                    <p className="font-display text-[34px] font-semibold leading-[1.2] tracking-[-0.02em] text-page-ink sm:text-[42px]">
-                        Evidence before confidence.
-                    </p>
-                </motion.blockquote>
-
-                <motion.p
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={2}
-                    variants={fadeUp}
-                    className="mx-auto mt-8 max-w-md font-sans text-[16px] leading-[1.65] text-page-muted"
-                >
-                    A model that cannot explain itself has not earned the right to be
-                    trusted — even when it's right.
-                </motion.p>
-
-                <motion.p
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={3}
-                    variants={fadeUp}
-                    className="mx-auto mt-6 max-w-md font-sans text-[14px] leading-[1.6] text-page-faint"
-                >
-                    Every prediction on this platform ships with a confidence score and
-                    a SHAP-based explanation — not just a label.
-                </motion.p>
-            </div>
-        </section>
+            <TrustBoundaryPanel
+                quote="Evidence before confidence."
+                subtext="A model that cannot explain itself has not earned the right to be trusted — even when it's right."
+                claims={CLAIMS}
+            />
+        </ResearchSection>
     );
 }

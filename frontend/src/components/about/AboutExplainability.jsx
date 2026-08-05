@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion';
+import ResearchSection from './ResearchSection';
 
 const fadeUp = {
     hidden: { opacity: 0, y: 14 },
@@ -9,27 +10,25 @@ const fadeUp = {
     }),
 };
 
-// Real output — pulled from catboost_CIP.pkl on an actual row from
-// X_engineered.csv (dataset row 0), via the same get_feature_importance
-// call used in predict.py. Not illustrative/mocked values.
+// Real output — pulled from catboost_CIP.pkl on dataset row 0
 const EXAMPLE = {
     antibiotic: 'Ciprofloxacin (CIP)',
     result: 'Susceptible',
     confidence: 0.7421,
     patientContext:
-        '37-year-old patient, Escherichia coli infection, no diabetes or hypertension, no prior hospitalization — one row from the training dataset, not a live patient.',
+        '37-year-old patient, Escherichia coli infection, no diabetes or hypertension — row 0 from training dataset, not a live patient.',
     features: [
-        { label: 'Infection frequency', value: 1.5318 },
-        { label: 'Organism: E. coli', value: 0.6856 },
-        { label: 'Year of visit', value: 0.6202 },
-        { label: 'Month of visit', value: -0.1486 },
-        { label: 'Hypertension status', value: -0.1426 },
+        { label: 'Infection frequency', value: 1.5318, impact: 'Leans Susceptible' },
+        { label: 'Organism: E. coli', value: 0.6856, impact: 'Leans Susceptible' },
+        { label: 'Year of visit', value: 0.6202, impact: 'Leans Susceptible' },
+        { label: 'Month of visit', value: -0.1486, impact: 'Leans Resistant' },
+        { label: 'Hypertension status', value: -0.1426, impact: 'Leans Resistant' },
     ],
 };
 
 const MAX_ABS = Math.max(...EXAMPLE.features.map((f) => Math.abs(f.value)));
 
-function ShapBar({ index, label, value }) {
+function ShapBar({ index, label, value, impact }) {
     const isPositive = value > 0;
     const widthPct = (Math.abs(value) / MAX_ABS) * 100;
 
@@ -40,24 +39,32 @@ function ShapBar({ index, label, value }) {
             viewport={{ once: true, margin: '-60px' }}
             custom={index}
             variants={fadeUp}
-            className="flex items-center gap-4 py-2.5"
+            className="flex flex-col sm:flex-row sm:items-center gap-2 py-2.5 border-b border-panel-border/60 last:border-0"
         >
-            <span className="w-32 shrink-0 font-sans text-[13px] leading-[1.4] text-neutral-300 sm:w-40">
-                {label}
-            </span>
-            <div className="relative h-6 flex-1">
-                <div className="absolute inset-y-0 left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-white/10" />
+            <div className="w-full sm:w-44 shrink-0">
+                <span className="font-display text-[13.5px] font-semibold text-onpanel-ink">
+                    {label}
+                </span>
+                <span className="block font-mono text-[10.5px] text-onpanel-faint">
+                    {impact}
+                </span>
+            </div>
+
+            <div className="relative h-5 flex-1">
+                <div className="absolute inset-y-0 left-0 right-0 top-1/2 h-px -translate-y-1/2 bg-panel-border" />
                 <motion.div
                     initial={{ width: 0 }}
                     whileInView={{ width: `${widthPct}%` }}
                     viewport={{ once: true, margin: '-60px' }}
                     transition={{ duration: 0.6, delay: 0.1 + index * 0.06, ease: [0.22, 1, 0.36, 1] }}
-                    className={`absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full ${isPositive ? 'left-1/2 bg-accent-blue' : 'right-1/2 bg-neutral-500'
-                        }`}
+                    className={`absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full ${
+                        isPositive ? 'left-1/2 bg-accent-blue shadow-[0_0_8px_rgba(0,113,227,0.4)]' : 'right-1/2 bg-onpanel-muted'
+                    }`}
                     style={{ maxWidth: '50%' }}
                 />
             </div>
-            <span className="w-14 shrink-0 text-right font-mono text-[12px] text-neutral-400">
+
+            <span className="w-16 shrink-0 text-right font-mono text-[12px] font-semibold text-onpanel-ink">
                 {isPositive ? '+' : ''}
                 {value.toFixed(2)}
             </span>
@@ -67,102 +74,55 @@ function ShapBar({ index, label, value }) {
 
 export default function AboutExplainability() {
     return (
-        <section
+        <ResearchSection
             id="explainability"
-            data-testid="about-explainability-section"
-            className="bg-canvas px-6 py-12 sm:py-14"
+            testId="about-explainability-section"
+            kicker="Explainability &amp; Responsible AI"
+            title="Why every prediction comes with a reason."
+            maxWidth="max-w-4xl"
         >
-            <div className="mx-auto max-w-3xl">
-                <motion.div
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={0}
-                    variants={fadeUp}
-                    className="mb-4 flex items-center gap-3"
-                >
-                    <span className="h-px w-6 bg-canvas-hairline" />
-                    <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-page-faint">
-                        Explainability &amp; responsible AI
-                    </span>
-                </motion.div>
-
-                <motion.h2
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={1}
-                    variants={fadeUp}
-                    className="max-w-lg font-display text-[28px] font-semibold leading-[1.2] tracking-[-0.015em] text-page-ink sm:text-[32px]"
-                >
-                    Why every prediction comes with a reason.
-                </motion.h2>
-
-                <motion.div
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={2}
-                    variants={fadeUp}
-                    className="mt-5 max-w-xl space-y-3 font-sans text-[15px] leading-[1.7] text-page-muted"
-                >
+            <div className="space-y-6">
+                <div className="space-y-3 font-sans text-[15.5px] leading-[1.7] text-page-muted">
                     <p>
-                        Every model exposes CatBoost's native SHAP support — no external
-                        library required — attributing each prediction to the features
-                        that actually drove it. Alongside that, a calibrated confidence
-                        score comes straight from the model's predicted class
-                        probability, not a separate estimate bolted on afterward.
+                        Every model exposes CatBoost's native SHAP support — no external library required — attributing each prediction to the features that actually drove it. Alongside that, a calibrated confidence score comes straight from the model's predicted class probability.
                     </p>
-                    <p>
-                        One distinction worth being precise about:{' '}
-                        <span className="font-medium text-page-ink">
-                            SHAP explains the model's reasoning, not clinical causality.
-                        </span>{' '}
-                        A feature contributing to a prediction means the model weighted
-                        it heavily — not that it caused the resistance pattern in
-                        reality.
+                    <p className="rounded-[14px] border-l-2 border-accent-blue bg-canvas-alt p-4 font-medium text-page-ink border border-canvas-hairline">
+                        <strong className="font-semibold text-page-ink">SHAP explains the model's reasoning, not clinical causality.</strong>{' '}
+                        A feature contributing to a prediction means the model weighted it heavily — not that it caused the resistance pattern in reality.
                     </p>
-                </motion.div>
+                </div>
 
-                {/* Real SHAP example */}
-                <motion.div
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={3}
-                    variants={fadeUp}
-                    className="mt-10 rounded-[24px] border border-white/[0.1] bg-[#1C1C1E] p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] sm:p-8"
-                >
-                    <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 pb-4">
-                        <div>
-                            <div className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-neutral-400">
-                                Example prediction
-                            </div>
-                            <div className="mt-1 font-display text-[16px] font-semibold text-white">
-                                {EXAMPLE.antibiotic} — {EXAMPLE.result}
-                            </div>
-                        </div>
-                        <div className="font-mono text-[13px] font-medium text-accent-blue">
-                            {(EXAMPLE.confidence * 100).toFixed(1)}% confidence
-                        </div>
+                {/* Worked SHAP Feature Attribution Sketch Card */}
+                <div className="rounded-[20px] border border-panel-border bg-panel p-6 shadow-panel-md">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-panel-border pb-3">
+                        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-accent-blue">
+                            WORKED FEATURE ATTRIBUTION SKETCH
+                        </span>
+                        <span className="font-mono text-[11px] text-onpanel-faint">
+                            {EXAMPLE.antibiotic} · {(EXAMPLE.confidence * 100).toFixed(1)}% CONFIDENCE
+                        </span>
                     </div>
 
-                    <p className="mt-4 font-sans text-[13.5px] leading-[1.6] text-neutral-300">
-                        {EXAMPLE.patientContext}
+                    <p className="mt-3 font-sans text-[12.5px] text-onpanel-muted bg-panel-raised p-3 rounded-xl border border-panel-border">
+                        <strong className="text-onpanel-ink">Patient Context:</strong> {EXAMPLE.patientContext}
                     </p>
 
-                    <div className="mt-5">
+                    <div className="mt-4">
+                        <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-wider text-onpanel-faint mb-2">
+                            <span>Feature Label</span>
+                            <span className="hidden sm:inline">Impact Direction</span>
+                            <span>SHAP Weight</span>
+                        </div>
                         {EXAMPLE.features.map((f, i) => (
-                            <ShapBar key={f.label} index={i} label={f.label} value={f.value} />
+                            <ShapBar key={f.label} index={i} label={f.label} value={f.value} impact={f.impact} />
                         ))}
                     </div>
 
-                    <p className="mt-4 font-sans text-[12px] leading-[1.5] text-neutral-400">
-                        Example explanation for one prediction, pulled from an actual
-                        model run. Feature weights vary by case.
+                    <p className="mt-4 font-sans text-[12px] text-onpanel-faint">
+                        * Feature weights generated via CatBoost TreeSHAP for Ciprofloxacin prediction evaluation.
                     </p>
-                </motion.div>
+                </div>
             </div>
-        </section>
+        </ResearchSection>
     );
 }
