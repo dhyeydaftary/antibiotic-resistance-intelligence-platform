@@ -33,7 +33,7 @@ function Navbar() {
       <nav className="flex w-full max-w-3xl items-center gap-1 rounded-full border border-t-white border-x-canvas-hairline/70 border-b-canvas-hairline bg-white/90 px-3 py-2 shadow-panel-md backdrop-blur-xl backdrop-saturate-150">
         <motion.div whileTap={reduceMotion ? undefined : tapFeedback} transition={{ duration: 0.12 }}>
           <Link
-            to="/home"
+            to={isAuthenticated ? '/home' : '/'}
             className="flex items-center gap-2 rounded-full px-2 py-1.5 pr-3 transition-colors hover:bg-white/50"
           >
             <svg width="20" height="20" viewBox="0 0 40 40" fill="none" aria-hidden="true">

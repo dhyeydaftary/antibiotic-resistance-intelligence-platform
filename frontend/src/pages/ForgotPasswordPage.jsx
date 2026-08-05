@@ -6,7 +6,7 @@ import { FormHeader } from "@/components/auth/FormHeader";
 import { TextInput } from "@/components/auth/TextInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { OtpBoxes } from "@/components/auth/OtpBoxes";
-import { PrimaryButton, GhostButton } from "@/components/auth/Button";
+import { PrimaryButton } from "@/components/auth/Button";
 import { Banner } from "@/components/auth/Banner";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { StrengthMeter } from "@/components/auth/StrengthMeter";
@@ -149,29 +149,30 @@ function ForgotPasswordPage() {
 
   return (
     <AuthLayout sideLabel="RECOVER ACCESS">
-      <div className="mb-8" aria-label="Recovery progress">
+      {/* 4-Step Single-Line Progress Indicator */}
+      <div className="mb-8 w-full overflow-x-auto no-scrollbar" aria-label="Recovery progress">
         <ol
-          className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono-label text-ink-muted"
+          className="flex items-center justify-between gap-1 font-mono text-[10.5px] uppercase tracking-wider text-onpanel-muted w-full min-w-[340px]"
           data-testid="fp-progress"
         >
           {STEPS.map((label, i) => (
-            <li key={label} className="flex items-center gap-3">
+            <li key={label} className="flex items-center gap-1.5 shrink-0">
               <span
-                className={`inline-flex h-5 w-5 items-center justify-center border text-[11px] font-semibold ${
+                className={`inline-flex h-4.5 w-4.5 items-center justify-center rounded-sm text-[10px] font-semibold shrink-0 ${
                   i < step
-                    ? "bg-white border-white text-panel"
+                    ? "bg-accent-blue border border-accent-blue text-white"
                     : i === step
-                      ? "border-accent-blue text-accent-blue"
-                      : "border-white/25 text-white/30"
+                      ? "border border-accent-blue text-accent-blue bg-accent-blue/10"
+                      : "border border-panel-border text-onpanel-muted bg-panel-raised"
                 }`}
               >
                 {i + 1}
               </span>
-              <span className={i === step ? "text-white font-medium" : i < step ? "text-white/60" : "text-white/30"}>
+              <span className={`font-semibold ${i === step ? "text-onpanel-ink font-bold" : i < step ? "text-onpanel-muted" : "text-onpanel-faint"}`}>
                 {label}
               </span>
               {i < STEPS.length - 1 ? (
-                <span aria-hidden="true" className="w-6 h-px bg-hairline" />
+                <span aria-hidden="true" className="w-2.5 sm:w-4 h-px bg-panel-border mx-0.5 shrink-0" />
               ) : null}
             </li>
           ))}
@@ -355,7 +356,7 @@ function ForgotPasswordPage() {
           <div className="mt-6">
             <Link
               to="/login"
-              className="font-mono-label amr-link text-ink"
+              className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-accent-blue transition-colors hover:text-accent-blue-hover"
               data-testid="fp-go-login"
             >
               GO TO SIGN IN →
@@ -364,13 +365,13 @@ function ForgotPasswordPage() {
         </div>
       ) : null}
 
-      <div className="mt-8 pt-6 border-t hairline flex items-center justify-between">
-        <span className="text-[13.5px] text-ink-muted">
+      <div className="mt-8 pt-6 border-t border-panel-border flex items-center justify-between">
+        <span className="font-sans text-[13.5px] text-onpanel-muted">
           Remembered your password?
         </span>
         <Link
           to="/login"
-          className="font-mono-label amr-link text-white/70 hover:text-white"
+          className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-accent-blue transition-colors hover:text-accent-blue-hover"
           data-testid="fp-back-login"
         >
           BACK TO SIGN IN →
