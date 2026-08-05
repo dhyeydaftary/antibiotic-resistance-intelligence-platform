@@ -23,7 +23,7 @@ function Navbar() {
   return (
     <div className="relative z-40 flex justify-center px-4 pt-4">
       <nav className="flex w-full max-w-3xl items-center gap-1 rounded-full border border-white/60 bg-white/60 px-3 py-2 shadow-panel-sm backdrop-blur-xl backdrop-saturate-150">
-        <Link to="/home" className="flex items-center gap-2 rounded-full px-2 py-1.5 pr-3">
+        <Link to={isAuthenticated ? '/home' : '/'} className="flex items-center gap-2 rounded-full px-2 py-1.5 pr-3">
           <svg width="20" height="20" viewBox="0 0 40 40" fill="none" aria-hidden="true">
             <circle cx="20" cy="20" r="18" stroke="#1D1D1F" strokeWidth="1.4" />
             <circle cx="20" cy="20" r="10" stroke="#0071E3" strokeWidth="1.4" />
