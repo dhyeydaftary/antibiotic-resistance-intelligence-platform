@@ -1,3 +1,4 @@
+import usePageTitle from '../hooks/usePageTitle';
 import AboutOpening from '../components/about/AboutOpening';
 import AboutGap from '../components/about/AboutGap';
 import AboutPhilosophy from '../components/about/AboutPhilosophy';
@@ -18,6 +19,8 @@ function Divider() {
 }
 
 function AboutPage() {
+  usePageTitle('About');
+  
   return (
     <div className="bg-canvas">
       <AboutOpening />

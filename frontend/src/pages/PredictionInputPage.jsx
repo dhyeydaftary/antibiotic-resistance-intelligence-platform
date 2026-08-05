@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, AlertCircle, ChevronDown, UploadCloud, CheckCircle2, XCircle } from 'lucide-react';
 import { getPrediction, extractReportFromPDF } from '../api/predictionApi';
 import { ORGANISM_OPTIONS } from '../constants/domainData';
+import usePageTitle from '../hooks/usePageTitle';
 import Panel from '../components/app/Panel';
 import Toggle from '../components/app/Toggle';
 import PrimaryButton from '../components/app/PrimaryButton';
@@ -158,6 +159,8 @@ function SelectInput({ name, value, onChange, options, placeholder }) {
 }
 
 function PredictionInputPage() {
+  usePageTitle('Predict');
+  
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
