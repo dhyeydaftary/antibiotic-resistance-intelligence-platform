@@ -792,7 +792,7 @@ None — for now
 
 ##### Reason
 
-`known-limitations.md` already documents, honestly, that no automated test suite exists. Diagramming a test pyramid or CI flow before real tests exist would overstate this project's actual testing maturity — the same honesty standard applied there should apply here. Revisit once a real test suite exists to diagram.
+A real, automated test suite now exists — 98 tests (84 gateway via `node:test`, 14 Django via `manage.py test`), added during the Security Testing sub-phase of the hardening pass (see [`docs/security/threat-model.md`](../security/threat-model.md)) — so the original reasoning for staying diagram-free here no longer holds. This entry should be revisited: a real CI/test-flow diagram may now be worth adding, following this plan's own diagram-selection process rather than being decided inline here.
 
 ---
 
