@@ -18,12 +18,16 @@ import {
   resetPassword,
 } from "@/api/authApi";
 
+import usePageTitle from '../hooks/usePageTitle';
+
 const CODE_TTL_SECONDS = 90;
 const RESEND_COOLDOWN_SECONDS = 30;
 
 const STEPS = ["Email", "Code", "New password", "Done"];
 
 function ForgotPasswordPage() {
+  usePageTitle('Forgot Password');
+  
   const navigate = useNavigate();
   const emailRef = useRef(null);
 

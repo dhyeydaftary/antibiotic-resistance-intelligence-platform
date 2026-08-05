@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, Minus, Activity, Calendar, Flame, ArrowUp, Sp
 import { getTrends } from '../api/trendsApi';
 import { getDatasetStats } from '../api/datasetApi';
 import { ORGANISM_OPTIONS, ANTIBIOTICS } from '../constants/domainData';
+import usePageTitle from '../hooks/usePageTitle';
 import Panel from '../components/app/Panel';
 import ExplainTrendDrawer from '../components/trends/ExplainTrendDrawer';
 import ResearchPapersPanel from '../components/trends/ResearchPapersPanel';
@@ -78,6 +79,8 @@ function StatCard({ label, value, icon: Icon, tone }) {
 }
 
 function TrendsPage() {
+  usePageTitle('Trends');
+  
   const [antibiotic, setAntibiotic] = useState('CIP');
   const [organism, setOrganism] = useState('all');
   const [wardType, setWardType] = useState('all');

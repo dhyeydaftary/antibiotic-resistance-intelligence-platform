@@ -12,8 +12,11 @@ import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { StrengthMeter } from "@/components/auth/StrengthMeter";
 import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
 import { signup } from "@/api/authApi";
+import usePageTitle from '../hooks/usePageTitle';
 
 function SignupPage() {
+  usePageTitle('Sign Up');
+  
   const navigate = useNavigate();
   const nameRef = useRef(null);
 

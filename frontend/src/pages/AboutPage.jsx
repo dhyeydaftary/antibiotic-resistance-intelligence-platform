@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import usePageTitle from '../hooks/usePageTitle';
 import AboutOpening from '../components/about/AboutOpening';
 import AboutGap from '../components/about/AboutGap';
 import AboutPhilosophy from '../components/about/AboutPhilosophy';
@@ -12,6 +13,7 @@ import AboutBackMatter from '../components/about/AboutBackMatter';
 import AboutFutureWork from '../components/about/AboutFutureWork';
 
 function AboutPage() {
+    usePageTitle('About');
     const location = useLocation();
 
     useEffect(() => {

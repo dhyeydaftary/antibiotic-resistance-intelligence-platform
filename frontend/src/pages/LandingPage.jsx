@@ -4,6 +4,7 @@ import Lenis from 'lenis';
 import '../styles/landing-tokens.css';
 import '../styles/landing.css';
 
+import usePageTitle from '../hooks/usePageTitle';
 import Cursor from '../components/landing/Cursor';
 import Header from '../components/landing/Header';
 import Hero from '../components/landing/Hero';
@@ -18,6 +19,8 @@ import Footer from '../components/landing/Footer';
 import BackToTop from '../components/landing/BackToTop';
 
 function LandingPage() {
+  usePageTitle();
+  
   const lenisRef = useRef(null);
 
   useEffect(() => {
