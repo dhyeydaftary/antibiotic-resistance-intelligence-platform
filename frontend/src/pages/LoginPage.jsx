@@ -11,8 +11,11 @@ import { Banner } from "@/components/auth/Banner";
 import { EMAIL_RE } from "@/utils/validators";
 import { login } from "@/api/authApi";
 import { useAuth } from "@/context/AuthContext";
+import usePageTitle from '../hooks/usePageTitle';
 
 function LoginPage() {
+  usePageTitle('Login');
+  
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
   const emailRef = useRef(null);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getHistory } from '../api/historyApi';
 import { downloadPdf, downloadCsv, downloadJson } from '../utils/reportGenerator';
+import usePageTitle from '../hooks/usePageTitle';
 import HistoryHeader from '../components/history/HistoryHeader';
 import HistoryStats from '../components/history/HistoryStats';
 import HistoryInsights from '../components/history/HistoryInsights';
@@ -54,6 +55,8 @@ function daysAgoLabel(dateValue) {
 }
 
 const HistoryPage = () => {
+  usePageTitle('History');
+  
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [rawRecords, setRawRecords] = useState([]);

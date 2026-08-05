@@ -3,6 +3,7 @@ import { HomeOverviewSkeleton, HomeToolsSkeleton } from '../components/common/Sk
 import { getHistory } from '../api/historyApi';
 import { getDatasetStats } from '../api/datasetApi';
 import { useAuth } from '../context/AuthContext';
+import usePageTitle from '../hooks/usePageTitle';
 import HomeHero from '../components/home/HomeHero';
 import HomeOverviewPanel from '../components/home/HomeOverviewPanel';
 import HomeResearchPanel from '../components/home/HomeResearchPanel';
@@ -125,6 +126,8 @@ function getRecentPredictions(records, limit = 5) {
 }
 
 function HomePage() {
+  usePageTitle('Home');
+  
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(EMPTY_STATS);

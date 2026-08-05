@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { DatasetExplorerSkeleton } from '../components/common/Skeletons';
 import { useLocation } from 'react-router-dom';
 import { getDatasetStats } from '../api/datasetApi';
+import usePageTitle from '../hooks/usePageTitle';
 import ExploreHero from '../components/explore/ExploreHero';
 import ExploreOverviewPanel from '../components/explore/ExploreOverviewPanel';
 import SunburstChart from '../components/explore/SunburstChart';
@@ -19,6 +20,8 @@ import ScrollReveal from '../components/home/ScrollReveal';
 const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 function DatasetExplorerPage() {
+  usePageTitle('Explore');
+  
   const location = useLocation();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
