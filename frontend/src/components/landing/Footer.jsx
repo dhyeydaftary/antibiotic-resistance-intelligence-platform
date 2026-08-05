@@ -88,14 +88,8 @@ export default function Footer({ lenisRef }) {
               Resources
             </div>
             <ul className="space-y-2.5 font-sans text-[13px]">
-              <li className="flex items-center gap-2 text-page-faint" data-testid="footer-glossary">
-                Glossary
-                <span className="rounded-full bg-canvas-alt px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-page-faint">Soon</span>
-              </li>
-              <li className="flex items-center gap-2 text-page-faint" data-testid="footer-documentation">
-                Documentation
-                <span className="rounded-full bg-canvas-alt px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-page-faint">Soon</span>
-              </li>
+              <li><Link className="text-page-muted transition-colors hover:text-page-ink" to="/glossary" data-testid="footer-glossary">Glossary</Link></li>
+              <li><a className="text-page-muted transition-colors hover:text-page-ink" href="https://github.com/dhyeydaftary/antibiotic-resistance-intelligence-platform/blob/dev/docs/README.md" target="_blank" rel="noopener noreferrer" data-testid="footer-documentation">Documentation</a></li>
             </ul>
           </div>
 

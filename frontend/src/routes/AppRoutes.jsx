@@ -11,6 +11,7 @@ import HistoryPage from '../pages/HistoryPage';
 import TrendsPage from '../pages/TrendsPage';
 import DatasetExplorerPage from '../pages/DatasetExplorerPage';
 import AboutPage from '../pages/AboutPage';
+import GlossaryPage from '../pages/GlossaryPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
@@ -30,6 +31,7 @@ function AppRoutes() {
       <Route path="/trends" element={<ProtectedRoute><TrendsPage /></ProtectedRoute>} />
       <Route path="/explore" element={<ProtectedRoute><DatasetExplorerPage /></ProtectedRoute>} />
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/glossary" element={<GlossaryPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
