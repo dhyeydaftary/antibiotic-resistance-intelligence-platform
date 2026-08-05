@@ -18,6 +18,7 @@ import { BarChart } from '../components/charts/bar-chart';
 import { Bar } from '../components/charts/bar';
 import { Grid } from '../components/charts/grid';
 import { ChartTooltip } from '../components/charts/tooltip';
+import usePageTitle from '../hooks/usePageTitle';
 
 const FAKE_PREDICTION = {
   predictions: [
@@ -175,6 +176,8 @@ function PredictionRow({ p }) {
 }
 
 function PredictionResultPage() {
+  usePageTitle('Result');
+  
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();

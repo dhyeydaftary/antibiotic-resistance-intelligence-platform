@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { SearchX } from 'lucide-react';
+import usePageTitle from '../hooks/usePageTitle';
 
 function NotFoundPage() {
+  usePageTitle('Page Not Found');
+  
   return (
     <div className="flex min-h-[75vh] items-center justify-center px-6 py-12">
       <motion.div

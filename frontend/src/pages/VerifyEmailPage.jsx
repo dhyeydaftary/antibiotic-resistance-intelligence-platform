@@ -8,11 +8,14 @@ import { PrimaryButton, GhostButton } from "@/components/auth/Button";
 import { Banner } from "@/components/auth/Banner";
 import { verifyOtp, resendOtp } from "@/api/authApi";
 import { useAuth } from "@/context/AuthContext";
+import usePageTitle from '../hooks/usePageTitle';
 
 const CODE_TTL_SECONDS = 90;
 const RESEND_COOLDOWN_SECONDS = 30;
 
 function VerifyEmailPage() {
+  usePageTitle('Verify Email');
+  
   const navigate = useNavigate();
   const { login: authLogin } = useAuth();
   const email = useMemo(
