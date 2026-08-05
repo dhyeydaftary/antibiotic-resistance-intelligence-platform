@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+import ResearchSection from './ResearchSection';
+import EditorialQuote from './EditorialQuote';
 
 const fadeUp = {
     hidden: { opacity: 0, y: 14 },
@@ -11,14 +13,17 @@ const fadeUp = {
 
 const DIRECTIONS = [
     {
+        num: '01',
         title: 'Expanding dataset scope',
         body: 'Broader dataset integration was considered, including MIMIC-IV, and not pursued due to access restrictions. Any future expansion would need the same conceptual/statistical integration approach used here — multi-source clinical datasets cannot be row-level joined the way this platform\'s single-source data can.',
     },
     {
-        title: 'Further validation before any real-world use',
+        num: '02',
+        title: 'Further validation before real-world use',
         body: 'If this work were ever extended toward real-world relevance, it would require independent clinical validation, prospective evaluation against live AST results, and review by qualified clinicians — none of which has happened here.',
     },
     {
+        num: '03',
         title: 'Deeper explainability tooling',
         body: 'Richer SHAP visualizations, per-patient explanation exports, and comparison views across antibiotics are natural extensions of the explainability work already in place.',
     },
@@ -26,73 +31,50 @@ const DIRECTIONS = [
 
 export default function AboutFutureWork() {
     return (
-        <section
+        <ResearchSection
             id="future-work"
-            data-testid="about-future-work-section"
-            className="bg-canvas px-6 py-12 sm:py-14"
+            testId="about-future-work-section"
+            kicker="Future work"
+            title="Where this could go, carefully."
+            subtitle="Future scope framed as evaluation and validation, not an ambitious roadmap."
+            maxWidth="max-w-4xl"
+            noBorder={true}
         >
-            <div className="mx-auto max-w-3xl">
-                <motion.div
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={0}
-                    variants={fadeUp}
-                    className="mb-4 flex items-center gap-3"
-                >
-                    <span className="h-px w-6 bg-canvas-hairline" />
-                    <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-page-faint">
-                        Future work
-                    </span>
-                </motion.div>
-
-                <motion.h2
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={1}
-                    variants={fadeUp}
-                    className="max-w-lg font-display text-[28px] font-semibold leading-[1.2] tracking-[-0.015em] text-page-ink sm:text-[32px]"
-                >
-                    Where this could go, carefully.
-                </motion.h2>
-
-                <div className="mt-10 space-y-8">
+            <div className="space-y-12">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                     {DIRECTIONS.map((d, i) => (
                         <motion.div
                             key={d.title}
                             initial="hidden"
                             whileInView="visible"
-                            viewport={{ once: true, margin: '-80px' }}
-                            custom={i + 2}
+                            viewport={{ once: true, margin: '-60px' }}
+                            custom={i}
                             variants={fadeUp}
-                            className="border-l-2 border-canvas-hairline pl-5"
+                            className="rounded-[20px] border border-panel-border bg-panel p-6 shadow-panel-md flex flex-col justify-between"
                         >
-                            <h3 className="font-display text-[15px] font-semibold text-page-ink">
-                                {d.title}
-                            </h3>
-                            <p className="mt-1.5 max-w-xl font-sans text-[14px] leading-[1.65] text-page-muted">
-                                {d.body}
-                            </p>
+                            <div>
+                                <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-accent-blue">
+                                    DIRECTION {d.num}
+                                </span>
+                                <h3 className="mt-2 font-display text-[17px] font-semibold text-onpanel-ink">
+                                    {d.title}
+                                </h3>
+                                <p className="mt-2 font-sans text-[13.5px] leading-[1.6] text-onpanel-muted">
+                                    {d.body}
+                                </p>
+                            </div>
                         </motion.div>
                     ))}
                 </div>
 
-                {/* Closing philosophy */}
-                <motion.div
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true, margin: '-100px' }}
-                    custom={DIRECTIONS.length + 2}
-                    variants={fadeUp}
-                    className="mt-16 border-t border-canvas-hairline pt-12 text-center"
-                >
-                    <p className="mx-auto max-w-md font-display text-[22px] font-semibold leading-[1.35] tracking-[-0.015em] text-page-ink sm:text-[26px]">
-                        We'd rather be right about what we don't know than confident
-                        about what we can't prove.
-                    </p>
-                </motion.div>
+                {/* Final Closing Philosophy Quote */}
+                <div className="border-t border-canvas-hairline pt-10">
+                    <EditorialQuote
+                        quote="We'd rather be right about what we don't know than confident about what we can't prove."
+                        kicker="Closing Philosophy"
+                    />
+                </div>
             </div>
-        </section>
+        </ResearchSection>
     );
 }
