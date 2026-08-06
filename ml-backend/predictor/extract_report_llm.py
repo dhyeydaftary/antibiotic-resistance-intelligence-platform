@@ -15,6 +15,12 @@ typing for those fields.
 
 Requires: pip install google-genai
 Env var: GEMINI_API_KEY (get one free at https://aistudio.google.com)
+
+Called from views.py's extract_report_view, itself reached from the
+gateway's POST /api/predictor/extract-report (routes/prediction.js) —
+the gateway does PDF magic-byte validation and forwards the raw file;
+this module only ever sees already-extracted text (via pdfplumber, in
+views.py), never the PDF bytes.
 """
 
 import os
@@ -102,6 +108,7 @@ Return a single JSON object with exactly these keys: {field_names}
 """
 
 
+# Builds the Gemini extraction prompt from FIELD_SCHEMA and the report text.
 def build_prompt(report_text):
     field_descriptions = "\n".join(f"- {k}: {v}" for k, v in FIELD_SCHEMA.items())
     field_names = ", ".join(FIELD_SCHEMA.keys())
@@ -112,6 +119,7 @@ def build_prompt(report_text):
     )
 
 
+# Removes ```json fences Gemini sometimes wraps its response in.
 def _strip_code_fences(text):
     """Gemini sometimes wraps JSON in ```json ... ``` despite instructions not to."""
     text = text.strip()
@@ -120,6 +128,7 @@ def _strip_code_fences(text):
     return text.strip()
 
 
+# Entry point: calls Gemini to extract structured fields from report text.
 def extract_report_fields_llm(report_text, api_key=None):
     """
     Returns (extracted_dict, missing_fields_list, error_or_None).

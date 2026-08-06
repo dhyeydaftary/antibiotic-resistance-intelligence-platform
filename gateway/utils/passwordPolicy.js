@@ -13,6 +13,7 @@ const PASSWORD_RULES = [
     { key: 'special', message: 'Password must contain a special character', test: (v) => /[^A-Za-z0-9]/.test(v) },
 ];
 
+// Checks a candidate password against every rule in PASSWORD_RULES.
 /**
  * Validates a password against the policy.
  * Returns { valid: true } or { valid: false, message } with the message

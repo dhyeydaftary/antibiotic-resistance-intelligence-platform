@@ -1,5 +1,12 @@
+// A verified account — the only place this document is created is
+// routes/auth.js's /verify-otp, always with isVerified: true, so a
+// User existing at all implies it's verified (see PendingSignup.js for
+// the pre-verification state). Read/written throughout routes/auth.js
+// and by middleware/verifyToken.js (tokenVersion check on every
+// protected request).
 const mongoose = require('mongoose');
 
+// Mongo schema for a verified account, including auth/lockout/token state.
 const userSchema = new mongoose.Schema({
   name: {
     type: String,

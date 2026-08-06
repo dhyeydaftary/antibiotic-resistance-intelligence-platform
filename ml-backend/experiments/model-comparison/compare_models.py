@@ -131,19 +131,23 @@ warnings.filterwarnings('ignore', category=ConvergenceWarning)
 # candidate values — same tuning budget for all 5 model families.
 # ---------------------------------------------------------------------------
 
+# Builds a scaled Logistic Regression pipeline for the benchmark.
 def make_logreg(seed, **params):
     clf = LogisticRegression(max_iter=2000, random_state=seed, **params)
     return Pipeline([('scaler', StandardScaler()), ('clf', clf)])
 
 
+# Builds a Decision Tree classifier for the benchmark.
 def make_dtree(seed, **params):
     return DecisionTreeClassifier(random_state=seed, **params)
 
 
+# Builds a Random Forest classifier for the benchmark.
 def make_rf(seed, **params):
     return RandomForestClassifier(random_state=seed, n_jobs=-1, **params)
 
 
+# Builds an XGBoost classifier for the benchmark.
 def make_xgb(seed, **params):
     return XGBClassifier(
         random_state=seed, n_jobs=-1, tree_method='hist',
@@ -152,6 +156,7 @@ def make_xgb(seed, **params):
     )
 
 
+# Builds a CatBoost classifier for the benchmark (mirrors production's config).
 def make_catboost(seed, **params):
     return CatBoostClassifier(random_state=seed, verbose=0, depth=6, thread_count=-1, **params)
 
@@ -185,10 +190,12 @@ MODEL_SPECS = {
 }
 
 
+# Instantiates a model from its spec with a given hyperparameter value.
 def build_model(spec, param_value):
     return spec['factory'](RANDOM_STATE, **{spec['param_name']: param_value})
 
 
+# Reindexes predict_proba's columns to a fixed [I, R, S] class order.
 def aligned_proba(model, X, n_classes=3):
     """predict_proba columns follow model.classes_ order, which may omit a
     class never seen in that fold's training split. Scatter into a fixed
@@ -202,6 +209,7 @@ def aligned_proba(model, X, n_classes=3):
     return out
 
 
+# Selects the best hyperparameter value for one model via inner CV.
 def light_tune(spec, X, y):
     """Pick the best of 4 candidate values for this model's one tuned
     hyperparameter, via 3-fold inner CV scored on aggregated OOF macro-F1.
@@ -223,6 +231,7 @@ def light_tune(spec, X, y):
     return best_value
 
 
+# Runs outer 5-fold CV for one tuned model and computes benchmark metrics.
 def outer_cv_evaluate(spec, best_value, X, y):
     """Identical outer-fold construction to train_models.py's cv_evaluate():
     StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE).
@@ -268,6 +277,8 @@ def outer_cv_evaluate(spec, best_value, X, y):
     }
 
 
+# Entry point: runs the full tune+evaluate benchmark across every
+# antibiotic and model family, and writes the results CSV.
 def run_benchmark(antibiotics=None, models=None):
     df = prod.load_dataset()
     X_full = prod.build_feature_matrix(df)

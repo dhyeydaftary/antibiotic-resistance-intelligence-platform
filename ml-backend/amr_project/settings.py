@@ -1,3 +1,11 @@
+# Django project settings. Notable departures from a typical Django app,
+# both deliberate: no django.contrib.auth / user model (auth lives
+# entirely in the Node gateway's Mongo-backed User model; this service
+# only trusts requests carrying INTERNAL_API_KEY — see MIDDLEWARE below
+# and amr_project/middleware.py), and SQLite is present but effectively
+# idle (predictor/models.py defines no models — predictions are
+# stateless computations over ml_artifacts/*.pkl and cleaned_dataset.csv,
+# not rows in this database).
 from pathlib import Path
 from decouple import config
 
