@@ -1,3 +1,4 @@
+// Landing-page-only custom cursor dot, mounted once by LandingPage.
 import { useEffect, useRef } from "react";
 
 /**

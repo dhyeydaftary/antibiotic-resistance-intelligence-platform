@@ -17,12 +17,20 @@ const LINKS = [
 const pillSpring = { type: 'spring', bounce: 0, duration: 0.35 };
 const tapFeedback = { scale: 0.96 };
 
+// ===================================================================
+// Persistent top nav, rendered by App.jsx on every route except the
+// landing page and auth pages (which use their own chrome). Auth-aware:
+// shows Login/Signup for a guest, or the 5 app links + Logout for an
+// authenticated user, with an animated pill (framer-motion layoutId)
+// following the active route.
+// ===================================================================
 function Navbar() {
   const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const reduceMotion = useReducedMotion();
 
+  // Clears auth state and returns the user to the landing page.
   function handleLogout() {
     logout();
     navigate('/');

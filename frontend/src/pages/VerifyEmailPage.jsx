@@ -10,6 +10,18 @@ import { verifyOtp, resendOtp } from "@/api/authApi";
 import { useAuth } from "@/context/AuthContext";
 import usePageTitle from '../hooks/usePageTitle';
 
+// ===================================================================
+// Route: /verify-email (gated by GuestRoute). Second half of signup —
+// reads the pending email from sessionStorage (set by SignupPage),
+// submits the 6-digit OTP via api/authApi.js's verifyOtp(). On success
+// the backend has just created the real User and issued a token, so
+// this auto-logs the user in (AuthContext.login) and redirects to
+// /home — no separate login step required after verification.
+// Countdown timers here are purely cosmetic UX (mirroring the real
+// server-side OTP_TTL/lockout in gateway/utils/otpUtil.js); the actual
+// expiry/attempt-limit enforcement happens server-side regardless of
+// what this UI displays.
+// ===================================================================
 const CODE_TTL_SECONDS = 90;
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -31,18 +43,21 @@ function VerifyEmailPage() {
   const [banner, setBanner] = useState(null);
   const [invalid, setInvalid] = useState(false);
 
+  // Ticks the displayed "code expires in" countdown once per second.
   useEffect(() => {
     if (expiresIn <= 0) return;
     const t = setInterval(() => setExpiresIn((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, [expiresIn]);
 
+  // Ticks the "resend available in" cooldown countdown once per second.
   useEffect(() => {
     if (resendIn <= 0) return;
     const t = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, [resendIn]);
 
+  // Submits the OTP; on success auto-logs in and redirects to /home.
   const doVerify = async (finalCode) => {
     const c = finalCode ?? code;
     if (c.length !== 6) return;
@@ -74,6 +89,7 @@ function VerifyEmailPage() {
     });
   };
 
+  // Requests a fresh OTP and resets both countdowns on success.
   const doResend = async () => {
     setResending(true);
     setBanner(null);
@@ -93,6 +109,7 @@ function VerifyEmailPage() {
     }
   };
 
+  // Abandons this pending signup and sends the user back to sign up again.
   const changeEmail = () => {
     sessionStorage.removeItem("amr:pending-email");
     navigate("/signup");

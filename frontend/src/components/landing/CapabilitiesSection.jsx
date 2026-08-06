@@ -1,3 +1,12 @@
+// ===================================================================
+// Landing-page "15 models" showcase: an interactive 3D sphere of nodes
+// (one per antibiotic model), built entirely with framer-motion
+// transforms + manual sin/cos rotation math — no 3D library (three.js
+// etc). Each node's screen position is computed by rotating its fixed
+// Fibonacci-sphere coordinate by the current view angle (rotX/rotY
+// motion values, driven by pointer position + an ambient auto-spin that
+// eases to a stop when a node is active).
+// ===================================================================
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion';
 
@@ -35,6 +44,8 @@ const MODELS = [
 // set via matchMedia on mount and on resize.
 
 // Fibonacci sphere: even point distribution, no grid seams / pole bunching.
+// Computes n evenly-distributed 3D points on a sphere's surface (golden-
+// angle spiral) — the fixed base positions each Node then rotates.
 function fibonacciSphere(n, radius) {
     const points = [];
     const phi = Math.PI * (Math.sqrt(5) - 1);
@@ -47,6 +58,8 @@ function fibonacciSphere(n, radius) {
     return points;
 }
 
+// Renders the 3D model sphere, its ambient rotation loop, and the
+// detail card for whichever node is hovered/tapped.
 export default function CapabilitiesSection() {
     const [radius, setRadius] = useState(220);
     const basePositions = useMemo(() => fibonacciSphere(MODELS.length, radius), [radius]);
@@ -235,6 +248,9 @@ export default function CapabilitiesSection() {
     );
 }
 
+// One antibiotic node on the sphere: rotates its fixed base position by
+// the current view angle each frame, then derives depth-based scale/
+// opacity/blur so far-side nodes recede visually (a fake-3D perspective trick).
 function Node({
     model, base, index, radius, canHover, rotX, rotY, revealed, active, anyActive,
     onActivate, onHoverActivate, onHoverDeactivate,

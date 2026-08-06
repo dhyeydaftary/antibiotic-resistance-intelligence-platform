@@ -49,6 +49,8 @@ function QuestionCard({ q, i, isOpen, onToggle, stats }) {
   );
 }
 
+// Expandable FAQ-style grid of canned questions (constants/exploreContent.js)
+// answered live via utils/questionAnswers.js's getAnswer().
 function QuestionBankPanel({ stats }) {
   const [openIndex, setOpenIndex] = useState(null);
 

@@ -1,6 +1,9 @@
 import { useId } from "react";
 import { Check } from "lucide-react";
 
+// Custom-styled checkbox (native input visually hidden via sr-only, a
+// styled span renders the check) with an optional inline error message —
+// used for signup's terms/privacy consent checkboxes.
 export const Checkbox = ({ checked, onCheckedChange, label, id, testId, error, ...props }) => {
   const autoId = useId();
   const inputId = id || autoId;

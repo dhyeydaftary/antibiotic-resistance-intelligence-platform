@@ -1,3 +1,11 @@
+// ===================================================================
+// The single route table for the app. Every page is registered here —
+// this is the extension point for adding a new page/route. Two auth
+// gates wrap individual routes: GuestRoute (redirects an already-logged-
+// in user away from auth pages) and ProtectedRoute (redirects a guest
+// away from app pages, both defined alongside this file). "/" (landing),
+// "/about", and "/glossary" are intentionally public — no gate.
+// ===================================================================
 import { Routes, Route } from 'react-router-dom';
 import LandingPage from '../pages/LandingPage';
 import LoginPage from '../pages/LoginPage';
@@ -18,6 +26,7 @@ import GuestRoute from './GuestRoute';
 import TermsPage from '../pages/TermsPage';
 import PrivacyPage from '../pages/PrivacyPage';
 
+// Declares every route in the app and the auth gate (if any) each sits behind.
 function AppRoutes() {
   return (
     <Routes>

@@ -1,3 +1,8 @@
+// Route: /privacy — public. Content (DEFINITIONS/SECTIONS below) was
+// written to accurately describe this app's actual data model (e.g.
+// SecurityEvent's real retention behavior, what Gemini/PubMed/Resend
+// actually receive) rather than generic template legal text; rendered
+// through the shared LegalDocument layout also used by TermsPage.
 import usePageTitle from '../hooks/usePageTitle';
 import LegalDocument from '../components/legal/LegalDocument';
 

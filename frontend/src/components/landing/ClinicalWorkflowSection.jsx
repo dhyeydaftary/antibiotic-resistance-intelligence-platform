@@ -42,6 +42,11 @@ const fadeUp = {
     }),
 };
 
+// "How it works" landing section: traditional-AST-vs-AMR-Insight
+// timeline fork, where-this-fits explainer (addresses the "isn't
+// organism-as-input data leakage?" question head-on), supporting
+// mortality stats, and the 3-step input/inference/prediction mechanics
+// cards. Static editorial content — no data fetching.
 export default function ClinicalWorkflowSection() {
     return (
         <section id="how" data-testid="how-it-works-section" className="bg-canvas px-6 py-24 sm:py-32">

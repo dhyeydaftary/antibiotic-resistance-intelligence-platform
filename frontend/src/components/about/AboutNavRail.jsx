@@ -1,3 +1,8 @@
+// UNUSED — grep confirms AboutPage.jsx never renders AboutNavRail. Also
+// stale: NAV_ITEMS' 'how-it-was-built' id doesn't match the actual
+// section id in use today (AboutPipeline.jsx uses id="methodology"),
+// so even if re-enabled this one entry would need fixing first. Every
+// other NAV_ITEMS id was verified to still match its section.
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 

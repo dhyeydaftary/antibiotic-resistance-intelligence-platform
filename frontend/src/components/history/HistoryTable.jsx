@@ -6,6 +6,9 @@ import PrimaryButton from '../app/PrimaryButton';
 import AntibioticChip from './AntibioticChip';
 import PatientContext from './PatientContext';
 
+// Dense, paginated table view of history records (alternative to
+// HistoryTimeline) — one row per record, expandable to show patient
+// context and per-antibiotic chips inline.
 const HistoryTable = ({ summaries, currentPage, totalPages, onPageChange, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) => {
   const [expandedId, setExpandedId] = useState(null);
 

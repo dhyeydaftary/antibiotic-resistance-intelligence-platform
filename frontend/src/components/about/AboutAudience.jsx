@@ -28,6 +28,7 @@ const AUDIENCES = [
     },
 ];
 
+// About page Act V: who the platform is (and explicitly isn't) built for.
 export default function AboutAudience() {
     return (
         <ResearchSection

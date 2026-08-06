@@ -20,6 +20,7 @@ export const OtpBoxes = ({
     }
   }, [autoFocus]);
 
+  // Sets a single digit at index i within the padded 6-char value string.
   const setAt = (i, d) => {
     const arr = value.padEnd(6, " ").split("");
     arr[i] = d;
@@ -28,6 +29,9 @@ export const OtpBoxes = ({
     return next;
   };
 
+  // Handles typing into one box — also handles a multi-char paste landing
+  // in a single input (some mobile keyboards/autofill do this), and
+  // auto-advances focus / fires onComplete once all 6 digits are filled.
   const handleChange = (i, raw) => {
     const clean = raw.replace(/\D/g, "");
     if (!clean) return;
@@ -45,6 +49,8 @@ export const OtpBoxes = ({
     if (next.length === 6 && !next.includes(" ")) onComplete?.(next);
   };
 
+  // Backspace clears the current box or, if already empty, clears the
+  // previous box and moves focus there; arrow keys move focus between boxes.
   const handleKeyDown = (i, e) => {
     if (e.key === "Backspace") {
       e.preventDefault();
@@ -65,6 +71,8 @@ export const OtpBoxes = ({
     }
   };
 
+  // Handles pasting a full code anywhere in the group — strips non-digits,
+  // fills all boxes at once, and fires onComplete if all 6 digits landed.
   const handlePaste = (e) => {
     const pasted = (e.clipboardData?.getData("text") || "").replace(/\D/g, "");
     if (!pasted) return;

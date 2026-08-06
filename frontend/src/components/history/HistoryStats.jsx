@@ -2,9 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { FlaskConical, CalendarDays, Gauge, Clock } from 'lucide-react';
 import Panel from '../app/Panel';
 
+// The 4-tile stat row at the top of HistoryPage — total/this-week/avg-
+// resistance/last-prediction, each with its own ease-out count-up animation.
 const HistoryStats = ({ stats }) => {
   const [counts, setCounts] = useState({ total: 0, thisWeek: 0, avgResistance: 0 });
 
+  // Animates each stat from 0 to its target value on mount/stats change
+  // (same easing curve as hooks/useCountUp.js, inlined here rather than reused).
   useEffect(() => {
     const duration = 700;
     const start = Date.now();

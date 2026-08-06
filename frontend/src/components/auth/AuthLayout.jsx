@@ -2,6 +2,10 @@ import { Target, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import Panel from "../app/Panel";
 
+// Shared full-bleed shell for every auth page (login/signup/verify/
+// forgot-password) — editorial copy on the left, the form (`children`,
+// wrapped in a Panel card) on the right. Supplies its own "Back to
+// home" link and footer, since App.jsx renders no Navbar on these routes.
 export const AuthLayout = ({ children, sideLabel = "Secure access" }) => {
   return (
     <div

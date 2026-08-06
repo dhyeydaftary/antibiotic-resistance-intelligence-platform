@@ -3,7 +3,11 @@ import { motion } from 'framer-motion';
 import { Sparkles, FlaskConical, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import Panel from '../app/Panel';
 
+// Three-card "quick insights" strip above the history list: overall R/S/I
+// mix, most-frequent antibiotic, and week-over-week resistance trend —
+// all derived client-side from the already-loaded summaries.
 const HistoryInsights = ({ summaries }) => {
+  // Computes the three insight-card values from the full summary list.
   const insights = useMemo(() => {
     if (!summaries || !summaries.length) return null;
 

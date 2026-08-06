@@ -22,6 +22,7 @@ const CHART_VARS = {
   '--border': '#3A3A3C',
 };
 
+// One labeled stat cell in the overview row (icon, big value, small hint).
 function Stat({ icon: Icon, label, value, hint }) {
   return (
     <div className="flex-1 px-5 py-4 first:pl-0 last:pr-0">
@@ -35,6 +36,8 @@ function Stat({ icon: Icon, label, value, hint }) {
   );
 }
 
+// Personal activity summary: 4 stat cells (from HomePage's computeStats)
+// plus an 8-day predictions-per-day area chart (from buildDailySeries).
 function HomeOverviewPanel({ stats, dailySeries, datasetStats }) {
   const total = useCountUp(stats.total);
   const thisWeek = useCountUp(stats.thisWeek);

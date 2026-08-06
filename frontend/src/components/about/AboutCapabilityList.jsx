@@ -1,5 +1,10 @@
+// UNUSED FILE — grep confirms neither CapabilityRow nor the default
+// export is imported anywhere. AboutTrustBoundary + ComparisonPanel.jsx
+// implement the actual capability/boundary list rendering; this appears
+// to be an earlier draft.
 import AboutTrustBoundary from './AboutTrustBoundary';
 
+// A single checkmark/dash list row (positive vs. neutral tone).
 export function CapabilityRow({ children, tone = 'positive' }) {
     return (
         <li className="flex items-start gap-3 py-3">

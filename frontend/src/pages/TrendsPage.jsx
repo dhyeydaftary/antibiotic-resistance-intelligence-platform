@@ -21,6 +21,29 @@ import { ChartTooltip } from '../components/charts/tooltip';
 import { curveLinear } from '@visx/curve';
 import { ChartLegendHoverProvider } from '../components/charts/chart-legend-hover';
 
+// ===================================================================
+// Route: /trends (ProtectedRoute-gated). Four independent data sources
+// fetched in parallel, each with its own loading state:
+//   1. Hero chart — getTrends(antibiotic, organism, wardType), refetches
+//      whenever any filter changes.
+//   2. Overview — getTrends() for ALL 15 antibiotics x 'all' organisms
+//      (Promise.all, fetched once on mount) — powers the AWaRe-tier
+//      averages, "steepest rising" callout, and the full resistance
+//      landscape list. This is the "~15 requests per page visit" cost
+//      gateway/middleware/predictionRateLimiters.js's readLimiter
+//      comment references.
+//   3. Dataset stats — getDatasetStats(), for the context strip and to
+//      discover which ward types actually exist in the data (populates
+//      the ward filter dropdown dynamically).
+//   4. Organism overlay — getTrends(antibiotic, org) for the top 4
+//      organisms by record count, refetched when the antibiotic changes,
+//      merged into one multi-series dataset for the comparison chart.
+//
+// Renders via the custom charts/ library (AreaChart/LineChart) — see
+// components/charts/ for the underlying primitives. ExplainTrendDrawer
+// and ResearchPapersPanel are separate lazy-opened/scrolled-to panels
+// that fetch their own data independently.
+// ===================================================================
 const CHART_VARS = {
   '--chart-background': '#1D1D1F',
   '--chart-foreground': '#F5F5F7',
@@ -40,11 +63,14 @@ const TIER_TONE = {
   Reserve: { text: 'text-resistant', bg: 'bg-resistant/15', bar: 'bg-resistant' },
 };
 
+// Converts a "YYYY-MM" period string from the trends API into a Date
+// (chart x-axis needs real Date values, not strings).
 function parsePeriod(period) {
   const [year, month] = period.split('-').map(Number);
   return new Date(year, month - 1, 1);
 }
 
+// Custom-arrow native <select> used for the antibiotic/organism/ward filters.
 function NativeSelect({ value, onChange, options }) {
   return (
     <select
@@ -62,6 +88,7 @@ function NativeSelect({ value, onChange, options }) {
   );
 }
 
+// One of the 4 top-row stat tiles (current/peak rate, change, data points).
 function StatCard({ label, value, icon: Icon, tone }) {
   return (
     <Panel className="p-4">
@@ -78,6 +105,8 @@ function StatCard({ label, value, icon: Icon, tone }) {
   );
 }
 
+// Trends dashboard: hero time-series, organism comparison, AWaRe-tier
+// averages, rising-trend callout, full resistance landscape, and research papers.
 function TrendsPage() {
   usePageTitle('Trends');
   
@@ -201,11 +230,14 @@ function TrendsPage() {
     });
   }, [antibiotic, topOrganisms]);
 
+  // Converts the raw hero series into {date, rate} points for the chart.
   const chartData = useMemo(
     () => series.map((d) => ({ date: parsePeriod(d.period), rate: Math.round(d.resistanceRate * 1000) / 10 })),
     [series]
   );
 
+  // Derives the 4 hero stat-card values (latest/peak/delta/point count)
+  // from the hero chart's own series.
   const stats = useMemo(() => {
     if (chartData.length === 0) return null;
     const latest = chartData[chartData.length - 1].rate;
@@ -226,6 +258,7 @@ function TrendsPage() {
     }).filter(Boolean);
   }, [overviewSeries]);
 
+  // Averages each antibiotic's latest rate by WHO AWaRe tier.
   const tierAverages = useMemo(() => {
     const tiers = { Access: [], Watch: [], Reserve: [] };
     overviewStats.forEach((s) => { if (tiers[s.aware]) tiers[s.aware].push(s.latest); });
@@ -236,6 +269,8 @@ function TrendsPage() {
     }));
   }, [overviewStats]);
 
+  // Finds the antibiotic with the largest positive resistance-rate delta
+  // (the "steepest rising trend" callout) plus its two runners-up.
   const risingTrend = useMemo(() => {
     if (overviewStats.length === 0) return null;
     const sorted = [...overviewStats].sort((a, b) => b.delta - a.delta);

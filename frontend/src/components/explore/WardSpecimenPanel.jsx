@@ -29,6 +29,8 @@ function DistributionRow({ label, count, maxCount }) {
   );
 }
 
+// One labeled group of DistributionRow bars, sorted desc by count;
+// renders nothing if `items` is empty.
 function DistributionSection({ icon: Icon, title, subtitle, items, labelKey }) {
   if (!items || items.length === 0) return null;
   const sorted = [...items].sort((a, b) => b.count - a.count);
@@ -64,6 +66,8 @@ function DistributionSection({ icon: Icon, title, subtitle, items, labelKey }) {
  * Both are optional / may be absent on the legacy (non-augmented) dataset.
  * The panel renders nothing if neither array exists.
  */
+// Side-by-side ward-type and specimen-source distributions, from the
+// augmented dataset only — silently renders nothing on the legacy dataset.
 function WardSpecimenPanel({ wardTypeDistribution, specimenSourceDistribution }) {
   const hasWard = wardTypeDistribution && wardTypeDistribution.length > 0;
   const hasSpecimen = specimenSourceDistribution && specimenSourceDistribution.length > 0;

@@ -14,6 +14,15 @@ import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
 import { signup } from "@/api/authApi";
 import usePageTitle from '../hooks/usePageTitle';
 
+// ===================================================================
+// Route: /signup (gated by GuestRoute). Calls api/authApi.js's
+// signup(), which only ever creates a PendingSignup on the backend —
+// no session is issued here. On success, stashes the email in
+// sessionStorage (read by VerifyEmailPage) and redirects to
+// /verify-email to complete the OTP step. Password strength/checklist
+// UI is driven by utils/validators.js's evaluatePassword(), mirroring
+// the gateway's own password policy.
+// ===================================================================
 function SignupPage() {
   usePageTitle('Sign Up');
 
@@ -36,6 +45,8 @@ function SignupPage() {
 
   const pwEval = useMemo(() => evaluatePassword(password), [password]);
 
+  // Validates every field (name/email/password strength/confirm-match/
+  // consent checkboxes) and populates `errors`; returns whether the form is valid.
   const validate = () => {
     const e = {};
     if (!name.trim()) e.name = "Name is required";
@@ -52,6 +63,7 @@ function SignupPage() {
     return Object.keys(e).length === 0;
   };
 
+  // Validates, submits the signup, and routes to OTP verification on success.
   const onSubmit = async (ev) => {
     ev.preventDefault();
     setGlobalError(null);

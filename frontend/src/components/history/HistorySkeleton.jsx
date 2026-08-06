@@ -1,6 +1,8 @@
 import React from 'react';
 import Panel from '../app/Panel';
 
+// Loading placeholder shown on HistoryPage while getHistory() resolves —
+// mirrors the shape of stats + filter bar + list so there's no layout shift.
 const HistorySkeleton = () => {
   return (
     <div className="animate-pulse">

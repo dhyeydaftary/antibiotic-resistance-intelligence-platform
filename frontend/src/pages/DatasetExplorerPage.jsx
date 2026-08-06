@@ -17,6 +17,17 @@ import QuestionBankPanel from '../components/explore/QuestionBankPanel';
 import Panel from '../components/app/Panel';
 import ScrollReveal from '../components/home/ScrollReveal';
 
+// ===================================================================
+// Route: /explore (ProtectedRoute-gated). Single getDatasetStats() call
+// on mount powers every tab — Overview (org/ward/specimen/comorbidity
+// distributions), Organisms & Drugs (sunburst chart + library panels),
+// and Research & Q&A (PubMed hub + the canned question bank, answered
+// live from `stats` via utils/questionAnswers.js). Tabs are client-side
+// state (activeTab), but also addressable via URL hash (#organism-
+// library, #antibiotic-library, #research-hub, #question-bank) — used
+// by cross-links elsewhere in the app (e.g. HomePage) that want to land
+// directly on a specific panel and scroll to it.
+// ===================================================================
 const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
 function DatasetExplorerPage() {
@@ -29,6 +40,8 @@ function DatasetExplorerPage() {
   const [selectedOrganism, setSelectedOrganism] = useState(null);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'library' | 'resources'
 
+  // Loads dataset stats once on mount; guards state updates with
+  // `cancelled` in case the component unmounts before the request resolves.
   useEffect(() => {
     let cancelled = false;
     getDatasetStats()
@@ -60,6 +73,8 @@ function DatasetExplorerPage() {
     }
   }, [location.hash, loading]);
 
+  // Scrolls the hash-targeted panel into view once its tab (and thus the
+  // panel's DOM node) has mounted.
   useEffect(() => {
     if (!location.hash || loading) return;
     const el = document.getElementById(location.hash.slice(1));
@@ -71,6 +86,8 @@ function DatasetExplorerPage() {
     }
   }, [location.hash, activeTab, loading]);
 
+  // Sets the organism highlighted across the Overview tab's panels
+  // (e.g. clicking a sunburst segment or library card).
   function selectOrganism(name) {
     setSelectedOrganism(name);
   }

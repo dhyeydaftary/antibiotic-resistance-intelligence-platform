@@ -17,6 +17,9 @@ const BOUNDARIES = [
     { title: 'Not for Clinical Use', desc: 'Should not be used by clinicians, patients, or caregivers to guide real-world treatment.' },
 ];
 
+// About page Act III: the real capabilities-vs-boundaries lists, side
+// by side via ComparisonPanel. The actively-used counterpart to the
+// unused AboutCapabilityList/AboutBoundaryList files.
 export default function AboutTrustBoundary() {
     return (
         <ResearchSection

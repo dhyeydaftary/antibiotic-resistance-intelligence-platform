@@ -1,3 +1,5 @@
+// Ease-out count-up animation hook, used for stat tiles (history counts,
+// dataset totals) so numbers animate in rather than snapping to value.
 import { useEffect, useState } from 'react';
 
 /**

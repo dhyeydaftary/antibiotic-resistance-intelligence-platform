@@ -19,6 +19,10 @@ const JOURNEY_STEPS = [
  * 2. Prediction Journey — unchanged, nice visual guide.
  * 3. Dataset Coverage — quick stats about ward, organism, and specimen coverage.
  */
+// Three-column panel: rising-resistance alert (own getTrends() fetch
+// across all 15 antibiotics, same pattern as TrendsPage's overview),
+// a static prediction-journey visual, and dataset-coverage counts from
+// the datasetStats prop (fetched once by HomePage).
 function HomeToolsPanel({ datasetStats }) {
   const [overviewStats, setOverviewStats] = useState([]);
   const [loadingTrends, setLoadingTrends] = useState(true);
@@ -47,6 +51,8 @@ function HomeToolsPanel({ datasetStats }) {
     });
   }, []);
 
+  // Finds the antibiotic with the largest positive resistance delta,
+  // same logic as TrendsPage's risingTrend.
   const risingTrend = useMemo(() => {
     if (overviewStats.length === 0) return null;
     const sorted = [...overviewStats].sort((a, b) => b.delta - a.delta);

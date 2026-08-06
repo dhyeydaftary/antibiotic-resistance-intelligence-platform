@@ -18,6 +18,8 @@ const ITEMS = [
   { t: 'Cefazolin', a: 'Access' },
 ];
 
+// Infinite-scroll CSS marquee of real antibiotic names + AWaRe tiers
+// (list duplicated once so the loop is seamless).
 export default function Marquee() {
   const row = [...ITEMS, ...ITEMS];
   return (

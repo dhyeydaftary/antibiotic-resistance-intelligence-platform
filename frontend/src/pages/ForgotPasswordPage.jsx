@@ -20,6 +20,17 @@ import {
 
 import usePageTitle from '../hooks/usePageTitle';
 
+// ===================================================================
+// Route: /forgot-password (gated by GuestRoute). A single component
+// driving a 4-step wizard (step state, 0-3) rather than 4 separate
+// routes — email entry -> OTP verify -> new password -> success. Calls
+// four separate authApi endpoints in sequence (forgotPassword,
+// verifyResetOtp, resendOtp, resetPassword), matching the gateway's
+// separate signup-OTP vs. reset-OTP fields/endpoints. Does NOT log the
+// user in on completion — resetPassword succeeding just redirects to
+// /login, since the gateway also bumps tokenVersion on reset,
+// invalidating any old sessions.
+// ===================================================================
 const CODE_TTL_SECONDS = 90;
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -45,16 +56,19 @@ function ForgotPasswordPage() {
   const [resendIn, setResendIn] = useState(RESEND_COOLDOWN_SECONDS);
   const [invalidOtp, setInvalidOtp] = useState(false);
 
+  // Refocuses the email field whenever the wizard returns to step 0.
   useEffect(() => {
     if (step === 0) emailRef.current?.focus();
   }, [step]);
 
+  // Ticks the OTP-expiry countdown, only while on the code step.
   useEffect(() => {
     if (step !== 1 || expiresIn <= 0) return;
     const t = setInterval(() => setExpiresIn((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
   }, [step, expiresIn]);
 
+  // Ticks the resend cooldown, only while on the code step.
   useEffect(() => {
     if (step !== 1 || resendIn <= 0) return;
     const t = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
@@ -63,6 +77,7 @@ function ForgotPasswordPage() {
 
   const pwEval = useMemo(() => evaluatePassword(password), [password]);
 
+  // Step 0 -> 1: requests a reset code for the given email.
   const submitEmail = async (ev) => {
     ev.preventDefault();
     setBanner(null);
@@ -85,6 +100,8 @@ function ForgotPasswordPage() {
     toast.success(`Recovery code sent to ${email}.`);
   };
 
+  // Step 1 -> 2: verifies the reset code (read-only — doesn't consume it;
+  // resetPassword re-validates it again).
   const submitOtp = async (finalCode) => {
     const c = finalCode ?? code;
     if (c.length !== 6) return;
@@ -108,6 +125,7 @@ function ForgotPasswordPage() {
     });
   };
 
+  // Requests a fresh reset code and resets both countdowns on success.
   const doResend = async () => {
     setResending(true);
     setBanner(null);
@@ -122,6 +140,8 @@ function ForgotPasswordPage() {
     }
   };
 
+  // Step 2 -> 3: validates the new password and submits the reset,
+  // then redirects to /login (no auto-login — see file header).
   const submitReset = async (ev) => {
     ev.preventDefault();
     setBanner(null);

@@ -1,3 +1,7 @@
+// UNUSED — grep confirms no file imports from components/ui/button.
+// Auto-generated shadcn/ui button primitive (cva variant system); the
+// app uses its own components/app/PrimaryButton.jsx and
+// components/auth/Button.jsx instead.
 import * as React from "react"
 import { cva } from "class-variance-authority";
 import { Slot } from "radix-ui"

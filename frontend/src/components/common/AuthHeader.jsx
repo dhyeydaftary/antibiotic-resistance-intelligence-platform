@@ -1,3 +1,6 @@
+// UNUSED — grep confirms no page imports AuthHeader. Superseded by
+// components/auth/AuthLayout.jsx, which builds its own equivalent
+// logo + "Back to home" header inline instead of using this component.
 import { Link } from "react-router-dom";
 
 function AuthHeader() {

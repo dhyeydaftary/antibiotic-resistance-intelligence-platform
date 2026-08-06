@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUp } from "lucide-react";
 
+// Appears after scrolling past ~75% of one viewport height on the landing page.
 /**
  * Floating back-to-top button. Uses the page's Lenis instance (via ref) so
  * the scroll-up motion matches the rest of the page's smooth-scroll feel;

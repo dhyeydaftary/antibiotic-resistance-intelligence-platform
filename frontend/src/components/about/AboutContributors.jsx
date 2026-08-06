@@ -28,6 +28,7 @@ const CONTRIBUTORS = [
     },
 ];
 
+// About page Act V (cont.): the 3-person team and their ownership areas.
 export default function AboutContributors() {
     return (
         <ResearchSection

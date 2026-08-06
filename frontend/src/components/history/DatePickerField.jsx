@@ -5,6 +5,8 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-reac
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// Formats a Date as a local YYYY-MM-DD string (not toISOString, which
+// would shift by timezone offset).
 function toISODate(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -12,12 +14,16 @@ function toISODate(date) {
   return `${y}-${m}-${d}`;
 }
 
+// Formats a stored ISO date string into a human-readable display string.
 function formatDisplay(isoString) {
   if (!isoString) return null;
   const [y, m, d] = isoString.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Builds the 6-week (42-cell) calendar grid for a given month, padded
+// with the tail of the previous month and head of the next so the grid
+// always starts on Sunday and fills completely.
 function buildGrid(viewYear, viewMonth) {
   const firstOfMonth = new Date(viewYear, viewMonth, 1);
   const startOffset = firstOfMonth.getDay();
@@ -38,6 +44,9 @@ function buildGrid(viewYear, viewMonth) {
   return cells;
 }
 
+// Custom calendar date picker (portaled popover, month/year grid views)
+// used for the history filter bar's date-range inputs — no native
+// <input type="date"> here, for consistent cross-browser styling.
 const DatePickerField = ({ value, onChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showMonthGrid, setShowMonthGrid] = useState(false);
@@ -48,6 +57,7 @@ const DatePickerField = ({ value, onChange }) => {
   const [viewMonth, setViewMonth] = useState((selectedDate || today).getMonth());
   const triggerRef = useRef(null);
 
+  // Positions and opens the popover relative to the trigger button.
   const open = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
@@ -84,6 +94,7 @@ const DatePickerField = ({ value, onChange }) => {
 
   const isSameDay = (a, b) => a && b && a.toDateString() === b.toDateString();
 
+  // Commits a selected calendar date and closes the popover.
   const handleSelect = (cellDate) => {
     onChange(toISODate(cellDate));
     setIsOpen(false);

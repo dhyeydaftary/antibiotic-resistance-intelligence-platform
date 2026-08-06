@@ -13,6 +13,8 @@ const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:
  * invented "summary" — that would present made-up research findings as
  * real ones. It shows an honest disclosure instead.
  */
+// Expandable list of placeholder research headlines — see doc comment
+// above for why expanding one shows a disclosure, not a fake summary.
 function ResearchHubPanel() {
   const [openIndex, setOpenIndex] = useState(null);
 
