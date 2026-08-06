@@ -3,6 +3,8 @@ import Panel from '../app/Panel';
 
 const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
+// Clickable grid of every organism in the dataset with sample count/share;
+// selecting one highlights it across DatasetInsightPanel too.
 /**
  * organisms: real organismDistribution array from GET /predictor/dataset-stats
  * — [{ organism, count }], already sorted desc by caller.

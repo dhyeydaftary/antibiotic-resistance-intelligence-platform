@@ -1,3 +1,6 @@
+// Shared app-wide form primitives (Field label wrapper, TextInput,
+// SelectInput) — the "shared kit" version; PredictionInputPage.jsx
+// defines its own local near-duplicates instead of importing these.
 function Field({ label, children }) {
   return (
     <label className="block">
@@ -9,10 +12,12 @@ function Field({ label, children }) {
   );
 }
 
+// Shared Tailwind class string for this file's TextInput/SelectInput.
 function inputClasses(extra = '') {
   return `w-full rounded-[10px] border border-panel-border bg-panel-raised px-3.5 py-2.5 font-sans text-[15px] text-onpanel-ink placeholder:text-onpanel-faint outline-none transition-all duration-150 focus:border-accent-blue focus:shadow-focus-ring ${extra}`;
 }
 
+// Standard styled text input, no built-in error/label handling.
 export function TextInput({ name, value, onChange, type = 'text', required, ...rest }) {
   return (
     <input
@@ -27,6 +32,7 @@ export function TextInput({ name, value, onChange, type = 'text', required, ...r
   );
 }
 
+// Custom-arrow native <select>, no placeholder option support.
 export function SelectInput({ name, value, onChange, options }) {
   return (
     <div className="relative">

@@ -1,3 +1,5 @@
+// Real, verifiable academic citations backing the platform's claims
+// (WHO AWaRe, the SHAP paper, the CatBoost paper, and the Kaggle dataset).
 const REFERENCES = [
     {
         num: '01',
@@ -25,6 +27,7 @@ const REFERENCES = [
     },
 ];
 
+// Renders REFERENCES as a linked citation card grid, used in AboutBackMatter.
 export default function CitationList() {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">

@@ -1,3 +1,7 @@
+// UNUSED — grep confirms no page imports DemoHint. Small collapsible
+// hint block, presumably meant to show mock demo credentials on an auth
+// page; never wired up. Kept for reference, not dead-code cruft to be
+// surprised by if asked live.
 // Small editorial hint block explaining mock demo credentials so any
 // state can be exercised. Hairline-only, monospace, no bright chrome.
 export const DemoHint = ({ children, testId = "demo-hint" }) => (

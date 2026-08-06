@@ -1,5 +1,7 @@
 import { forwardRef, useId } from "react";
 
+// Standard labeled text input with inline error/hint text, used across
+// every auth form (email, name, etc).
 export const TextInput = forwardRef(function TextInput(
   { label, error, hint, id, type = "text", className = "", testId, required = false, ...props },
   ref,

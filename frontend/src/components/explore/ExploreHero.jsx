@@ -1,3 +1,4 @@
+// Static page-title header for DatasetExplorerPage — no props, no data.
 function ExploreHero() {
   return (
     <div className="py-4 sm:py-8">

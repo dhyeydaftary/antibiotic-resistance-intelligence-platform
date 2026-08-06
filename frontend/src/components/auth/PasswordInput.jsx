@@ -1,6 +1,7 @@
 import { forwardRef, useId, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
+// Text input with a show/hide-password toggle and inline error message.
 export const PasswordInput = forwardRef(function PasswordInput(
   { label = "Password", error, id, testId, className = "", required = false, ...props },
   ref,

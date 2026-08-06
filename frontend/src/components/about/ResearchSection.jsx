@@ -9,6 +9,8 @@ const fadeUp = {
     }),
 };
 
+// Shared section shell for every About page "Act" — kicker/title/
+// subtitle header (each fading in on scroll) + a max-width content area.
 export default function ResearchSection({
     id,
     testId,

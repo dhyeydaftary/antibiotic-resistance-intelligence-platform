@@ -1,5 +1,9 @@
 import { motion } from 'framer-motion';
 
+// Boolean switch styled as a full-width row (label + animated pill knob).
+// onChange is called with a synthetic {target: {name, type, checked}}
+// object so it's a drop-in replacement for a native checkbox's onChange
+// in the same form handler (see PredictionInputPage's handleChange).
 function Toggle({ label, checked, onChange, name }) {
   return (
     <button

@@ -3,6 +3,8 @@ import { Check } from "lucide-react";
 // Compact pill-chip layout instead of a stacked list — wraps into 1-2 lines
 // instead of taking up 5 full-width rows. If you had a specific reference
 // UI in mind, send it and I'll match it exactly.
+// Renders utils/validators.js's evaluatePassword() rule results as
+// pass/fail pill chips, live as the user types.
 export const PasswordChecklist = ({ results = [], testId }) => {
   return (
     <div className="mt-3 flex flex-wrap gap-1.5" data-testid={testId}>

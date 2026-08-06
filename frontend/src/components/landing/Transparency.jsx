@@ -44,6 +44,9 @@ const fadeUp = {
   }),
 };
 
+// "Evidence before confidence" landing section: links to the real,
+// verifiable data sources (Kaggle dataset, WHO AWaRe tool, PubMed),
+// a dataset spec table, and the prominent not-for-clinical-use disclaimer.
 export default function Transparency() {
   return (
     <section id="dataset" data-testid="transparency-section" className="bg-panel px-6 py-24 sm:py-32">

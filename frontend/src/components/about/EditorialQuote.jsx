@@ -9,6 +9,8 @@ const fadeUp = {
     }),
 };
 
+// Centered pull-quote block, reused wherever the About page needs a
+// standalone editorial statement (e.g. the closing philosophy quote).
 export default function EditorialQuote({ quote, subtext, kicker = 'Core Philosophy', className = '' }) {
     return (
         <div className={`py-6 text-center ${className}`}>

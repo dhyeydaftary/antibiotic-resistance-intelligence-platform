@@ -9,6 +9,8 @@ const ACKNOWLEDGEMENTS = [
     { label: 'Academic Context', body: 'Developed as a semester project spanning Full Stack Development and Python/FCSP.' },
 ];
 
+// About page Act VI (appendix): acknowledgements, platform metadata
+// (MetadataGrid), and scientific references (CitationList).
 export default function AboutBackMatter() {
     return (
         <ResearchSection

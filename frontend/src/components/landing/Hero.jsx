@@ -54,6 +54,8 @@ const KP_RADAR_DATA = [
   },
 ];
 
+// Radar-chart preview of real Klebsiella pneumoniae resistance rates
+// across all 15 antibiotics (see KP_RADAR_DATA comment for provenance).
 function PreviewCard() {
   return (
     <motion.div
@@ -87,6 +89,7 @@ function PreviewCard() {
   );
 }
 
+// Landing page's above-the-fold section: headline, CTAs, and the real-data radar preview.
 export default function Hero() {
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-canvas px-6 pb-20 pt-32">

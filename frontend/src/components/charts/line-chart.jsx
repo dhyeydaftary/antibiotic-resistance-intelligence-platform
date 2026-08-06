@@ -1,3 +1,9 @@
+// ===================================================================
+// LineChart — a top-level chart container from the same generated/
+// vendored components/charts/ library as area-chart.jsx (see that
+// file's header). Used by TrendsPage for the multi-organism resistance
+// comparison overlay (one <Line> per organism, colored series).
+// ===================================================================
 "use client";;
 import { ParentSize } from "@visx/responsive";
 import { Children, isValidElement, useCallback, useMemo, useRef, useState } from "react";

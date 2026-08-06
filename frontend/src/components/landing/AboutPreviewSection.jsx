@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 
+// Short teaser section linking to /about — static content, no data.
 export default function AboutPreviewSection() {
     return (
         <section className="bg-canvas px-6 py-16 sm:py-20">

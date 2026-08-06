@@ -4,6 +4,8 @@ import { ANTIBIOTIC_AWARE_MAP, AWARE_DESCRIPTIONS } from '../../constants/explor
 
 const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
+// Picks a day-of-year-indexed item from a list, so the choice rotates
+// daily but stays consistent within a day.
 // Deterministic daily rotation (same pattern as homeContent.js's
 // pickDailyQuestion) — the pick rotates, but every fact shown about the
 // pick is real: organism counts come from the real dataset-stats response,
@@ -13,6 +15,8 @@ function pickOfTheDay(list, seed = 0) {
   return list[(dayOfYear + seed) % list.length];
 }
 
+// "Featured organism" + "featured antibiotic of the day" cards — the
+// pick rotates daily, but every stat shown about it is real.
 function FeaturedPicksPanel({ organisms, totalRows }) {
   const featuredOrganism = organisms.length ? pickOfTheDay(organisms, 0) : null;
   const antibioticNames = Object.keys(ANTIBIOTIC_AWARE_MAP);

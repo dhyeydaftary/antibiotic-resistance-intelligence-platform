@@ -3,6 +3,7 @@ import { FlaskConical, ArrowRight } from 'lucide-react';
 import Panel from '../app/Panel';
 import PrimaryButton from '../app/PrimaryButton';
 
+// Zero-state shown on HistoryPage when the user has no saved predictions yet.
 const EmptyHistory = ({ onNewPrediction }) => {
   return (
     <Panel className="px-4 py-16 sm:py-20">

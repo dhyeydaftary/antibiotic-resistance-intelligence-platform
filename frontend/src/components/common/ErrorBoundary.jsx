@@ -10,10 +10,13 @@ class ErrorBoundary extends Component {
     this.state = { hasError: false };
   }
 
+  // React lifecycle hook: flips render state to the fallback UI once a
+  // descendant throws during render.
   static getDerivedStateFromError() {
     return { hasError: true };
   }
 
+  // React lifecycle hook: logs the error for debugging after it's been caught.
   componentDidCatch(error, errorInfo) {
     console.error('Uncaught error in component tree:', error, errorInfo);
   }

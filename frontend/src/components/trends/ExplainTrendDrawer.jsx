@@ -45,6 +45,7 @@ const sectionVariants = {
   visible: (i) => ({ opacity: 1, y: 0, transition: { duration: 0.35, delay: i * 0.05 } }),
 };
 
+// One collapsible-feeling (staggered fade-in) section within the drawer body.
 function Section({ label, icon: Icon, tone = 'indigo', index, first = false, plain = false, children }) {
   const t = SECTION_TONE[tone];
   return (
@@ -72,11 +73,19 @@ function Section({ label, icon: Icon, tone = 'indigo', index, first = false, pla
   );
 }
 
+// Right-side drawer (portaled, Framer Motion slide-in) showing
+// trend_insights.py's narrative explanation for the currently-selected
+// antibiotic/organism — summary, key observations, possible causes,
+// clinical relevance, AI forecast, and data sources. Opened from
+// TrendsPage's "Explain Trend" button; fetches fresh on every open
+// (not cached) since antibiotic/organism can change between opens.
 function ExplainTrendDrawer({ antibiotic, organism, isOpen, onClose }) {
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Fetches the trend explanation whenever the drawer opens (or its
+  // target antibiotic/organism changes while open).
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
@@ -91,6 +100,8 @@ function ExplainTrendDrawer({ antibiotic, organism, isOpen, onClose }) {
       .finally(() => setLoading(false));
   }, [antibiotic, organism, isOpen]);
 
+  // Locks background scroll while the drawer is open, restoring the
+  // previous overflow value on close/unmount.
   useEffect(() => {
     if (!isOpen) return;
     const originalOverflow = document.body.style.overflow;

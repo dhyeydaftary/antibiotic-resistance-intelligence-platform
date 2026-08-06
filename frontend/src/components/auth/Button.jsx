@@ -1,5 +1,7 @@
 import { Loader2, ArrowRight } from "lucide-react";
 
+// Full-width primary submit button with a built-in loading (spinner) state,
+// used for every auth form's main action.
 export const PrimaryButton = ({
   children, loading = false, loadingText, disabled, className = "", type = "button", testId, ...props
 }) => {
@@ -27,6 +29,7 @@ export const PrimaryButton = ({
   );
 };
 
+// Full-width secondary/low-emphasis button (outline style, no loading state).
 export const GhostButton = ({ children, disabled, className = "", type = "button", testId, ...props }) => (
   <button
     type={type}

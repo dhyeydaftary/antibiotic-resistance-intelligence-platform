@@ -1,3 +1,12 @@
+// ===================================================================
+// RingChart — a top-level chart container from the same generated/
+// vendored components/charts/ library as area-chart.jsx (see that
+// file's header). Renders concentric progress rings; used by
+// PredictionResultPage for the R/S/I result-distribution donut.
+// Notably renders SVG (rings) and HTML (RingCenter text) in separate
+// CSS-Grid-stacked layers rather than an SVG <foreignObject>, to avoid
+// a known Safari rendering bug with HTML content inside SVG.
+// ===================================================================
 "use client";;
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";

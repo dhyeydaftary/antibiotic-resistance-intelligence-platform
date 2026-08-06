@@ -12,6 +12,15 @@ import HomeToolsPanel from '../components/home/HomeToolsPanel';
 import HomeQuoteBanner from '../components/home/HomeQuoteBanner';
 import ScrollReveal from '../components/home/ScrollReveal';
 
+// ===================================================================
+// Route: /home (ProtectedRoute-gated) — the post-login landing page.
+// Two independent data sources: getHistory() (this user's own
+// predictions, aggregated client-side into stats/daily-series/recent-
+// list below) and getDatasetStats() (the shared training dataset, for
+// headline pills in HomeToolsPanel/HomeOverviewPanel). Neither failure
+// blocks the other — dataset-stats errors degrade to a dismissible
+// banner while history-derived panels still render with real data.
+// ===================================================================
 const EMPTY_STATS = {
   total: 0,
   thisWeek: 0,
@@ -22,6 +31,7 @@ const EMPTY_STATS = {
   avgConfidence: 0,
 };
 
+// Flattens one history record into its per-antibiotic {result, confidence} pairs.
 function flattenRecord(record) {
   return (record.predictions || []).map((p) => ({
     result: p.result,
@@ -29,6 +39,8 @@ function flattenRecord(record) {
   }));
 }
 
+// Aggregates raw history records into the overview stat-tile values
+// (totals, week-over-week trend %, most common result, avg confidence).
 function computeStats(records) {
   if (!records.length) return EMPTY_STATS;
 
@@ -74,6 +86,8 @@ function computeStats(records) {
   };
 }
 
+// Buckets records into the last N calendar days (including empty days)
+// for the daily activity mini-chart.
 function buildDailySeries(records, days = 8) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -111,6 +125,8 @@ function buildDailySeries(records, days = 8) {
   }));
 }
 
+// Returns the N most recent records' primary (first) prediction, for
+// the "recent predictions" list.
 function getRecentPredictions(records, limit = 5) {
   const sorted = [...records].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   return sorted.slice(0, limit).map((record) => {
@@ -125,6 +141,7 @@ function getRecentPredictions(records, limit = 5) {
   });
 }
 
+// Post-login dashboard: user's own prediction activity + shared dataset context.
 function HomePage() {
   usePageTitle('Home');
   
@@ -139,6 +156,8 @@ function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
+    // Fetches this user's history and derives every stat/series/list
+    // panel below needs — a single fetch, computed three ways.
     async function load() {
       setLoading(true);
       try {

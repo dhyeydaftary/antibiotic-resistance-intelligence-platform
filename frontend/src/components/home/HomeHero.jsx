@@ -1,3 +1,4 @@
+// Personalized greeting header for /home, using the first name from AuthContext's user.
 function HomeHero({ name }) {
   return (
     <div className="py-4 sm:py-8">

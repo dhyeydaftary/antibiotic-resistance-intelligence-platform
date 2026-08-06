@@ -1,6 +1,8 @@
 import ResearchSection from './ResearchSection';
 import PipelineDiagram from './PipelineDiagram';
 
+// About page Act IV (methodology): wraps PipelineDiagram in the shared
+// ResearchSection layout.
 export default function AboutPipeline() {
     return (
         <ResearchSection

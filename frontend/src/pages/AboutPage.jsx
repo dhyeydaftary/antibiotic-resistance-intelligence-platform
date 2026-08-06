@@ -1,3 +1,12 @@
+// ===================================================================
+// Route: /about — public (no auth gate; see routes/AppRoutes.jsx).
+// Long-form academic/editorial page, structured as 7 "Acts" each a
+// dedicated components/about/* section (premise, the gap it fills,
+// philosophy, trust boundaries, methodology/explainability, audience/
+// contributors, appendix, future work). No data fetching — this is a
+// static essay about the project, unlike the app pages. Supports
+// deep-linking to a section via URL hash (e.g. /about#dataset).
+// ===================================================================
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import usePageTitle from '../hooks/usePageTitle';
@@ -12,10 +21,13 @@ import AboutContributors from '../components/about/AboutContributors';
 import AboutBackMatter from '../components/about/AboutBackMatter';
 import AboutFutureWork from '../components/about/AboutFutureWork';
 
+// Long-form "about" essay, composed of the 7 Act sections below.
 function AboutPage() {
     usePageTitle('About');
     const location = useLocation();
 
+    // Jumps to a hash-targeted section instantly (no smooth-scroll) on
+    // navigation, or to the top of the page if there's no hash.
     useEffect(() => {
         if (location.hash) {
             const targetId = location.hash.replace('#', '');
