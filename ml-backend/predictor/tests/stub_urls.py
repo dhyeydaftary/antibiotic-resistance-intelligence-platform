@@ -12,10 +12,13 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 
+# Minimal stub view that returns 200 without touching request.user.
 def stub_view(request):
     return JsonResponse({'ok': True})
 
 
+# Stub DRF view that forces request.user resolution, reproducing the
+# django.contrib.auth crash path with minimal code.
 @api_view(['GET'])
 def drf_stub_view(request):
     # Accessing request.user is exactly the interaction that previously

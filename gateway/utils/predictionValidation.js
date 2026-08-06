@@ -53,10 +53,12 @@ const OPTIONAL_FIELDS = [
   { name: 'bmi', type: 'float', min: 8, max: 80 },
 ];
 
+// Checks that a value is a plain object (not null, not an array).
 function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// Validates a single field's value against its declared type/range/choices.
 // Returns an error message string, or null if valid.
 function checkType(value, field) {
   switch (field.type) {
@@ -95,6 +97,7 @@ function checkType(value, field) {
   }
 }
 
+// Entry point: validates and whitelists a /predict request body.
 // Validates `body` against the field contract above. On success, returns
 // { valid: true, data } where `data` contains ONLY the declared fields
 // (whitelisted) — any extra/unexpected keys in `body` are dropped. On

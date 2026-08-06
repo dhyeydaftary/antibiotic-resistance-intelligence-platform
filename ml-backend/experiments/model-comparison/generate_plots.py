@@ -30,6 +30,7 @@ COLORS = {
 }
 
 
+# Draws a per-model mean+std bar chart for one benchmark metric.
 def _bar_with_error(df, metric, ylabel, title, out_path):
     agg = df.groupby('Model')[metric].agg(['mean', 'std']).reindex(MODEL_ORDER)
 
@@ -53,6 +54,7 @@ def _bar_with_error(df, metric, ylabel, title, out_path):
     print(f"Wrote {out_path}")
 
 
+# Draws a per-model boxplot showing metric spread across antibiotics.
 def _boxplot_variance(df, metric, ylabel, title, out_path):
     data = [df[df['Model'] == m][metric].dropna().values for m in MODEL_ORDER]
 
@@ -73,6 +75,7 @@ def _boxplot_variance(df, metric, ylabel, title, out_path):
     print(f"Wrote {out_path}")
 
 
+# Entry point: loads benchmark results and writes all comparison plots.
 def main():
     df = pd.read_csv(RESULTS_CSV)
     df = df.dropna(subset=['Accuracy'])  # drop any errored (antibiotic, model) rows

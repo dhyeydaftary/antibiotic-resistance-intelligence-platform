@@ -24,6 +24,7 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 
 
+# Regression tests confirming DRF authentication works without django.contrib.auth.
 @override_settings(ROOT_URLCONF='predictor.tests.stub_urls')
 class DjangoContribAuthRegressionTests(TestCase):
     def test_precondition_django_contrib_auth_is_not_installed(self):

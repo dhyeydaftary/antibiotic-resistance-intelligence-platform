@@ -1,3 +1,23 @@
+# ===================================================================
+# DRF function-based views for every /api/... route the Django side
+# exposes (wired up in predictor/urls.py -> amr_project/urls.py).
+# Reached exclusively from the Node gateway (routes/prediction.js) via
+# utils/djangoClient.js — InternalApiKeyMiddleware (amr_project/
+# middleware.py) rejects any request that doesn't carry the shared
+# internal key, so these endpoints are not meant to be called directly
+# by a browser. Every view here is deliberately thin: validate input,
+# delegate to a dedicated module, wrap the result (or a failure) in the
+# same {success, data, error} envelope the gateway also uses end-to-end.
+#
+# predict_view is the core endpoint (predict_resistance() in predict.py
+# for the 15 per-antibiotic CatBoost predictions, then
+# generate_ai_insights() in ai_insights.py for the Gemini-authored plain-
+# English summary layered on top). extract_report_view is the other
+# Gemini-backed endpoint (extract_report_llm.py), used to auto-fill the
+# prediction form from an uploaded lab report PDF — note it always
+# returns success: true even when LLM extraction fails, since a failed
+# auto-fill should degrade to a manual form, not a hard error.
+# ===================================================================
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -19,6 +39,8 @@ import io
 logger = logging.getLogger(__name__)
 
 
+# Returns month-by-month resistance-rate history for one antibiotic,
+# optionally filtered by organism/ward.
 @api_view(['GET'])
 def trends_view(request):
     antibiotic = request.query_params.get('antibiotic')
@@ -90,6 +112,8 @@ def trends_view(request):
     )
 
 
+# Returns a narrative explanation (summary, causes, forecast) of a
+# resistance trend, built on top of trends_view's underlying series.
 @api_view(['GET'])
 def explain_trend_view(request):
     antibiotic = request.query_params.get('antibiotic')
@@ -135,6 +159,7 @@ def explain_trend_view(request):
     )
 
 
+# Returns summary statistics about the training dataset itself.
 @api_view(['GET'])
 def dataset_stats_view(request):
     try:
@@ -164,6 +189,12 @@ def dataset_stats_view(request):
     )
 
 
+# Validates patient data, runs the ML predictions, and layers an
+# AI-generated insights summary on top.
+# POST /predict/ — the ML pipeline's actual entry point. serializer
+# validation here is the real authority on request shape (the gateway's
+# utils/predictionValidation.js is a mirrored pre-check, not the source
+# of truth), so this must stay in sync with that file's field list.
 @api_view(['POST'])
 def predict_view(request):
     serializer = PredictionRequestSerializer(data=request.data)
@@ -216,6 +247,7 @@ def predict_view(request):
     )
 
 
+# Returns real PubMed research papers relevant to an antibiotic/organism.
 @api_view(['GET'])
 def research_papers_view(request):
     antibiotic = request.query_params.get('antibiotic')
@@ -261,6 +293,8 @@ def research_papers_view(request):
     )
 
 
+# Extracts patient fields from an uploaded PDF lab report via Gemini, to
+# auto-fill the prediction form. Degrades to manual entry on failure.
 @api_view(['POST'])
 def extract_report_view(request):
     uploaded_file = request.FILES.get('report')

@@ -85,15 +85,18 @@ assert set(SPECIMEN_PRIORS.keys()) == set(ORGANISM_LIST), (
 SPECIMEN_LEVELS = ["Blood", "Urine", "Wound", "Respiratory", "Catheter"]
 
 
+# Loads the original (pre-augmentation) cleaned dataset CSV.
 def load_data():
     df = pd.read_csv(INPUT_PATH)
     return df
 
 
+# Draws n random categorical values from the given levels/weights.
 def sample_categorical(n, levels, weights):
     return rng.choice(levels, size=n, p=weights)
 
 
+# Synthesizes a Ward_Type column, conditioned on legitimate pre-outcome inputs.
 def add_ward_type(df):
     # Higher prior hospitalization + higher infection frequency -> higher ICU probability.
     # Legitimate pre-outcome inputs only (no resistance conditioning).
@@ -105,6 +108,7 @@ def add_ward_type(df):
     return np.where(draws < icu_prob, "ICU", "General Ward")
 
 
+# Synthesizes a Specimen_Source column using per-organism sampling priors.
 def add_specimen_source(df):
     out = np.empty(len(df), dtype=object)
     for organism, weights in SPECIMEN_PRIORS.items():
@@ -120,6 +124,8 @@ def add_specimen_source(df):
     return out
 
 
+# Synthesizes a Previous_Antibiotic_Use column, conditioned on legitimate
+# pre-outcome inputs.
 def add_previous_antibiotic_use(df):
     prior_hosp = (df["Hospital_before"] == "Yes").astype(int).values
     inf_freq = df["Infection_Freq"].values
@@ -129,11 +135,14 @@ def add_previous_antibiotic_use(df):
     return np.where(draws < prob_yes, "Yes", "No")
 
 
+# Synthesizes CKD/liver-disease/cancer/immunocompromised flags, each
+# conditioned on age and existing comorbidities.
 def add_comorbidities(df):
     age = df["Age"].values
     diabetes = (df["Diabetes"] == "Yes").astype(int).values
     hyper = (df["Hypertension"] == "Yes").astype(int).values
 
+    # Draws a Yes/No column from a per-row Bernoulli probability.
     def bern(prob):
         return np.where(rng.random(len(df)) < prob, "Yes", "No")
 
@@ -150,6 +159,8 @@ def add_comorbidities(df):
     )
 
 
+# Synthesizes lab values (WBC, CRP, creatinine, eGFR, etc.), mildly
+# conditioned on infection frequency, age, and CKD status.
 def add_labs(df, ckd_status):
     n = len(df)
     age = df["Age"].values
@@ -183,6 +194,8 @@ def add_labs(df, ckd_status):
     }
 
 
+# Synthesizes vital signs (temperature, heart rate, resp rate, SpO2),
+# mildly conditioned on infection frequency.
 def add_vitals(df):
     n = len(df)
     inf_freq = df["Infection_Freq"].values
@@ -203,9 +216,12 @@ def add_vitals(df):
     }
 
 
+# Synthesizes fever/cough/burning-urination/wound-infection flags,
+# conditioned on the (already synthesized) specimen source.
 def add_symptoms(specimen_source):
     n = len(specimen_source)
 
+    # Draws a Yes/No column with a boosted probability where a mask is true.
     def bern(prob_yes_mask, base_prob, boosted_prob):
         probs = np.where(prob_yes_mask, boosted_prob, base_prob)
         return np.where(rng.random(n) < probs, "Yes", "No")
@@ -218,6 +234,7 @@ def add_symptoms(specimen_source):
     return fever, cough, burning_urination, wound_infection
 
 
+# Synthesizes weight/BMI from gender-based height/weight distributions.
 def add_demographics(df):
     n = len(df)
     age = df["Age"].values
@@ -250,6 +267,8 @@ def add_demographics(df):
     }
 
 
+# Checks every new synthetic column for suspicious correlation with the
+# real antibiotic-resistance labels (target leakage).
 def validate_no_leakage(df, new_cols):
     """
     Encode each antibiotic result numerically (R=1, I=0.5, S=0) and correlate
@@ -302,6 +321,8 @@ def validate_no_leakage(df, new_cols):
     return report, ok
 
 
+# Entry point: generates all synthetic columns, writes the augmented
+# CSV, and runs the leakage check.
 def main():
     df = load_data()
     original_cols = set(df.columns)

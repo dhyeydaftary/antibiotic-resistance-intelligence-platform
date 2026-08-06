@@ -1,3 +1,27 @@
+# ===================================================================
+# Turns predict.py's raw per-antibiotic predictions (result, confidence,
+# SHAP values) into the "aiInsights" block of the /predict/ response:
+# a narrative summary, a plain-English SHAP explanation, a risk rating,
+# similar historical cases, and recommended next steps. Called only
+# from views.py's predict_view, right after predict_resistance().
+#
+# Two-tier generation strategy, by design: everything is first computed
+# deterministically from the actual prediction data (_build_summary,
+# _build_confidence_text, _build_plain_explanation, the risk-level
+# block) — these never fail and never hallucinate, since they're just
+# string-templating real numbers. generate_ai_insights() THEN tries to
+# replace the summary/next-steps text with a Gemini-authored version
+# (_generate_llm_summary_and_next_steps), grounded in a facts dict built
+# from those same computed numbers (_build_grounding_facts) so Gemini
+# can't invent antibiotic names or statistics. Any Gemini failure (no
+# API key, timeout, malformed JSON) silently falls back to the
+# deterministic template — a prediction response is never incomplete or
+# blocked on an external LLM call succeeding.
+#
+# Talks to: ml_artifacts/cleaned_dataset.csv (historical-case lookup),
+# Gemini API (google-genai client), predict.py's output shape (reads
+# result/confidence/shapExplanation/awareCategory off each prediction).
+# ===================================================================
 import pandas as pd
 import os
 import json
@@ -30,6 +54,7 @@ RESERVE_TIER = 'Reserve'
 WATCH_TIER = 'Watch'
 
 
+# Lazily loads and caches the historical dataset CSV.
 def _load_data():
     global _df
     if _df is None:
@@ -40,6 +65,7 @@ def _load_data():
     return _df
 
 
+# Lazily loads and caches the list of antibiotic column names.
 def _load_antibiotic_columns():
     global _antibiotic_columns
     if _antibiotic_columns is None:
@@ -48,6 +74,8 @@ def _load_antibiotic_columns():
     return _antibiotic_columns
 
 
+# Finds real historical patients matching this organism/age band and
+# summarizes their actual resistance rates per antibiotic.
 def get_similar_historical_cases(organism, age):
     df = _load_data()
     antibiotic_columns = _load_antibiotic_columns()
@@ -88,10 +116,12 @@ def get_similar_historical_cases(organism, age):
     }
 
 
+# Rounds a fraction of total to a whole-number percentage.
 def _pct(n, total):
     return round((n / total) * 100) if total else 0
 
 
+# Joins a list of names into readable English ("A, B, and C").
 def _join_names(names):
     names = list(names)
     if len(names) == 1:
@@ -101,6 +131,8 @@ def _join_names(names):
     return f"{', '.join(names[:-1])}, and {names[-1]}"
 
 
+# Template-based (non-LLM) narrative summary of the resistance panel.
+# Fallback used if the Gemini-generated summary is unavailable.
 def _build_summary(resistant, susceptible, intermediate, total, reserve_resistant, watch_resistant):
     r_pct = _pct(len(resistant), total)
     s_pct = _pct(len(susceptible), total)
@@ -150,6 +182,7 @@ def _build_summary(resistant, susceptible, intermediate, total, reserve_resistan
     return ' '.join(parts)
 
 
+# Builds a plain-English summary of prediction confidence across the panel.
 def _build_confidence_text(predictions, low_confidence, high_confidence):
     avg_conf = sum(p['confidence'] for p in predictions) / len(predictions)
     conf_pct = round(avg_conf * 100)
@@ -179,6 +212,8 @@ def _build_confidence_text(predictions, low_confidence, high_confidence):
     return base
 
 
+# Checks whether a one-hot category feature is actually true for this
+# patient, before letting downstream text name it.
 def _is_named_category_present(feature_name, value):
     """
     Organism_* and Specimen_Source_* are one-hot dummies whose humanized text
@@ -194,6 +229,8 @@ def _is_named_category_present(feature_name, value):
     return True
 
 
+# Finds the single most common SHAP driver behind resistant predictions
+# and describes it in plain English.
 def _build_plain_explanation(resistant, total):
     if not resistant:
         return (
@@ -252,6 +289,8 @@ def _build_plain_explanation(resistant, total):
 # back to _build_summary() and the template-based next_steps list, so a
 # prediction can never fail or go incomplete because of this call.
 
+# Assembles the plain-facts dict handed to Gemini, so it can only cite
+# real numbers, never invent its own.
 def _build_grounding_facts(
     resistant, susceptible, intermediate, total,
     reserve_resistant, watch_resistant, access_resistant,
@@ -300,6 +339,7 @@ Return ONLY valid JSON, no markdown code fences, no explanation text, in exactly
 """
 
 
+# Removes ```json fences Gemini sometimes wraps its response in.
 def _strip_code_fences(text):
     text = text.strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -307,6 +347,7 @@ def _strip_code_fences(text):
     return text.strip()
 
 
+# Calls Gemini to author the summary/next-steps text, grounded in facts.
 def _generate_llm_summary_and_next_steps(facts):
     """
     Returns (summary_or_None, next_steps_or_None, error_or_None).
@@ -347,6 +388,12 @@ def _generate_llm_summary_and_next_steps(facts):
         return None, None, f"Gemini insight generation failed: {e}"
 
 
+# Turns raw predictions into the full aiInsights response block.
+# Entry point called from views.py. patient_data is the validated
+# request payload (used here only for the historical-case lookup:
+# organism + age); predictions is predict_resistance()'s full output
+# list. Always returns a complete insights dict — the Gemini path is
+# best-effort and transparently falls back to the template path below.
 def generate_ai_insights(patient_data, predictions):
     resistant = [p for p in predictions if p['result'] == 'R']
     susceptible = [p for p in predictions if p['result'] == 'S']
@@ -473,6 +520,7 @@ def generate_ai_insights(patient_data, predictions):
     }
 
 
+# Maps an internal feature column name to a readable clinical phrase.
 def _humanize_feature(feature_name):
     """Convert internal feature column names into readable phrases."""
     mapping = {
