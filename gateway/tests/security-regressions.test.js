@@ -540,12 +540,21 @@ describe('CORS', () => {
 // real verifyLimiter) can be produced, plus a synthetic route and the same
 // final error-handling middleware shape as index.js for the 500 case.
 function buildFullAppWithHeaders() {
-  const { clearCache, createUserStore, attachUserStore, mockSecurityEvent, paths } = require('./helpers');
+  const {
+    clearCache, createUserStore, attachUserStore,
+    createPendingSignupStore, attachPendingSignupStore,
+    mockSecurityEvent, paths,
+  } = require('./helpers');
   clearCache(paths.AUTH_ROUTE_PATH, paths.AUTH_RATE_LIMITERS_PATH);
 
   const User = require(paths.USER_MODEL_PATH);
+  const PendingSignup = require(paths.PENDING_SIGNUP_MODEL_PATH);
   const SecurityEvent = require(paths.SECURITY_EVENT_MODEL_PATH);
   attachUserStore(User, createUserStore());
+  // /login now falls back to PendingSignup when no User is found (see
+  // auth.js) — without this mock, that call hits the real, unconnected
+  // Mongoose model and hangs until Mongoose's buffering timeout.
+  attachPendingSignupStore(PendingSignup, createPendingSignupStore());
   mockSecurityEvent(SecurityEvent);
   const authRoutes = require(paths.AUTH_ROUTE_PATH);
 

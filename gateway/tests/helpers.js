@@ -20,6 +20,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 
 const USER_MODEL_PATH = require.resolve('../models/User');
+const PENDING_SIGNUP_MODEL_PATH = require.resolve('../models/PendingSignup');
 const SECURITY_EVENT_MODEL_PATH = require.resolve('../models/SecurityEvent');
 const PREDICTION_HISTORY_MODEL_PATH = require.resolve('../models/PredictionHistory');
 const AUTH_ROUTE_PATH = require.resolve('../routes/auth');
@@ -40,6 +41,14 @@ let idCounter = 0;
 function nextId() {
   idCounter += 1;
   return String(idCounter).padStart(24, '0');
+}
+
+// Mirrors auth.js's own getPendingSignupExpiry() (PENDING_SIGNUP_TTL_MINUTES
+// = 20, kept local to that file, not exported) — tests that seed a
+// PendingSignup directly need a matching expiresAt so it stays consistent
+// with otpExpiry, same as the real route would set it.
+function pendingSignupExpiry() {
+  return new Date(Date.now() + 20 * 60 * 1000);
 }
 
 // In-memory Map-based stand-in for MongoDB. Documents are plain objects
@@ -114,6 +123,69 @@ function attachUserStore(User, store) {
   User.create = store.create;
 }
 
+// Same Map-based approach as createUserStore, sized for PendingSignup's
+// smaller field set. Also needs a working deleteOne (instance method, to
+// match how auth.js calls it: `pending.deleteOne()`) — the real
+// /verify-otp deletes the pending row once it becomes a User.
+function createPendingSignupStore() {
+  const byId = new Map();
+
+  function withInstanceMethods(doc) {
+    if (!doc.save) {
+      doc.save = async function save() {
+        byId.set(String(doc._id), doc);
+        return doc;
+      };
+    }
+    if (!doc.deleteOne) {
+      doc.deleteOne = async function deleteOne() {
+        byId.delete(String(doc._id));
+      };
+    }
+    return doc;
+  }
+
+  function withDefaults(fields) {
+    return {
+      _id: nextId(),
+      otpAttempts: 0,
+      otp: null,
+      otpExpiry: null,
+      expiresAt: null,
+      ...fields,
+    };
+  }
+
+  return {
+    byId,
+    // Test-only helper: insert a document directly, bypassing /signup.
+    seed(fields) {
+      const doc = withInstanceMethods(withDefaults(fields));
+      byId.set(doc._id, doc);
+      return doc;
+    },
+    async findOne(query = {}) {
+      if (query.email !== undefined) {
+        for (const doc of byId.values()) {
+          if (doc.email === query.email) return withInstanceMethods(doc);
+        }
+        return null;
+      }
+      return null;
+    },
+    async create(fields) {
+      const doc = withInstanceMethods(withDefaults(fields));
+      byId.set(doc._id, doc);
+      return doc;
+    },
+  };
+}
+
+function attachPendingSignupStore(PendingSignup, store) {
+  PendingSignup.findOne = store.findOne;
+  PendingSignup.create = store.create;
+}
+
 function mockSecurityEvent(SecurityEvent) {
   const events = [];
   SecurityEvent.create = async (fields) => {
@@ -167,11 +239,14 @@ function buildAuthApp() {
   clearCache(AUTH_ROUTE_PATH, AUTH_RATE_LIMITERS_PATH);
 
   const User = require(USER_MODEL_PATH);
+  const PendingSignup = require(PENDING_SIGNUP_MODEL_PATH);
   const SecurityEvent = require(SECURITY_EVENT_MODEL_PATH);
   const emailUtil = require(EMAIL_UTIL_PATH);
 
   const userStore = createUserStore();
   attachUserStore(User, userStore);
+  const pendingStore = createPendingSignupStore();
+  attachPendingSignupStore(PendingSignup, pendingStore);
   const events = mockSecurityEvent(SecurityEvent);
   const emails = mockEmailUtil(emailUtil);
 
@@ -190,7 +265,7 @@ function buildAuthApp() {
     res.status(200).json({ success: true, data: { userId: req.userId }, error: null });
   });
 
-  return { app, userStore, User, events, emails };
+  return { app, userStore, User, pendingStore, PendingSignup, events, emails };
 }
 
 // Builds a fresh Express app mounting routes/prediction.js, same
@@ -249,6 +324,9 @@ module.exports = {
   nextId,
   createUserStore,
   attachUserStore,
+  createPendingSignupStore,
+  attachPendingSignupStore,
+  pendingSignupExpiry,
   mockSecurityEvent,
   mockPredictionHistory,
   mockEmailUtil,
@@ -258,6 +336,7 @@ module.exports = {
   signTestToken,
   paths: {
     USER_MODEL_PATH,
+    PENDING_SIGNUP_MODEL_PATH,
     SECURITY_EVENT_MODEL_PATH,
     PREDICTION_HISTORY_MODEL_PATH,
     AUTH_ROUTE_PATH,

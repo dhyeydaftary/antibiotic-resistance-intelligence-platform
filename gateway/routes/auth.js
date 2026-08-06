@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const PendingSignup = require('../models/PendingSignup');
 const SecurityEvent = require('../models/SecurityEvent');
 const { logError } = require('../utils/logger');
 const { sendOtpEmail, sendWelcomeEmail } = require('../utils/emailUtil');
@@ -31,6 +32,17 @@ const router = express.Router();
 // not an oversight.
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOGIN_LOCKOUT_MINUTES = 15;
+
+// How long a PendingSignup row lives before the TTL index (see the model)
+// sweeps it. Deliberately longer than OTP_TTL_MINUTES (otpUtil.js, 10 min)
+// — the OTP itself expires faster than the row does, so a user who lets
+// their code lapse still has time left to hit /resend-otp before the whole
+// signup attempt is gone. Recomputed via getPendingSignupExpiry() at every
+// site that also recomputes otpExpiry, so the two always move together.
+const PENDING_SIGNUP_TTL_MINUTES = 20;
+function getPendingSignupExpiry() {
+  return new Date(Date.now() + PENDING_SIGNUP_TTL_MINUTES * 60 * 1000);
+}
 
 // Standard shape for a "too many failed attempts" response — mirrors the
 // error envelope used everywhere else in this file.
@@ -109,10 +121,12 @@ function recordSecurityEvent(eventType, { email, userId = null, ip = null }) {
 
 // ---------------------------------------------------------------
 // POST /signup
-// Creates an unverified account, generates an OTP, emails it.
-// If an unverified account already exists for this email, it's reused
-// (name/password updated, new OTP issued) rather than blocked — this
-// prevents users who abandoned verification from being permanently stuck.
+// Nothing is written to the users collection here — a PendingSignup row
+// is created (or, for a retried signup, overwritten) instead, and only
+// becomes a real User once /verify-otp succeeds. This means an abandoned
+// signup (wrong email, closed tab, code never entered) never leaves a
+// permanent account behind — PendingSignup rows also carry a TTL index
+// (see the model) that sweeps them automatically either way.
 // ---------------------------------------------------------------
 router.post('/signup', signupLimiter, async (req, res) => {
   try {
@@ -142,9 +156,12 @@ router.post('/signup', signupLimiter, async (req, res) => {
       });
     }
 
+    // A User document only ever exists once verified — /verify-otp is the
+    // only place one is ever created, and always with isVerified: true —
+    // so "a User exists for this email" and "a verified account already
+    // exists" are now the same fact. No separate isVerified check needed.
     const existingUser = await User.findOne({ email });
-
-    if (existingUser && existingUser.isVerified) {
+    if (existingUser) {
       return res.status(400).json({
         success: false,
         data: null,
@@ -161,38 +178,43 @@ router.post('/signup', signupLimiter, async (req, res) => {
     const otpHash = await hashOtp(otp);
     const otpExpiry = getOtpExpiry();
 
-    let user;
-    if (existingUser && !existingUser.isVerified) {
-      existingUser.name = name;
-      existingUser.passwordHash = passwordHash;
-      existingUser.otp = otpHash;
-      existingUser.otpExpiry = otpExpiry;
-      existingUser.otpAttempts = 0; // fresh code -> fresh attempt budget
-      user = await existingUser.save();
+    const existingPending = await PendingSignup.findOne({ email });
+
+    let pending;
+    if (existingPending) {
+      existingPending.name = name;
+      existingPending.passwordHash = passwordHash;
+      existingPending.otp = otpHash;
+      existingPending.otpExpiry = otpExpiry;
+      existingPending.otpAttempts = 0; // fresh code -> fresh attempt budget
+      existingPending.expiresAt = getPendingSignupExpiry();
+      pending = await existingPending.save();
     } else {
-      user = await User.create({
+      pending = await PendingSignup.create({
         name,
         email,
         passwordHash,
         otp: otpHash,
         otpExpiry,
         otpAttempts: 0,
-        isVerified: false,
+        expiresAt: getPendingSignupExpiry(),
       });
     }
 
-    const emailResult = await sendOtpEmail(user.email, otp, 'verify');
+    const emailResult = await sendOtpEmail(pending.email, otp, 'verify');
     if (!emailResult.success) {
       logError('Signup OTP email failed to send', { error: emailResult.error });
-      // Account still created — user can use /resend-otp to retry.
+      // Pending signup still created — user can use /resend-otp to retry.
     }
 
-    recordSecurityEvent('SIGNUP', { email: user.email, userId: user._id, ip: req.ip });
+    // No User document exists yet at signup time — userId is null, same
+    // precedent as LOGIN_FAILURE's userId for a nonexistent email below.
+    recordSecurityEvent('SIGNUP', { email: pending.email, userId: null, ip: req.ip });
 
     res.status(201).json({
       success: true,
       data: {
-        email: user.email,
+        email: pending.email,
       },
       error: null,
     });
@@ -213,9 +235,14 @@ router.post('/signup', signupLimiter, async (req, res) => {
 
 // ---------------------------------------------------------------
 // POST /login
-// Unchanged except: blocks unverified accounts with a distinct error code
-// so the frontend can redirect to /verify-email instead of showing a
-// generic auth failure.
+// A real User document is always verified (see /verify-otp — it's the
+// only place one is created, always with isVerified: true), so a failed
+// User lookup below also falls back to checking PendingSignup: a correct
+// password against a pending signup returns the same NOT_VERIFIED shape
+// as before, so the frontend can redirect to /verify-email instead of
+// showing a generic auth failure — but only after a password match, so a
+// wrong-password guess against a pending signup is indistinguishable from
+// one against a truly nonexistent email.
 // ---------------------------------------------------------------
 router.post('/login', verifyLimiter, async (req, res) => {
   try {
@@ -245,6 +272,28 @@ router.post('/login', verifyLimiter, async (req, res) => {
 
     const user = await User.findOne({ email });
     if (!user) {
+      // No verified account for this email — but a pending, not-yet-
+      // verified signup might exist. Only reveal that (via the same
+      // NOT_VERIFIED response /login has always returned for an
+      // unverified account) once the submitted password actually matches
+      // the pending signup's passwordHash, mirroring the "correct
+      // password required before revealing any distinguishing state"
+      // property this route already enforces via the lockout check below.
+      const pending = await PendingSignup.findOne({ email });
+      if (pending) {
+        const pendingMatch = await bcrypt.compare(password, pending.passwordHash);
+        if (pendingMatch) {
+          return res.status(403).json({
+            success: false,
+            data: { email: pending.email },
+            error: {
+              code: 'NOT_VERIFIED',
+              message: 'Account not verified — please verify your email',
+              field: null,
+            },
+          });
+        }
+      }
       recordSecurityEvent('LOGIN_FAILURE', { email, userId: null, ip: req.ip });
       return invalidCredentialsResponse();
     }
@@ -300,17 +349,9 @@ router.post('/login', verifyLimiter, async (req, res) => {
     user.loginLockedUntil = null;
     await user.save();
 
-    if (!user.isVerified) {
-      return res.status(403).json({
-        success: false,
-        data: { email: user.email },
-        error: {
-          code: 'NOT_VERIFIED',
-          message: 'Account not verified — please verify your email',
-          field: null,
-        },
-      });
-    }
+    // No isVerified check here: a real User document can only ever exist
+    // already verified (see /verify-otp), so this state is unreachable —
+    // the unverified case is handled entirely above, before `user` exists.
 
     if (!user.hasReceivedWelcomeEmail) {
       user.hasReceivedWelcomeEmail = true;
@@ -349,8 +390,10 @@ router.post('/login', verifyLimiter, async (req, res) => {
 
 // ---------------------------------------------------------------
 // POST /verify-otp
-// Verifies the signup OTP. On success, marks the account verified,
-// clears the OTP fields, and issues a JWT (auto-login — per project
+// Verifies the signup OTP against the PendingSignup row (not a User — see
+// /signup). On success, this is the one and only place a User document
+// ever gets created: created already verified, then the PendingSignup row
+// is deleted. Issues a JWT immediately after (auto-login — per project
 // decision, no separate login step needed after verification).
 // ---------------------------------------------------------------
 router.post('/verify-otp', verifyLimiter, async (req, res) => {
@@ -365,27 +408,22 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
+    const pending = await PendingSignup.findOne({ email });
+    if (!pending) {
+      // Covers both "never signed up" and "already verified" in one
+      // branch: a verified account has no PendingSignup row left (deleted
+      // below on success), so both cases now produce this exact same
+      // response — same shape, same dummy-hash timing-safe compare —
+      // without needing a separate isVerified check the way the old
+      // User-backed version did.
       return await incorrectCodeResponse(code, res);
     }
 
-    // Previously returned a distinct 400 ALREADY_VERIFIED here -- a
-    // narrow account-enumeration leak (reveals "this account exists and
-    // is verified", distinguishable from the wrong-code/nonexistent-account
-    // shape just above it). Now returns the exact same response as a wrong
-    // code, including the dummy-hash timing-safety compare, so an
-    // already-verified account is indistinguishable from any other
-    // OTP_INCORRECT outcome on this route.
-    if (user.isVerified) {
-      return await incorrectCodeResponse(code, res);
-    }
-
-    if (user.otpAttempts >= MAX_OTP_ATTEMPTS) {
+    if (pending.otpAttempts >= MAX_OTP_ATTEMPTS) {
       return lockedResponse(res, 'Too many incorrect attempts. Please request a new code.');
     }
 
-    if (isExpired(user.otpExpiry)) {
+    if (isExpired(pending.otpExpiry)) {
       return res.status(400).json({
         success: false,
         data: null,
@@ -393,16 +431,16 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
       });
     }
 
-    const matches = await compareOtp(code, user.otp);
+    const matches = await compareOtp(code, pending.otp);
     if (!matches) {
-      user.otpAttempts += 1;
-      if (user.otpAttempts >= MAX_OTP_ATTEMPTS) {
+      pending.otpAttempts += 1;
+      if (pending.otpAttempts >= MAX_OTP_ATTEMPTS) {
         // Invalidate the code outright rather than just blocking further
         // guesses — forces a fresh code via /resend-otp.
-        user.otp = null;
-        user.otpExpiry = null;
+        pending.otp = null;
+        pending.otpExpiry = null;
       }
-      await user.save();
+      await pending.save();
       return res.status(400).json({
         success: false,
         data: null,
@@ -410,11 +448,13 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
       });
     }
 
-    user.isVerified = true;
-    user.otp = null;
-    user.otpExpiry = null;
-    user.otpAttempts = 0;
-    await user.save();
+    const user = await User.create({
+      name: pending.name,
+      email: pending.email,
+      passwordHash: pending.passwordHash,
+      isVerified: true,
+    });
+    await pending.deleteOne();
 
     recordSecurityEvent('EMAIL_VERIFIED', { email: user.email, userId: user._id, ip: req.ip });
 
@@ -449,7 +489,8 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
 
 // ---------------------------------------------------------------
 // POST /resend-otp
-// Regenerates and re-sends the signup verification OTP.
+// Regenerates and re-sends the signup verification OTP, against the
+// PendingSignup row (not a User — see /signup).
 // ---------------------------------------------------------------
 router.post('/resend-otp', emailSendLimiter, async (req, res) => {
   try {
@@ -463,27 +504,15 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email });
+    const pending = await PendingSignup.findOne({ email });
 
-    // No account for this email: skip straight to the same generic success
-    // response used below, without touching the DB or sending anything —
-    // a client can't tell this apart from "account exists, code sent".
-    if (!user) {
-      return res.status(200).json({
-        success: true,
-        data: { email },
-        error: null,
-      });
-    }
-
-    // Previously returned a distinct 400 ALREADY_VERIFIED here — that was
-    // itself a narrow account-enumeration leak (reveals "this account
-    // exists and is verified", distinguishable from every other outcome
-    // on this route). No code is generated or sent for an already-verified
-    // account (nothing to verify, and sending one would just be a
-    // confusing email) — but the *response* now matches every other path
-    // on this route exactly, closing the gap.
-    if (user.isVerified) {
+    // No pending signup for this email: skip straight to the same generic
+    // success response used below, without touching the DB or sending
+    // anything. Covers both "never signed up" and "already verified" in
+    // one branch — a verified account has no PendingSignup row left, same
+    // unification as /verify-otp above — so a client can't tell any of
+    // these apart from "code sent".
+    if (!pending) {
       return res.status(200).json({
         success: true,
         data: { email },
@@ -492,12 +521,13 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
     }
 
     const otp = generateOtp();
-    user.otp = await hashOtp(otp);
-    user.otpExpiry = getOtpExpiry();
-    user.otpAttempts = 0; // fresh code -> fresh attempt budget
-    await user.save();
+    pending.otp = await hashOtp(otp);
+    pending.otpExpiry = getOtpExpiry();
+    pending.otpAttempts = 0; // fresh code -> fresh attempt budget
+    pending.expiresAt = getPendingSignupExpiry();
+    await pending.save();
 
-    const emailResult = await sendOtpEmail(user.email, otp, 'verify');
+    const emailResult = await sendOtpEmail(pending.email, otp, 'verify');
     if (!emailResult.success) {
       logError('Resend OTP email failed to send', { error: emailResult.error });
     }
