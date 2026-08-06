@@ -15,6 +15,8 @@ import GlossaryPage from '../pages/GlossaryPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import ProtectedRoute from './ProtectedRoute';
 import GuestRoute from './GuestRoute';
+import TermsPage from '../pages/TermsPage';
+import PrivacyPage from '../pages/PrivacyPage';
 
 function AppRoutes() {
   return (
@@ -33,6 +35,8 @@ function AppRoutes() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/glossary" element={<GlossaryPage />} />
       <Route path="*" element={<NotFoundPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
     </Routes>
   );
 }

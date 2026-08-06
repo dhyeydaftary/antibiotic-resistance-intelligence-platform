@@ -136,8 +136,10 @@ export default function Footer({ lenisRef }) {
           <div className="font-mono text-[10px] uppercase tracking-[0.15em] text-page-faint">
             © 2026 AMR-Insight · Research &amp; Education platform · Version 1.0 · Updated July 2026
           </div>
-          <div className="font-mono text-[10px] uppercase tracking-[0.15em] text-page-faint">
-            Evidence before confidence.
+          <div className="flex items-center gap-4 font-mono text-[10px] uppercase tracking-[0.15em] text-page-faint">
+            <Link to="/terms" className="transition-colors hover:text-page-ink" data-testid="footer-terms">Terms</Link>
+            <Link to="/privacy" className="transition-colors hover:text-page-ink" data-testid="footer-privacy">Privacy</Link>
+            <span>Evidence before confidence.</span>
           </div>
         </div>
       </div>
