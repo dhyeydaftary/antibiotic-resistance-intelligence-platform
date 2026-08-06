@@ -772,4 +772,31 @@ router.post('/logout-everywhere', verifyToken, async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------
+// GET /me
+// Lightweight session-validity check the frontend calls once at app mount
+// (not on every navigation) to confirm a stored token still resolves to a
+// real, current session before rendering protected UI — distinct from
+// /login, which authenticates credentials and issues a brand-new token.
+// ---------------------------------------------------------------
+router.get('/me', verifyToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.userId);
+
+    res.status(200).json({
+      success: true,
+      data: { user: toPublicUser(user) },
+      error: null,
+    });
+
+  } catch (err) {
+    logError('Error in /me', { err });
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.', field: null },
+    });
+  }
+});
+
 module.exports = router;
