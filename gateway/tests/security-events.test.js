@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
 const request = require('supertest');
 const bcrypt = require('bcrypt');
 
-const { buildAuthApp, signTestToken } = require('./helpers');
+const { buildAuthApp, signTestToken, pendingSignupExpiry } = require('./helpers');
 const { hashOtp, getOtpExpiry } = require('../utils/otpUtil');
 
 const VALID_PASSWORD = 'Str0ng!Pass';
@@ -62,8 +62,8 @@ async function seedVerifiedUser(userStore, overrides = {}) {
 }
 
 describe('SecurityEvent audit trail', () => {
-  test('SIGNUP is recorded with the new user, and leaks no secrets', async () => {
-    const { app, userStore, events, emails } = buildAuthApp();
+  test('SIGNUP is recorded with userId: null (deferred creation — no User exists yet at signup time), and leaks no secrets', async () => {
+    const { app, pendingStore, events, emails } = buildAuthApp();
 
     const res = await request(app).post('/api/auth/signup').send({
       name: 'New User',
@@ -72,26 +72,27 @@ describe('SecurityEvent audit trail', () => {
     });
     assert.equal(res.status, 201);
 
-    const stored = [...userStore.byId.values()].find((u) => u.email === 'signup-event@example.com');
+    const stored = [...pendingStore.byId.values()].find((p) => p.email === 'signup-event@example.com');
     const otpCode = emails.otpEmails[0].code;
 
     assert.equal(events.length, 1);
-    assertEventShape(events[0], { eventType: 'SIGNUP', email: 'signup-event@example.com', userId: stored._id });
+    assertEventShape(events[0], { eventType: 'SIGNUP', email: 'signup-event@example.com', userId: null });
     assertNoSecretsLeaked(events[0], [VALID_PASSWORD, stored.passwordHash, otpCode]);
   });
 
-  test('EMAIL_VERIFIED is recorded on a successful OTP verification, and leaks no secrets', async () => {
-    const { app, userStore, events } = buildAuthApp();
+  test('EMAIL_VERIFIED is recorded on a successful OTP verification, with the newly-created User\'s id, and leaks no secrets', async () => {
+    const { app, userStore, pendingStore, events } = buildAuthApp();
     const code = '123456';
     const otpHash = await hashOtp(code);
-    const seeded = userStore.seed({
+    const seededPassword = await bcrypt.hash(VALID_PASSWORD, 10);
+    pendingStore.seed({
       name: 'Pending User',
       email: 'verify-event@example.com',
-      passwordHash: await bcrypt.hash(VALID_PASSWORD, 10),
-      isVerified: false,
+      passwordHash: seededPassword,
       otp: otpHash,
       otpExpiry: getOtpExpiry(),
       otpAttempts: 0,
+      expiresAt: pendingSignupExpiry(),
     });
 
     const res = await request(app).post('/api/auth/verify-otp').send({
@@ -101,9 +102,13 @@ describe('SecurityEvent audit trail', () => {
     assert.equal(res.status, 200);
     const issuedToken = res.body.data.token;
 
+    // The User is created only now, by /verify-otp itself.
+    const createdUser = [...userStore.byId.values()].find((u) => u.email === 'verify-event@example.com');
+    assert.ok(createdUser);
+
     assert.equal(events.length, 1);
-    assertEventShape(events[0], { eventType: 'EMAIL_VERIFIED', email: 'verify-event@example.com', userId: seeded._id });
-    assertNoSecretsLeaked(events[0], [code, otpHash, seeded.passwordHash, issuedToken]);
+    assertEventShape(events[0], { eventType: 'EMAIL_VERIFIED', email: 'verify-event@example.com', userId: createdUser._id });
+    assertNoSecretsLeaked(events[0], [code, otpHash, seededPassword, createdUser.passwordHash, issuedToken]);
   });
 
   test('LOGIN_SUCCESS is recorded on a successful login, and leaks no secrets', async () => {
