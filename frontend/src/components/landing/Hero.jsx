@@ -1,6 +1,11 @@
 import { motion } from 'framer-motion';
 import { Activity } from 'lucide-react';
 import MagneticButton from './MagneticButton';
+import { RadarChart } from '../charts/radar-chart';
+import { RadarGrid } from '../charts/radar-grid';
+import { RadarAxis } from '../charts/radar-axis';
+import { RadarLabels } from '../charts/radar-labels';
+import { RadarArea } from '../charts/radar-area';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
@@ -11,21 +16,56 @@ const fadeUp = {
   }),
 };
 
-// Purely decorative preview — abstract shape, not a claim about real data.
-// Real, verifiable numbers live in the stat strip below the CTAs instead.
+// Real data, not decorative -- resistance rate for all 15 antibiotics
+// against Klebsiella pneumoniae specifically (n=702, a real dataset
+// subset, not synthetic-only), computed as R / total per antibiotic
+// column filtered to that organism. K. pneumoniae chosen because it's
+// already this app's recurring real example elsewhere (the mock lab
+// report used throughout onboarding/demo flows). Re-derive by filtering
+// the dataset to Organism == 'Klebsiella pneumoniae' and repeating the
+// same (col == 'R').sum() / len(col) computation per antibiotic column.
+const KP_METRICS = [
+  { key: 'ctxCro', label: 'CTX/CRO' },
+  { key: 'amxAmp', label: 'AMX/AMP' },
+  { key: 'fox', label: 'FOX' },
+  { key: 'amc', label: 'AMC' },
+  { key: 'ipm', label: 'IPM' },
+  { key: 'cz', label: 'CZ' },
+  { key: 'an', label: 'AN' },
+  { key: 'gen', label: 'GEN' },
+  { key: 'cip', label: 'CIP' },
+  { key: 'c', label: 'C' },
+  { key: 'furanes', label: 'Furanes' },
+  { key: 'ofx', label: 'ofx' },
+  { key: 'cotrim', label: 'Co-trim.' },
+  { key: 'colistine', label: 'colistine' },
+  { key: 'acideNalid', label: 'Acide nalid.' },
+];
+
+const KP_RADAR_DATA = [
+  {
+    label: 'Klebsiella pneumoniae',
+    color: '#0071E3',
+    values: {
+      ctxCro: 59.7, amxAmp: 57.4, fox: 56.8, amc: 56.7, ipm: 55.6, cz: 54.6,
+      an: 29.1, gen: 28.8, cip: 7.8, c: 7.0, furanes: 6.6, ofx: 6.1,
+      cotrim: 5.1, colistine: 4.8, acideNalid: 4.6,
+    },
+  },
+];
+
 function PreviewCard() {
-  const bars = [38, 52, 44, 61, 49, 58, 67];
   return (
     <motion.div
       custom={3}
       initial="hidden"
       animate="visible"
       variants={fadeUp}
-      className="mx-auto mt-16 w-full max-w-3xl rounded-[24px] border border-panel-border bg-panel p-8 shadow-panel-lg sm:p-10"
+      className="mx-auto mt-16 w-full max-w-4xl rounded-[24px] border border-panel-border bg-panel p-8 shadow-panel-lg sm:p-10"
     >
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
-          <Activity size={13} className="text-accent-blue" /> Resistance intelligence
+          <Activity size={13} className="text-accent-blue" /> Resistance profile &middot; Klebsiella pneumoniae, all 15 antibiotics
         </div>
         <div className="flex gap-1.5">
           <span className="h-2 w-2 rounded-full bg-resistant/40" />
@@ -33,16 +73,15 @@ function PreviewCard() {
           <span className="h-2 w-2 rounded-full bg-susceptible/40" />
         </div>
       </div>
-      <div className="flex h-40 items-end gap-2.5 sm:h-48">
-        {bars.map((h, i) => (
-          <motion.div
-            key={i}
-            initial={{ height: 0 }}
-            animate={{ height: `${h}%` }}
-            transition={{ duration: 0.8, delay: 0.4 + i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-            className="flex-1 rounded-t-[6px] bg-gradient-to-t from-accent-blue/40 to-accent-blue"
-          />
-        ))}
+      <div className="mx-auto aspect-square w-full max-w-[560px] py-2">
+        <RadarChart data={KP_RADAR_DATA} metrics={KP_METRICS} margin={64} className="h-full w-full">
+          <RadarGrid />
+          <RadarAxis />
+          <RadarLabels fontSize={10} />
+          {KP_RADAR_DATA.map((item, index) => (
+            <RadarArea key={item.label} index={index} />
+          ))}
+        </RadarChart>
       </div>
     </motion.div>
   );
