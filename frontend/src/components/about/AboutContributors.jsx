@@ -24,7 +24,7 @@ const CONTRIBUTORS = [
     {
         name: 'Ansh Patel',
         area: 'Frontend Styling &\nSecurity Hardening',
-        body: 'Contributed across the stack — UI components and command palette on the frontend, plus backend security hardening.',
+        body: 'Contributed across the stack — UI components and command palette on the frontend, strengthened design consistency, enhanced the overall user interface across the platform, plus backend security hardening.',
     },
 ];
 
