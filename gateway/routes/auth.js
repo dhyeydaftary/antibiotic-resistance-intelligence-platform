@@ -370,12 +370,15 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
       return await incorrectCodeResponse(code, res);
     }
 
+    // Previously returned a distinct 400 ALREADY_VERIFIED here -- a
+    // narrow account-enumeration leak (reveals "this account exists and
+    // is verified", distinguishable from the wrong-code/nonexistent-account
+    // shape just above it). Now returns the exact same response as a wrong
+    // code, including the dummy-hash timing-safety compare, so an
+    // already-verified account is indistinguishable from any other
+    // OTP_INCORRECT outcome on this route.
     if (user.isVerified) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        error: { code: 'ALREADY_VERIFIED', message: 'This account is already verified', field: null },
-      });
+      return await incorrectCodeResponse(code, res);
     }
 
     if (user.otpAttempts >= MAX_OTP_ATTEMPTS) {
@@ -473,11 +476,18 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
       });
     }
 
+    // Previously returned a distinct 400 ALREADY_VERIFIED here — that was
+    // itself a narrow account-enumeration leak (reveals "this account
+    // exists and is verified", distinguishable from every other outcome
+    // on this route). No code is generated or sent for an already-verified
+    // account (nothing to verify, and sending one would just be a
+    // confusing email) — but the *response* now matches every other path
+    // on this route exactly, closing the gap.
     if (user.isVerified) {
-      return res.status(400).json({
-        success: false,
-        data: null,
-        error: { code: 'ALREADY_VERIFIED', message: 'This account is already verified', field: null },
+      return res.status(200).json({
+        success: true,
+        data: { email },
+        error: null,
       });
     }
 
