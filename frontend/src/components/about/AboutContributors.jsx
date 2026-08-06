@@ -13,18 +13,18 @@ const fadeUp = {
 const CONTRIBUTORS = [
     {
         name: 'Dhyey Daftary',
-        area: 'ML Backend & Gateway Architecture',
-        body: 'Built the Django/CatBoost prediction backend (15 per-antibiotic models, SHAP explainability) and the Node/Express/MongoDB gateway (auth, history, email dispatch).',
+        area: 'ML Backend & Gateway\nArchitecture',
+        body: 'Owns the ML pipeline and gateway architecture end to end — model training, prediction API, auth system, and database design.',
     },
     {
         name: 'Urva Shah',
-        area: 'Frontend Lead & Interface Design',
-        body: 'Owns the React/Vite web application — design system, page architecture, and user interface across Predict, History, Trends, and About.',
+        area: 'Frontend Lead & Interface\nDesign',
+        body: "Owns the frontend architecture and user experience — page structure, gateway integration, and the platform's overall design direction.",
     },
     {
         name: 'Ansh Patel',
-        area: 'Frontend Styling & Components',
-        body: 'Supported frontend styling implementation, design consistency audit, layout polish, and visual testing across the platform.',
+        area: 'Frontend Styling &\nSecurity Hardening',
+        body: 'Contributed across the stack — UI components and command palette on the frontend, plus backend security hardening.',
     },
 ];
 
@@ -50,7 +50,7 @@ export default function AboutContributors() {
                         className="rounded-[20px] border border-panel-border bg-panel p-6 shadow-panel-md transition-all hover:-translate-y-1 hover:border-accent-blue/50 flex flex-col justify-between"
                     >
                         <div>
-                            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-accent-blue">
+                            <span className="block min-h-[28px] font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-accent-blue whitespace-pre-line">
                                 {c.area}
                             </span>
                             <h3 className="mt-2 font-display text-[18px] font-semibold text-onpanel-ink">
