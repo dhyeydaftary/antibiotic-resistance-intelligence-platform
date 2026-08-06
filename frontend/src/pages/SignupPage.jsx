@@ -16,7 +16,7 @@ import usePageTitle from '../hooks/usePageTitle';
 
 function SignupPage() {
   usePageTitle('Sign Up');
-  
+
   const navigate = useNavigate();
   const nameRef = useRef(null);
 
@@ -156,9 +156,9 @@ function SignupPage() {
             label={
               <>
                 I agree to the{" "}
-                <a href="#" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
+                <Link to="/terms" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
                   Terms &amp; Conditions
-                </a>
+                </Link>
                 .
               </>
             }
@@ -171,9 +171,9 @@ function SignupPage() {
             label={
               <>
                 I&rsquo;ve read and accept the{" "}
-                <a href="#" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
+                <Link to="/privacy" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
                   Privacy Policy
-                </a>
+                </Link>
                 .
               </>
             }
