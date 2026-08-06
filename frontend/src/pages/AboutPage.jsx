@@ -1,27 +1,73 @@
+// ===================================================================
+// Route: /about — public (no auth gate; see routes/AppRoutes.jsx).
+// Long-form academic/editorial page, structured as 7 "Acts" each a
+// dedicated components/about/* section (premise, the gap it fills,
+// philosophy, trust boundaries, methodology/explainability, audience/
+// contributors, appendix, future work). No data fetching — this is a
+// static essay about the project, unlike the app pages. Supports
+// deep-linking to a section via URL hash (e.g. /about#dataset).
+// ===================================================================
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import usePageTitle from '../hooks/usePageTitle';
+import AboutOpening from '../components/about/AboutOpening';
+import AboutGap from '../components/about/AboutGap';
+import AboutPhilosophy from '../components/about/AboutPhilosophy';
+import AboutTrustBoundary from '../components/about/AboutTrustBoundary';
+import AboutPipeline from '../components/about/AboutPipeline';
+import AboutExplainability from '../components/about/AboutExplainability';
+import AboutAudience from '../components/about/AboutAudience';
+import AboutContributors from '../components/about/AboutContributors';
+import AboutBackMatter from '../components/about/AboutBackMatter';
+import AboutFutureWork from '../components/about/AboutFutureWork';
+
+// Long-form "about" essay, composed of the 7 Act sections below.
 function AboutPage() {
-  return (
-    <div style={{ padding: '20px', maxWidth: '600px' }}>
-      <h1>About AMR-Insight</h1>
-      <p>
-        AMR-Insight is a research and education platform that predicts antibiotic
-        susceptibility (Resistant / Susceptible / Intermediate) across 15 antibiotics
-        using machine learning trained on public antimicrobial resistance datasets.
-      </p>
-      <p>
-        This is a student project built for academic purposes and is not intended
-        for real clinical decision-making. Predictions are based on public Kaggle
-        datasets, not live hospital lab feeds.
-      </p>
-      <h2>Methodology</h2>
-      <p>
-        Model: scikit-learn / Keras multi-output classifier. Data: public AMR
-        dataset (10,710 records, 15 antibiotic targets). Categorization follows
-        WHO AWaRe (Access / Watch / Reserve) antibiotic classification.
-      </p>
-      <h2>Team</h2>
-      <p>Built by a 3-person team as a combined semester project.</p>
-    </div>
-  );
+    usePageTitle('About');
+    const location = useLocation();
+
+    // Jumps to a hash-targeted section instantly (no smooth-scroll) on
+    // navigation, or to the top of the page if there's no hash.
+    useEffect(() => {
+        if (location.hash) {
+            const targetId = location.hash.replace('#', '');
+            const elem = document.getElementById(targetId);
+            if (elem) {
+                elem.scrollIntoView({ behavior: 'instant', block: 'start' });
+            }
+        } else {
+            // Instant scroll to the very top when navigating to /about without a hash
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }
+    }, [location]);
+
+    return (
+        <div className="bg-canvas min-h-screen text-page-ink selection:bg-accent-blue selection:text-white">
+            {/* Act I: Premise (Section 1) & The Gap (Section 2) */}
+            <AboutOpening />
+            <AboutGap />
+
+            {/* Act II: Philosophy */}
+            <AboutPhilosophy />
+
+            {/* Act III: Trust Boundaries (Split-Screen Capability vs Limitation) */}
+            <AboutTrustBoundary />
+
+            {/* Act IV: Methodology & Explainability */}
+            <AboutPipeline />
+            <AboutExplainability />
+
+            {/* Act V: People & Purpose */}
+            <AboutAudience />
+            <AboutContributors />
+
+            {/* Act VI: Academic Back Matter (Appendix) */}
+            <AboutBackMatter />
+
+            {/* Act VII: Future Work & Closing Statement */}
+            <AboutFutureWork />
+        </div>
+    );
 }
 
 export default AboutPage;

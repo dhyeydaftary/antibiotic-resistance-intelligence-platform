@@ -1,0 +1,35 @@
+{
+  "name": "gateway",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "test": "node --test",
+    "coverage": "c8 --reporter=text --reporter=html node --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "axios": "^1.18.1",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.1",
+    "form-data": "^4.0.6",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.7.4",
+    "multer": "^2.2.0",
+    "resend": "^6.18.0"
+  },
+  "devDependencies": {
+    "@express-rate-limit/tsconfig": "^1.0.5",
+    "c8": "^12.0.0",
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
+  }
+}

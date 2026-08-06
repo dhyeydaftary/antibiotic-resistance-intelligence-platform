@@ -1,111 +1,392 @@
-:root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+/* ---------------------------------------------------------------
+   AMR-Insight base styles
+   Fonts (Fraunces / Inter / JetBrains Mono) are already loaded via
+   <link> tags in index.html — nothing to import here.
+--------------------------------------------------------------- */
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
+@layer base {
+  html,
+  body {
+    background-color: theme('colors.background');
+    color: theme('colors.foreground');
   }
-}
 
-@media (prefers-color-scheme: dark) {
+  body {
+    margin: 0;
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply bg-background text-foreground;
+  }
+
+  ::selection {
+    background: theme('colors.ink');
+    color: theme('colors.paper');
+  }
+  .theme {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+  }
   :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.32 0 none);
+    --chart-2: oklch(0.41 0 none);
+    --chart-3: oklch(0.54 0 none);
+    --chart-4: oklch(0.71 0 none);
+    --chart-5: oklch(0.89 0 none);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+    --chart-background: oklch(1 0 0);
+    --chart-foreground: oklch(0.145 0.004 285);
+    --chart-foreground-muted: oklch(0.55 0.014 260);
+    --chart-line-primary: var(--chart-1);
+    --chart-line-secondary: var(--chart-2);
+    --chart-crosshair: oklch(0.4 0.1828 274.34);
+    --chart-grid: oklch(0.9 0 0);
+    --chart-brush-border: var(--chart-grid);
+    --chart-tooltip-background: oklch(0.21 0.006 285 / 0.8);
+    --chart-tooltip-foreground: oklch(0.985 0 0);
+    --chart-tooltip-muted: oklch(0.65 0.01 260);
+    --chart-marker-background: oklch(0.97 0.005 260);
+    --chart-marker-border: oklch(0.85 0.01 260);
+    --chart-marker-foreground: oklch(0.3 0.01 260);
+    --chart-label: oklch(0.45 0.01 260);
+    --chart-scale-01: oklch(0.98 0.003 106);
+    --chart-scale-02: oklch(0.92 0.008 106);
+    --chart-scale-03: oklch(0.82 0.015 106);
+    --chart-scale-04: oklch(0.68 0.02 106);
+    --chart-scale-05: oklch(0.55 0.025 106);
+    --chart-scale-pattern-color: oklch(0.96 0.005 106);
+  }
+  .dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(1 0 none);
+    --chart-2: oklch(0.73 0 none);
+    --chart-3: oklch(0.51 0 none);
+    --chart-4: oklch(0.39 0 none);
+    --chart-5: oklch(0.32 0 none);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+    --chart-background: oklch(0.145 0 0);
+    --chart-foreground: oklch(0.45 0 0);
+    --chart-foreground-muted: oklch(0.65 0.01 260);
+    --chart-crosshair: oklch(0.45 0 0);
+    --chart-grid: oklch(0.25 0 0);
+    --chart-brush-border: var(--chart-grid);
+    --chart-marker-background: oklch(0.25 0.01 260);
+    --chart-marker-border: oklch(0.4 0.01 260);
+    --chart-marker-foreground: oklch(0.9 0 0);
+    --chart-label: oklch(0.75 0.01 260);
+    --chart-scale-01: oklch(0.28 0.03 270);
+    --chart-scale-02: oklch(0.38 0.04 270);
+    --chart-scale-03: oklch(0.48 0.05 270);
+    --chart-scale-04: oklch(0.58 0.06 270);
+    --chart-scale-05: oklch(0.68 0.07 270);
+    --chart-scale-pattern-color: oklch(0.145 0 0);
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Shared utility classes used by src/components/auth/*
+--------------------------------------------------------------- */
+
+@layer components {
+  .font-serif-display {
+    font-family: theme('fontFamily.serif');
+    font-weight: 400;
+    letter-spacing: -0.01em;
   }
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
+  .font-mono-label {
+    font-family: theme('fontFamily.mono');
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.68rem;
+    font-weight: 500;
+  }
+
+  .hairline {
+    border-color: theme('colors.hairline');
+  }
+
+  .amr-input {
+    @apply w-full bg-transparent border-0 border-b hairline pt-5 pb-2 px-0 text-[15px] transition-colors;
+    color: theme('colors.ink');
+  }
+
+  .amr-input:focus {
+    outline: none;
+    border-color: theme('colors.ink');
+  }
+
+  .amr-input::placeholder {
+    color: theme('colors.ink-faint');
+  }
+
+  .amr-input-invalid {
+    border-color: theme('colors.destructive') !important;
+  }
+
+  .amr-input-invalid:focus {
+    border-color: theme('colors.destructive') !important;
+  }
+
+  .amr-link {
+    @apply underline underline-offset-4 transition-colors;
+    text-decoration-color: theme('colors.ink-faint');
+  }
+
+  .amr-link:hover {
+    text-decoration-color: theme('colors.ink');
+  }
+
+  .amr-btn {
+    @apply inline-flex items-center justify-center gap-2 h-11 px-6 text-[13px] font-medium tracking-wide transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: theme('colors.ink');
+    color: theme('colors.paper');
+  }
+
+  .amr-btn:hover:not(:disabled) {
+    background-color: theme('colors.ink-soft');
+  }
+
+  .amr-btn:focus {
+    outline: none;
+  }
+
+  .amr-btn:focus-visible {
+    box-shadow: 0 0 0 2px theme('colors.background'), 0 0 0 4px theme('colors.ring');
+  }
+
+  .amr-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 h-10 px-4 text-[13px] font-medium tracking-wide transition-colors disabled:opacity-50;
+    color: theme('colors.ink-soft');
+  }
+
+  .amr-btn-ghost:hover {
+    color: theme('colors.ink');
+  }
+
+  .amr-btn-ghost:focus {
+    outline: none;
+  }
+
+  .amr-btn-ghost:focus-visible {
+    box-shadow: 0 0 0 2px theme('colors.ring');
+  }
+
+  .amr-check-box {
+    @apply h-4 w-4 shrink-0 border hairline bg-transparent flex items-center justify-center transition-colors;
   }
 }
 
-body {
-  margin: 0;
+/* subtle keyboard focus for OTP inputs */
+.otp-slot[data-active="true"] {
+  border-color: theme('colors.ink');
+  box-shadow: inset 0 -2px 0 0 theme('colors.ink');
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
+/* ---------------------------------------------------------------
+   History page animations (Urva)
+--------------------------------------------------------------- */
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
-p {
-  margin: 0;
+
+@keyframes expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+  }
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+@keyframes rotate360 {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.animate-fadeInUp {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-expand {
+  animation: expand 0.3s ease-out forwards;
+  overflow: hidden;
+}
+
+.rotate-360 {
+  animation: rotate360 0.8s ease-in-out;
+}
+
+@layer base {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Row hover background - warmer than paper */
+.bg-paper-hover {
+  background-color: #FBFAF6;
+}
+
+/* Staggered fade-in for timeline groups */
+.timeline-group {
+  animation: fadeUp 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.timeline-group:nth-child(1) { animation-delay: 0ms; }
+.timeline-group:nth-child(2) { animation-delay: 40ms; }
+.timeline-group:nth-child(3) { animation-delay: 80ms; }
+.timeline-group:nth-child(4) { animation-delay: 120ms; }
+.timeline-group:nth-child(5) { animation-delay: 160ms; }
+.timeline-group:nth-child(6) { animation-delay: 200ms; }
+.timeline-group:nth-child(7) { animation-delay: 240ms; }
+.timeline-group:nth-child(8) { animation-delay: 280ms; }
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fadeIn,
+  .animate-fadeInUp,
+  .animate-expand,
+  .rotate-360,
+  .timeline-group {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Bklit chart overrides for dark-panel usage (Predict/Result pages)
+--------------------------------------------------------------- */
+
+.chart-on-dark {
+  --chart-tooltip-background: rgba(29, 29, 31, 0.92);
+}
+
+.chart-on-dark .text-chart-label,
+.chart-on-dark .text-chart-tooltip-muted {
+  color: #98989D !important;
+}
+
+.chart-on-dark .text-chart-tooltip-foreground {
+  color: #F5F5F7 !important;
+}
+
+/* --- Native date input styling for dark panels --- */
+input[type="date"] {
+  color-scheme: dark;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }

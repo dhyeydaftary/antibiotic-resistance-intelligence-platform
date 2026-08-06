@@ -1,0 +1,97 @@
+<svg viewBox="0 0 900 580" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <!-- Shared AMR-Insight diagram theme (light/dark via prefers-color-scheme).
+       Token names and values are kept identical across every file in
+       docs/assets/diagrams/ — if you tune a color here, apply the same
+       change to the other SVGs in this directory so they stay visually
+       consistent. -->
+  <style>
+    .canvas { fill: #ffffff; }
+    .ink-strong { fill: #0f172a; }
+    .ink { fill: #1e293b; }
+    .ink-muted { fill: #64748b; }
+    .ink-faint { fill: #94a3b8; }
+    .accent-ink { fill: #4f46e5; }
+    .node-neutral { fill: #f1f5f9; stroke: #94a3b8; }
+    .node-core { fill: #eef2ff; stroke: #4f46e5; }
+    .node-offline { fill: #f8fafc; stroke: #94a3b8; }
+    .edge-neutral { stroke: #94a3b8; }
+    .edge-accent { stroke: #4f46e5; }
+    .arrow-neutral { fill: #94a3b8; }
+    .arrow-accent { fill: #4f46e5; }
+
+    @media (prefers-color-scheme: dark) {
+      .canvas { fill: #0d1117; }
+      .ink-strong { fill: #f0f6fc; }
+      .ink { fill: #e6edf3; }
+      .ink-muted { fill: #8b949e; }
+      .ink-faint { fill: #6e7681; }
+      .accent-ink { fill: #a5b4fc; }
+      .node-neutral { fill: #161b22; stroke: #6e7681; }
+      .node-core { fill: #1c2333; stroke: #818cf8; }
+      .node-offline { fill: #0d1117; stroke: #6e7681; }
+      .edge-neutral { stroke: #6e7681; }
+      .edge-accent { stroke: #818cf8; }
+      .arrow-neutral { fill: #6e7681; }
+      .arrow-accent { fill: #818cf8; }
+    }
+  </style>
+
+  <rect x="0" y="0" width="900" height="580" class="canvas"/>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="arrow-accent"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="arrow-neutral"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="28" text-anchor="middle" font-size="18" font-weight="700" class="ink-strong">AMR-Insight in context</text>
+
+  <!-- Center: the system as a single box -->
+  <rect x="340" y="250" width="220" height="100" rx="10" stroke-width="2" class="node-core"/>
+  <text x="450" y="290" text-anchor="middle" font-size="16" font-weight="700" class="ink">AMR-Insight</text>
+  <text x="450" y="310" text-anchor="middle" font-size="12" class="ink-muted">Antibiotic resistance</text>
+  <text x="450" y="326" text-anchor="middle" font-size="12" class="ink-muted">prediction platform</text>
+
+  <!-- Top: User -->
+  <rect x="340" y="70" width="220" height="60" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="450" y="96" text-anchor="middle" font-size="14" class="ink">User</text>
+  <text x="450" y="113" text-anchor="middle" font-size="11" class="ink-muted">Researcher, student, educator</text>
+
+  <line x1="450" y1="130" x2="450" y2="248" stroke-width="1.5" marker-end="url(#arrow)" class="edge-accent"/>
+  <text x="462" y="185" font-size="11" class="accent-ink">submits patient/clinical data,</text>
+  <text x="462" y="200" font-size="11" class="accent-ink">views predictions</text>
+
+  <!-- Right: Gemini -->
+  <rect x="650" y="255" width="210" height="60" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="755" y="281" text-anchor="middle" font-size="14" class="ink">Google Gemini</text>
+  <text x="755" y="298" text-anchor="middle" font-size="11" class="ink-muted">Insight generation, PDF extraction</text>
+
+  <line x1="562" y1="285" x2="648" y2="285" stroke-width="1.5" marker-end="url(#arrow)" class="edge-accent"/>
+
+  <!-- Bottom right: PubMed -->
+  <rect x="650" y="400" width="210" height="60" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="755" y="426" text-anchor="middle" font-size="14" class="ink">PubMed API</text>
+  <text x="755" y="443" text-anchor="middle" font-size="11" class="ink-muted">Research context for trends</text>
+
+  <line x1="555" y1="340" x2="675" y2="398" stroke-width="1.5" marker-end="url(#arrow)" class="edge-accent"/>
+
+  <!-- Bottom left: Kaggle dataset (offline, dashed) -->
+  <rect x="40" y="400" width="220" height="70" rx="8" stroke-width="1.5" stroke-dasharray="6 4" class="node-offline"/>
+  <text x="150" y="426" text-anchor="middle" font-size="14" class="ink">Kaggle AMR dataset</text>
+  <text x="150" y="443" text-anchor="middle" font-size="11" class="ink-muted">Training data source —</text>
+  <text x="150" y="458" text-anchor="middle" font-size="11" class="ink-muted">static, offline, not a live call</text>
+
+  <line x1="200" y1="398" x2="360" y2="345" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow-gray)" class="edge-neutral"/>
+
+  <!-- Legend -->
+  <line x1="60" y1="520" x2="90" y2="520" stroke-width="1.5" class="edge-accent"/>
+  <text x="98" y="524" font-size="11" class="ink-muted">Live runtime dependency</text>
+
+  <line x1="260" y1="520" x2="290" y2="520" stroke-width="1.5" class="edge-neutral"/>
+  <text x="298" y="524" font-size="11" class="ink-muted">Offline / training-time only</text>
+
+  <text x="450" y="555" text-anchor="middle" font-size="11" class="ink-faint">Internal service structure (frontend, gateway, ML backend) is deliberately omitted — see high-level-architecture.md</text>
+</svg>

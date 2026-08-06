@@ -1,61 +1,457 @@
-import { useParams } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowLeft, ChevronDown, FileDown, FileJson, FileSpreadsheet,
+  AlertTriangle, TrendingUp, Sparkles, ListChecks,
+} from 'lucide-react';
+import Panel from '../components/app/Panel';
+import PrimaryButton from '../components/app/PrimaryButton';
+import ResultBadge from '../components/app/ResultBadge';
+import { downloadPdf, downloadCsv, downloadJson } from '../utils/reportGenerator';
 
+import { RingChart } from '../components/charts/ring-chart';
+import { Ring } from '../components/charts/ring';
+import { RingCenter } from '../components/charts/ring-center';
+import { chartCenterValueClassName, chartCenterLabelClassName } from '../components/charts/chart-center-typography';
+import { BarChart } from '../components/charts/bar-chart';
+import { Bar } from '../components/charts/bar';
+import { Grid } from '../components/charts/grid';
+import { ChartTooltip } from '../components/charts/tooltip';
+import usePageTitle from '../hooks/usePageTitle';
+
+// ===================================================================
+// Route: /predict/result/:id (ProtectedRoute-gated). Renders the
+// prediction that PredictionInputPage just navigated here with, passed
+// via router state (location.state.prediction) — not re-fetched from
+// the API. :id is only meaningfully "live" today (PredictionInputPage
+// always navigates to /predict/result/live); a real persisted-history
+// record ID would land here too but this page doesn't currently fetch
+// by ID — it always falls back to FAKE_PREDICTION sample data if
+// location.state is empty (e.g. a hard refresh, or direct URL visit),
+// so the page is never blank.
+//
+// Renders: result-distribution ring chart + per-antibiotic confidence
+// bar chart (components/charts/), the SHAP breakdown per prediction
+// (PredictionRow, expandable), and the AI insights block (summary, risk,
+// next steps, similar historical cases) with RichText highlighting
+// antibiotic names/percentages inline. Export buttons call
+// utils/reportGenerator.js directly (PDF/CSV/JSON), client-side only.
+// ===================================================================
 const FAKE_PREDICTION = {
-  predictionId: 'test123',
-  organism: 'E. coli',
   predictions: [
-    { antibiotic: 'Amoxicillin', result: 'R', confidence: 0.87, awareCategory: 'Access' },
-    { antibiotic: 'Ciprofloxacin', result: 'S', confidence: 0.92, awareCategory: 'Watch' },
-    { antibiotic: 'Meropenem', result: 'I', confidence: 0.65, awareCategory: 'Reserve' },
+    { antibiotic: 'AMX/AMP', result: 'R', confidence: 0.87, awareCategory: 'Access', shapExplanation: [] },
+    { antibiotic: 'CIP', result: 'S', confidence: 0.92, awareCategory: 'Watch', shapExplanation: [] },
+    { antibiotic: 'IPM', result: 'I', confidence: 0.65, awareCategory: 'Reserve', shapExplanation: [] },
   ],
+  aiInsights: null,
   modelVersion: 'v1.0',
-  createdAt: '2026-07-06T10:00:00Z',
 };
 
-const AWARE_COLORS = {
-  Access: '#2e7d32',
-  Watch: '#f9a825',
-  Reserve: '#c62828',
+const RISK_TONE = {
+  Low: 'text-susceptible',
+  Moderate: 'text-intermediate',
+  'Moderate-High': 'text-intermediate',
+  High: 'text-resistant',
 };
 
-function PredictionResultPage() {
-  const { id } = useParams();
+const CHART_VARS = {
+  '--chart-background': '#1D1D1F',
+  '--chart-foreground': '#F5F5F7',
+  '--chart-foreground-muted': '#98989D',
+  '--chart-line-primary': '#0071E3',
+  '--chart-line-secondary': '#98989D',
+  '--chart-crosshair': '#0071E3',
+  '--chart-grid': '#3A3A3C',
+  '--border': '#3A3A3C',
+};
+
+// Builds the RichText keyword list: every antibiotic name in this
+// result plus the fixed R/S/I and AWaRe-tier terms, longest-first so
+// regex alternation matches the longest term at each position.
+function buildHighlightTerms(predictions) {
+  const terms = [];
+  predictions.forEach((p) => {
+    terms.push({ term: p.antibiotic, className: 'font-medium text-onpanel-ink' });
+  });
+  terms.push({ term: 'resistant', className: 'font-semibold text-resistant' });
+  terms.push({ term: 'susceptible', className: 'font-semibold text-susceptible' });
+  terms.push({ term: 'intermediate', className: 'font-semibold text-intermediate' });
+  terms.push({ term: 'Reserve', className: 'font-semibold text-resistant' });
+  terms.push({ term: 'Watch', className: 'font-semibold text-intermediate' });
+  terms.push({ term: 'Access', className: 'font-semibold text-susceptible' });
+  return terms.sort((a, b) => b.term.length - a.term.length);
+}
+
+// Escapes regex metacharacters in a highlight term before it's embedded
+// in the RichText alternation pattern.
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
+const NUMBER_REGEX = /\d+(\.\d+)?%?/g;
+
+// Splits plain text into React nodes, wrapping every number/percentage
+// in a monospace span — the numeric-emphasis layer under RichText's
+// keyword highlighting.
+function highlightNumbers(text, keyPrefix) {
+  const nodes = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  const regex = new RegExp(NUMBER_REGEX);
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(<span key={`${keyPrefix}-${key++}`}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    nodes.push(
+      <span key={`${keyPrefix}-${key++}`} className="font-mono text-onpanel-ink">
+        {match[0]}
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    nodes.push(<span key={`${keyPrefix}-${key++}`}>{text.slice(lastIndex)}</span>);
+  }
+  return nodes;
+}
+
+// Renders AI-generated prose with antibiotic names/R-S-I/AWaRe terms
+// bolded and numbers monospaced — a lightweight inline-highlighting
+// renderer (word-boundary-aware regex, not a markdown parser) used
+// throughout the AI Insights panel.
+function RichText({ text, terms }) {
+  if (!text) return null;
+  if (!terms || terms.length === 0) return <>{highlightNumbers(text, 'n')}</>;
+
+  const pattern = terms.map((t) => escapeRegExp(t.term)).join('|');
+  const regex = new RegExp(`(?<![A-Za-z])(${pattern})(?![A-Za-z])`, 'g');
+
+  const nodes = [];
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      const plain = text.slice(lastIndex, match.index);
+      nodes.push(<span key={key++}>{highlightNumbers(plain, `p${key}`)}</span>);
+    }
+    const matched = terms.find((t) => t.term === match[0]);
+    nodes.push(<span key={key++} className={matched?.className}>{match[0]}</span>);
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    const plain = text.slice(lastIndex);
+    nodes.push(<span key={key++}>{highlightNumbers(plain, `p${key}`)}</span>);
+  }
+  return <>{nodes}</>;
+}
+
+// One antibiotic's prediction row — result badge + confidence, expandable
+// to reveal its top-5 SHAP feature contributions as mini horizontal bars.
+function PredictionRow({ p }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasShap = p.shapExplanation && p.shapExplanation.length > 0;
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h1>Prediction Result Page</h1>
-      <p>Prediction ID: {id}</p>
-      <p>Organism: {FAKE_PREDICTION.organism}</p>
+    <div className="border-b border-panel-border last:border-b-0">
+      <button
+        type="button"
+        onClick={() => hasShap && setExpanded((v) => !v)}
+        className={`flex w-full items-center gap-4 px-5 py-3.5 text-left transition-colors ${hasShap ? 'hover:bg-panel-raised cursor-pointer' : 'cursor-default'}`}
+      >
+        <span className="w-24 shrink-0 truncate font-mono text-[13px] font-medium text-onpanel-ink">{p.antibiotic}</span>
+        <span className="w-32 shrink-0"><ResultBadge result={p.result} /></span>
+        <span className="w-20 shrink-0 font-mono text-[11px] uppercase tracking-wide text-onpanel-faint">{p.awareCategory}</span>
+        <span className="flex-1 text-right font-mono text-[13px] text-onpanel-muted">
+          {Math.round(p.confidence * 100)}%
+        </span>
+        {hasShap && (
+          <ChevronDown
+            size={14}
+            className={`shrink-0 text-onpanel-faint transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+          />
+        )}
+      </button>
 
-      <table style={{ borderCollapse: 'collapse', marginTop: '16px' }}>
-        <thead>
-          <tr>
-            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Antibiotic</th>
-            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Result</th>
-            <th style={{ border: '1px solid #ccc', padding: '8px' }}>Confidence</th>
-            <th style={{ border: '1px solid #ccc', padding: '8px' }}>AWaRe Category</th>
-          </tr>
-        </thead>
-        <tbody>
-          {FAKE_PREDICTION.predictions.map((p) => (
-            <tr key={p.antibiotic}>
-              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.antibiotic}</td>
-              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{p.result}</td>
-              <td style={{ border: '1px solid #ccc', padding: '8px' }}>{(p.confidence * 100).toFixed(0)}%</td>
-              <td
-                style={{
-                  border: '1px solid #ccc',
-                  padding: '8px',
-                  color: AWARE_COLORS[p.awareCategory],
-                  fontWeight: 'bold',
-                }}
-              >
-                {p.awareCategory}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <AnimatePresence initial={false}>
+        {expanded && hasShap && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-1.5 bg-panel px-5 pb-4 pt-1">
+              {p.shapExplanation.slice(0, 5).map((s) => (
+                <div key={s.feature} className="flex items-center gap-3 font-mono text-[11px]">
+                  <span className="w-32 shrink-0 truncate text-onpanel-faint">{s.feature.replace(/_/g, ' ')}</span>
+                  <div className="h-1 flex-1 overflow-hidden rounded-full bg-panel-border">
+                    <div
+                      className={`h-full rounded-full ${s.direction === 'positive' ? 'bg-resistant' : 'bg-susceptible'}`}
+                      style={{ width: `${Math.min(Math.abs(s.contribution) * 60, 100)}%` }}
+                    />
+                  </div>
+                  <span className="w-14 shrink-0 text-right text-onpanel-muted">{s.contribution.toFixed(3)}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// Prediction result view: charts, per-antibiotic SHAP breakdown, AI
+// insights, and export actions. See file header for data-source details.
+function PredictionResultPage() {
+  usePageTitle('Result');
+  
+  const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Falls back to FAKE_PREDICTION sample data whenever this page is
+  // reached without router state (refresh, direct link) — the page
+  // never renders blank/broken.
+  const realPrediction = location.state?.prediction;
+  const inputData = location.state?.inputData;
+  const isLive = Boolean(realPrediction);
+  const displayData = realPrediction || FAKE_PREDICTION;
+  const insights = displayData.aiInsights;
+
+  const counts = displayData.predictions.reduce(
+    (acc, p) => ({ ...acc, [p.result]: (acc[p.result] || 0) + 1 }),
+    {}
+  );
+  const total = displayData.predictions.length;
+
+  const highlightTerms = useMemo(() => buildHighlightTerms(displayData.predictions), [displayData.predictions]);
+
+  const ringData = [
+    { label: 'Resistant', value: counts.R || 0, maxValue: total, color: '#FF3B30' },
+    { label: 'Susceptible', value: counts.S || 0, maxValue: total, color: '#30D158' },
+    { label: 'Intermediate', value: counts.I || 0, maxValue: total, color: '#FF9F0A' },
+  ];
+
+  const barData = displayData.predictions.map((p) => ({
+    antibiotic: p.antibiotic,
+    confidence: Math.round(p.confidence * 100),
+  }));
+
+  // Reshapes this page's data into the {_id, createdAt, inputData,
+  // predictions, aiInsights} shape utils/reportGenerator.js expects
+  // (the same shape as a real PredictionHistory record) — a live,
+  // just-submitted result has no real Mongo _id yet, so one is
+  // synthesized here purely for export filenames.
+  const reportItem = {
+    _id: id !== 'live' ? id : `live-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    inputData: inputData || { organism: 'Unknown' },
+    predictions: displayData.predictions,
+    aiInsights: insights,
+  };
+
+  return (
+    <div className="px-6 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl">
+        <button
+          onClick={() => navigate('/predict')}
+          className="mb-5 flex items-center gap-1.5 font-sans text-[13px] font-medium text-page-muted transition-colors hover:text-page-ink"
+        >
+          <ArrowLeft size={14} />
+          Back to predict
+        </button>
+
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="mb-2 font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-page-faint">
+              {isLive ? 'Live result' : 'Sample result'}
+            </div>
+            <h1 className="font-display text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-page-ink sm:text-[38px]">
+              {inputData?.organism || 'Prediction result'}
+            </h1>
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={() => downloadPdf(reportItem)} className="flex items-center gap-1.5 rounded-full border border-canvas-hairline bg-white px-3.5 py-2 font-sans text-[13px] font-medium text-page-ink transition-colors hover:bg-canvas-alt">
+              <FileDown size={14} /> PDF
+            </button>
+            <button onClick={() => downloadCsv(reportItem)} className="flex items-center gap-1.5 rounded-full border border-canvas-hairline bg-white px-3.5 py-2 font-sans text-[13px] font-medium text-page-ink transition-colors hover:bg-canvas-alt">
+              <FileSpreadsheet size={14} /> CSV
+            </button>
+            <button onClick={() => downloadJson(reportItem)} className="flex items-center gap-1.5 rounded-full border border-canvas-hairline bg-white px-3.5 py-2 font-sans text-[13px] font-medium text-page-ink transition-colors hover:bg-canvas-alt">
+              <FileJson size={14} /> JSON
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+          <div className="space-y-4 lg:sticky lg:top-8 lg:col-span-2 lg:h-fit">
+            {insights?.riskAssessment && (
+              <Panel className="p-5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle size={16} className={`mt-0.5 shrink-0 ${RISK_TONE[insights.riskAssessment.level] || 'text-onpanel-muted'}`} />
+                  <div>
+                    <div className="mb-1 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                      Risk: <span className={RISK_TONE[insights.riskAssessment.level] || 'text-onpanel-ink'}>{insights.riskAssessment.level}</span>
+                    </div>
+                    <p className="font-sans text-[13px] leading-[1.5] text-onpanel-muted">
+                      <RichText text={insights.riskAssessment.text} terms={highlightTerms} />
+                    </p>
+                  </div>
+                </div>
+              </Panel>
+            )}
+
+            <Panel className="p-5 chart-on-dark" style={CHART_VARS}>
+              <div className="mb-3 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                Result distribution
+              </div>
+              <div className="flex items-center justify-center">
+                <RingChart data={ringData} size={208}>
+                  {ringData.map((item, index) => (
+                    <Ring key={item.label} index={index} />
+                  ))}
+                  <RingCenter
+                    defaultLabel="Total"
+                    valueClassName={`${chartCenterValueClassName} text-onpanel-ink`}
+                    labelClassName={`${chartCenterLabelClassName} text-onpanel-muted`}
+                  />
+                </RingChart>
+              </div>
+              <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1.5">
+                {ringData.map((item) => (
+                  <div key={item.label} className="flex items-center gap-1.5 font-mono text-[11px] text-onpanel-muted">
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    {item.label} <span className="text-onpanel-ink">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="my-4 h-px bg-panel-border" />
+
+              <div className="mb-3 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                Confidence by antibiotic
+              </div>
+              <p className="mb-2 font-sans text-[11px] text-onpanel-faint">Hover a bar to see the antibiotic and confidence.</p>
+              <BarChart data={barData} xDataKey="antibiotic" aspectRatio="4 / 3">
+                <Grid horizontal />
+                <Bar dataKey="confidence" fill="var(--chart-line-primary)" lineCap={4} />
+                <ChartTooltip showDatePill={false} />
+              </BarChart>
+            </Panel>
+          </div>
+
+          <div className="space-y-4 lg:col-span-3">
+            <Panel className="overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4">
+                <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                  Predictions
+                </span>
+                <span className="font-mono text-[11px] text-onpanel-faint">
+                  {total} antibiotics
+                </span>
+              </div>
+              <div className="border-t border-panel-border">
+                {displayData.predictions.map((p) => (
+                  <PredictionRow key={p.antibiotic} p={p} />
+                ))}
+              </div>
+            </Panel>
+
+            {insights && (
+              <>
+                <div className="flex items-center gap-2.5 pt-2">
+                  <Sparkles size={18} className="text-accent-blue" />
+                  <h2 className="font-display text-[20px] font-semibold leading-tight text-page-ink">
+                    AI Insights
+                  </h2>
+                </div>
+
+                <Panel className="p-6">
+                  <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">Summary</div>
+                  <p className="mb-5 font-sans text-[14px] leading-[1.6] text-onpanel-muted"><RichText text={insights.summary} terms={highlightTerms} /></p>
+
+                  <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">Confidence interpretation</div>
+                  <p className="mb-5 font-sans text-[14px] leading-[1.6] text-onpanel-muted"><RichText text={insights.confidenceInterpretation} terms={highlightTerms} /></p>
+
+                  <div className="mb-4 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">Plain English explanation</div>
+                  <p className="font-sans text-[14px] leading-[1.6] text-onpanel-muted"><RichText text={insights.plainEnglishExplanation} terms={highlightTerms} /></p>
+                </Panel>
+
+                {insights.recommendedNextSteps?.length > 0 && (
+                  <Panel className="p-6">
+                    <div className="mb-4 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                      <ListChecks size={13} /> Recommended next steps
+                    </div>
+                    <ul className="space-y-2.5">
+                      {insights.recommendedNextSteps.map((step, i) => (
+                        <li key={i} className="flex gap-2.5 font-sans text-[14px] leading-[1.5] text-onpanel-muted">
+                          <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-accent-blue" />
+                          <span className="min-w-0 flex-1">
+                            <RichText text={step} terms={highlightTerms} />
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Panel>
+                )}
+
+                {insights.similarHistoricalCases?.sampleSize > 0 && (
+                  <Panel className="p-6">
+                    <div className="mb-1 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
+                      <TrendingUp size={13} /> Similar historical cases
+                    </div>
+                    <p className="mb-4 font-sans text-[13px] text-onpanel-faint">
+                      Based on <span className="font-mono text-onpanel-ink">{insights.similarHistoricalCases.sampleSize}</span> matching records ({insights.similarHistoricalCases.matchCriteria})
+                    </p>
+                    <div className="space-y-2">
+                      {insights.similarHistoricalCases.resistanceBreakdown.slice(0, 6).map((r) => (
+                        <div key={r.antibiotic} className="flex items-center gap-3">
+                          <span className="w-20 shrink-0 font-mono text-[12px] text-onpanel-ink">{r.antibiotic}</span>
+                          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-panel-border">
+                            <motion.div
+                              className="h-full rounded-full bg-accent-blue"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${r.resistantRate * 100}%` }}
+                              transition={{ duration: 0.5 }}
+                            />
+                          </div>
+                          <span className="w-10 shrink-0 text-right font-mono text-[12px] text-onpanel-muted">
+                            {Math.round(r.resistantRate * 100)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </Panel>
+                )}
+
+                {insights.disclaimer && (
+                  <p className="border-l-2 border-canvas-hairline pl-4 font-sans text-[12px] italic leading-[1.6] text-page-faint">
+                    {insights.disclaimer}
+                  </p>
+                )}
+              </>
+            )}
+
+            <div className="flex justify-center pt-2">
+              <PrimaryButton onClick={() => navigate('/predict')}>
+                Run another prediction
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,15 @@
+# Default owner for anything not matched below
+* @dhyeydaftary
+
+# P1 — ML Backend (Django, CatBoost, SHAP, Gemini insights/extraction)
+/ml-backend/ @dhyeydaftary
+
+# P2 — Gateway (Node/Express, MongoDB, auth)
+/gateway/ @dhyeydaftary
+
+# P3 — Frontend (React/Vite, design system)
+/frontend/ @urvashah05 @anshpatel0910
+
+# Documentation
+/docs/ @dhyeydaftary
+/README.md @dhyeydaftary
