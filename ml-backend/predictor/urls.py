@@ -1,3 +1,6 @@
+# Every route the ML backend exposes to the gateway, one-to-one with a
+# view function in views.py. /predict/ is the core ML endpoint; the
+# rest support the trends/history/research UI surfaces.
 from django.urls import path
 from .views import (
     predict_view, trends_view, dataset_stats_view,

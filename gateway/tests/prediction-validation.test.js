@@ -25,11 +25,13 @@ const VALID_PAYLOAD = {
   organism: 'Escherichia coli',
 };
 
+// Seeds a fixture user and issues a matching test token for authed requests.
 function seedAuthedUser(userStore) {
   const user = userStore.seed({ email: 'predict-validation@example.com', passwordHash: 'x', tokenVersion: 0 });
   return { user, token: signTestToken(user._id, 0) };
 }
 
+// Stubs djangoClient.post to return a canned successful prediction response.
 function mockSuccessfulDjangoPost(djangoClient) {
   const calls = [];
   djangoClient.post = async (url, body) => {

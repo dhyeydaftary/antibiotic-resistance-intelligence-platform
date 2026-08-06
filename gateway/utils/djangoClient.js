@@ -1,3 +1,8 @@
+// Shared axios instance for every gateway->Django call — the sole
+// integration point between the two services (only routes/prediction.js
+// imports this). Carries the internal service key on every request so
+// Django's InternalApiKeyMiddleware (amr_project/middleware.py) can
+// reject anything that didn't come through this gateway.
 const axios = require('axios');
 
 // Worst-case Django-side chains this has to cover: /predict and

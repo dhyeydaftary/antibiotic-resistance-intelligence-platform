@@ -1,3 +1,26 @@
+// ===================================================================
+// Prediction routes — mounted at /api/predictor in index.js. This is
+// the gateway<->Django boundary: every route here is either a thin,
+// validated proxy to the Django ml-backend (via utils/djangoClient.js)
+// or a query against this app's own Mongo history collection
+// (models/PredictionHistory.js). No ML logic lives here — that's
+// entirely ml-backend/predictor/predict.py and ai_insights.py.
+//
+// Talks to: middleware/verifyToken.js (every route requires auth),
+// middleware/predictionRateLimiters.js (read vs. expensive budgets),
+// utils/predictionValidation.js (mirrors Django's serializer — see
+// that file), utils/domainAllowLists.js, utils/djangoClient.js (the
+// actual HTTP call to Django's /predict/, /trends/, /dataset-stats/,
+// /explain-trend/, /research-papers/, /extract-report/).
+//
+// If asked "why validate here AND in Django": defense in depth plus
+// UX — rejecting a malformed request here avoids a wasted round trip
+// to Django and a slower error, but Django's serializer is the real
+// authority since it can't trust this layer either. If asked "what
+// happens if Django is down": handleDjangoError() below turns that
+// into a clean 500/504 with a safe message — never a raw stack trace
+// or Django's HTML debug page reaching the client.
+// ===================================================================
 const express = require('express');
 const multer = require('multer');
 const crypto = require('crypto');
@@ -10,6 +33,7 @@ const { validatePredictionData } = require('../utils/predictionValidation');
 const { ORGANISM_LIST, ANTIBIOTIC_CODES, RESULT_VALUES } = require('../utils/domainAllowLists');
 const { readLimiter, expensiveLimiter } = require('../middleware/predictionRateLimiters');
 
+// Makes a user-supplied search string safe to embed in a RegExp.
 // Escapes regex metacharacters so a user-supplied search string is always
 // treated as a literal substring match, never as regex syntax — closes off
 // both unintended pattern behavior and ReDoS via crafted catastrophic-
@@ -19,6 +43,8 @@ function escapeRegex(str) {
 }
 const MAX_SEARCH_LENGTH = 100;
 
+// Turns a failed Django call into a safe client response — timeout,
+// forwarded envelope error, or generic 500 — never a raw stack/debug page.
 // Shared handling for the repeated djangoClient error pattern across every
 // route below: a timeout (axios sets err.code === 'ECONNABORTED' when the
 // djangoClient timeout in utils/djangoClient.js is exceeded) gets a
@@ -118,6 +144,7 @@ const PDF_EOF_SCAN_WINDOW = 2048;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
+  // Rejects an upload outright if the client-declared MIME type isn't PDF.
   fileFilter(req, file, cb) {
     if (file.mimetype !== 'application/pdf') {
       req.fileValidationError = 'Only PDF files are supported.';
@@ -127,6 +154,8 @@ const upload = multer({
   },
 });
 
+// Validates patient data, forwards it to Django for prediction, and saves
+// the result to this user's history.
 router.post('/predict', verifyToken, expensiveLimiter, async (req, res) => {
   try {
     const validation = validatePredictionData(req.body);
@@ -170,6 +199,8 @@ router.post('/predict', verifyToken, expensiveLimiter, async (req, res) => {
 });
 
 
+// Validates an uploaded PDF's real bytes, then forwards it to Django for
+// LLM-based field extraction to auto-fill the prediction form.
 router.post('/extract-report', verifyToken, expensiveLimiter, upload.single('report'), async (req, res) => {
   try {
     if (req.fileValidationError) {
@@ -244,6 +275,7 @@ router.post('/extract-report', verifyToken, expensiveLimiter, upload.single('rep
 });
 
 
+// Proxies a resistance-trend query to Django.
 router.get('/trends', verifyToken, readLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/trends/', { params: req.query });
@@ -256,6 +288,7 @@ router.get('/trends', verifyToken, readLimiter, async (req, res) => {
 });
 
 
+// Proxies a request for training-dataset summary statistics to Django.
 router.get('/dataset-stats', verifyToken, readLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/dataset-stats/');
@@ -268,6 +301,7 @@ router.get('/dataset-stats', verifyToken, readLimiter, async (req, res) => {
 });
 
 
+// Proxies a request for a narrative trend explanation to Django.
 router.get('/explain-trend', verifyToken, readLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/explain-trend/', { params: req.query });
@@ -280,6 +314,7 @@ router.get('/explain-trend', verifyToken, readLimiter, async (req, res) => {
 });
 
 
+// Proxies a PubMed research-paper lookup to Django.
 router.get('/research-papers', verifyToken, expensiveLimiter, async (req, res) => {
   try {
     const djangoResponse = await djangoClient.get('/research-papers/', { params: req.query });
@@ -292,6 +327,8 @@ router.get('/research-papers', verifyToken, expensiveLimiter, async (req, res) =
 });
 
 
+// Builds a filtered Mongo query over this user's own prediction history
+// from query-string filters and returns the matching records.
 router.get('/history', verifyToken, readLimiter, async (req, res) => {
   try {
     const {
@@ -314,6 +351,7 @@ router.get('/history', verifyToken, readLimiter, async (req, res) => {
     // an error), a non-string value is simply dropped/ignored, same as if
     // it had never been sent — consistent with every other optional filter
     // in this route.
+    // Treats a non-string/empty query param as "not provided" rather than an error.
     const isUsableString = (v) => typeof v === 'string' && v.length > 0;
 
     const query = { userId: req.userId };

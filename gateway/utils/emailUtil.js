@@ -4,6 +4,7 @@ const { logError } = require('./logger');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Builds and sends the OTP-code email via Resend.
 /**
  * Sends a one-time-password email for signup verification or password reset.
  */
@@ -65,6 +66,7 @@ async function sendOtpEmail(to, code, purpose = 'verify') {
   }
 }
 
+// Builds and sends the first-login welcome email via Resend.
 /**
  * Sends a one-time welcome email after a user's first successful authenticated session.
  */

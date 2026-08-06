@@ -1,3 +1,25 @@
+// ===================================================================
+// Auth routes — mounted at /api/auth in index.js. Owns the full account
+// lifecycle: signup -> OTP verification -> login, plus forgot/reset
+// password and logout-everywhere. This is the file most likely to come
+// up live, since it's where nearly every security decision in the
+// gateway lives (account-enumeration resistance, timing-safe compares,
+// login lockout, TTL'd pending signups).
+//
+// Talks to: models/User.js, models/PendingSignup.js, models/
+// SecurityEvent.js (all Mongo, via mongoose), utils/otpUtil.js
+// (OTP generation/hashing), utils/passwordPolicy.js, utils/emailUtil.js
+// (Resend), middleware/authRateLimiters.js, middleware/verifyToken.js.
+// Does NOT talk to Django/ml-backend at all — auth is entirely gateway-
+// side; only routes/prediction.js crosses into Django.
+//
+// Key fact worth stating up front if asked "how does signup work": no
+// User document exists until /verify-otp succeeds. Signup only ever
+// creates/overwrites a PendingSignup row (TTL-swept automatically —
+// see that model). So "a User exists for this email" and "a verified
+// account exists" are the same fact everywhere in this file — no
+// separate isVerified branching needed on the User side.
+// ===================================================================
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -40,10 +62,12 @@ const LOGIN_LOCKOUT_MINUTES = 15;
 // signup attempt is gone. Recomputed via getPendingSignupExpiry() at every
 // site that also recomputes otpExpiry, so the two always move together.
 const PENDING_SIGNUP_TTL_MINUTES = 20;
+// Computes the TTL timestamp for a PendingSignup row.
 function getPendingSignupExpiry() {
   return new Date(Date.now() + PENDING_SIGNUP_TTL_MINUTES * 60 * 1000);
 }
 
+// Sends the standard 429 "too many attempts" error response.
 // Standard shape for a "too many failed attempts" response — mirrors the
 // error envelope used everywhere else in this file.
 function lockedResponse(res, message) {
@@ -77,6 +101,8 @@ const DUMMY_OTP_HASH = bcrypt.hashSync('timing-safety-dummy-value', SALT_ROUNDS)
 // against) — measurably faster, and bcrypt is deliberately slow, so the gap
 // is not subtle. Running a compare against a dummy hash here closes that
 // timing side-channel, not just the response body.
+// Sends the generic "incorrect code" response after burning the same time
+// a real bcrypt compare would take, so timing can't reveal account existence.
 async function incorrectCodeResponse(code, res) {
   await compareOtp(code, DUMMY_OTP_HASH);
   return res.status(400).json({
@@ -86,6 +112,8 @@ async function incorrectCodeResponse(code, res) {
   });
 }
 
+// Issues a signed JWT for a user session, embedding tokenVersion so it
+// can be invalidated later without waiting for natural expiry.
 function signToken(userId, tokenVersion, remember = false) {
   return jwt.sign(
     { userId, tokenVersion },
@@ -94,6 +122,7 @@ function signToken(userId, tokenVersion, remember = false) {
   );
 }
 
+// Strips a Mongo User document down to the safe subset sent to clients.
 function toPublicUser(user) {
   return {
     id: user._id,
@@ -113,12 +142,16 @@ function toPublicUser(user) {
 // fire-and-forget shape already used for sendWelcomeEmail() below. Any
 // failure is logged (safe subset only — event metadata, never the
 // underlying error's full shape) and otherwise swallowed.
+// Writes one row to the SecurityEvent audit trail, without blocking or
+// affecting the caller's HTTP response.
 function recordSecurityEvent(eventType, { email, userId = null, ip = null }) {
   SecurityEvent.create({ eventType, email, userId, ip }).catch((err) => {
     logError('Failed to write SecurityEvent', { eventType, email, error: err.message });
   });
 }
 
+// Starts account creation: validates input, stores a PendingSignup, emails
+// an OTP. Never creates a real User document.
 // ---------------------------------------------------------------
 // POST /signup
 // Nothing is written to the users collection here — a PendingSignup row
@@ -233,6 +266,7 @@ router.post('/signup', signupLimiter, async (req, res) => {
   }
 });
 
+// Authenticates credentials, enforces lockout, and issues a JWT on success.
 // ---------------------------------------------------------------
 // POST /login
 // A real User document is always verified (see /verify-otp — it's the
@@ -260,6 +294,8 @@ router.post('/login', verifyLimiter, async (req, res) => {
       });
     }
 
+    // Sends the generic "invalid email or password" response, reused for
+    // every failure branch so none of them leak which part was wrong.
     const invalidCredentialsResponse = () => res.status(401).json({
       success: false,
       data: null,
@@ -388,6 +424,8 @@ router.post('/login', verifyLimiter, async (req, res) => {
   }
 });
 
+// Confirms a signup OTP, promotes the PendingSignup into a real verified
+// User, and auto-logs the user in.
 // ---------------------------------------------------------------
 // POST /verify-otp
 // Verifies the signup OTP against the PendingSignup row (not a User — see
@@ -487,6 +525,7 @@ router.post('/verify-otp', verifyLimiter, async (req, res) => {
   }
 });
 
+// Issues a fresh signup OTP for an existing PendingSignup and re-emails it.
 // ---------------------------------------------------------------
 // POST /resend-otp
 // Regenerates and re-sends the signup verification OTP, against the
@@ -548,6 +587,8 @@ router.post('/resend-otp', emailSendLimiter, async (req, res) => {
   }
 });
 
+// Starts a password reset: emails a reset code if the account exists,
+// without revealing whether it does.
 // ---------------------------------------------------------------
 // POST /forgot-password
 // Generates a reset code (stored in resetToken, despite the field name —
@@ -606,6 +647,8 @@ router.post('/forgot-password', emailSendLimiter, async (req, res) => {
   }
 });
 
+// Checks a password-reset code without consuming it, for the UI's step
+// transition — the code is re-validated again in /reset-password.
 // ---------------------------------------------------------------
 // POST /verify-reset-otp
 // Read-only check used for the UI's step 2 → step 3 transition — does
@@ -673,6 +716,8 @@ router.post('/verify-reset-otp', verifyLimiter, async (req, res) => {
   }
 });
 
+// Validates a reset code and, if correct, sets a new password and
+// invalidates every previously issued token for the account.
 // ---------------------------------------------------------------
 // POST /reset-password
 // Re-validates the reset code (defense in depth — don't trust that the
@@ -762,6 +807,8 @@ router.post('/reset-password', verifyLimiter, async (req, res) => {
 });
 
 
+// Bumps tokenVersion to invalidate every JWT ever issued to this account,
+// including the one used to make this very request.
 // ---------------------------------------------------------------
 // POST /logout-everywhere
 // Invalidates every token currently issued to this account by bumping
@@ -802,6 +849,8 @@ router.post('/logout-everywhere', verifyToken, async (req, res) => {
   }
 });
 
+// Confirms a stored token still resolves to a valid session and returns
+// the current user, for app-mount session checks.
 // ---------------------------------------------------------------
 // GET /me
 // Lightweight session-validity check the frontend calls once at app mount
