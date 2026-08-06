@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 const MotionLink = motion.create(Link);
 
+// Used throughout landing/ for every primary/ghost CTA button (Hero, CTA sections).
 /**
  * Magnetic button — attracts cursor within radius, uses spring.
  * Renders as a router Link when `to` is provided, otherwise a button.

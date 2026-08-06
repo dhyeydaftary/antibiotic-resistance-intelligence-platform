@@ -1,3 +1,7 @@
+// Client-side form validation — UX only (real-time checklist/strength
+// meter). Deliberately mirrors gateway/utils/passwordPolicy.js's
+// PASSWORD_RULES rule-for-rule, since the gateway is the actual
+// enforcement boundary; keep both in sync on any policy change.
 export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const PASSWORD_RULES = [
@@ -12,6 +16,8 @@ export const PASSWORD_RULES = [
   },
 ];
 
+// Scores a password against PASSWORD_RULES and derives a Weak..Strong
+// strength label, for PasswordChecklist/StrengthMeter.
 export function evaluatePassword(pw) {
   const results = PASSWORD_RULES.map((r) => ({ ...r, passed: r.test(pw) }));
   const passedCount = results.filter((r) => r.passed).length;

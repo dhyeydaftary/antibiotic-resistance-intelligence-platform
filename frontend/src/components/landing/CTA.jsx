@@ -10,6 +10,7 @@ const fadeUp = {
   }),
 };
 
+// Final landing-page call-to-action band before the footer.
 export default function CTA() {
   return (
     <section id="cta" data-testid="cta-section" className="bg-canvas-alt px-6 py-24 sm:py-32">

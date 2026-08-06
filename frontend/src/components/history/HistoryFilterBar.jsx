@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, RotateCcw, ChevronDown } from 'lucide-react';
 import DatePickerField from './DatePickerField';
 
+// Small uppercase label above each filter control.
 function FilterLabel({ children }) {
     return <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-onpanel-faint">{children}</span>;
 }
 
+// Plain native <select> (custom chevron via background-image) for the
+// Result/Sort filters, which don't need a stats preview.
 function NativeSelect({ value, onChange, options }) {
     return (
         <select
@@ -23,6 +26,7 @@ function NativeSelect({ value, onChange, options }) {
     );
 }
 
+// Two-pane dropdown (option list + live stats preview) for Antibiotic/Organism filters.
 // Custom dropdown for Antibiotic / Organism — shows a live stat preview on hover.
 // Anchored with plain CSS (absolute inside a relative wrapper), NOT fixed/portal —
 // so it scrolls naturally with the page and can't drift, unlike the old popup.
@@ -111,7 +115,10 @@ const SORT_OPTIONS = [
     { value: 'confidence-low', label: 'Lowest confidence' },
 ];
 
+// The full filter/sort/search control row for HistoryPage — all state
+// is lifted (controlled by `filters`/`onFilterChange` from the parent).
 const HistoryFilterBar = ({ filters, onFilterChange, onClear, antibioticOptions, organismOptions, antibioticStats, organismStats, totalResults }) => {
+    // Updates a single filter key, preserving the rest.
     const set = (key, value) => onFilterChange({ ...filters, [key]: value });
     const hasActiveFilters =
         filters.search || filters.status !== 'All' || filters.dateFrom || filters.dateTo ||

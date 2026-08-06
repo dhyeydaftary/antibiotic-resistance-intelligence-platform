@@ -1,3 +1,7 @@
+// Shared loading-placeholder components, one per page/panel shape
+// (Home, Explore, Trends, research papers, explain-trend drawer) — all
+// built from the single SkeletonBlock pulse primitive below, sized to
+// match their real content so there's no layout shift on load.
 import React from 'react';
 import Panel from '../app/Panel';
 

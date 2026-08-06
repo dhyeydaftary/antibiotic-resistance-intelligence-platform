@@ -6,6 +6,8 @@ import { useCountUp } from '../../hooks/useCountUp';
 
 const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
+// Top-line dataset-stats summary strip (rows, organisms, antibiotics,
+// date range), each figure animated in via useCountUp.
 function ExploreOverviewPanel({ stats }) {
   const totalRows = useCountUp(stats.totalRows);
   const organismCount = useCountUp(stats.organismDistribution?.length || 0);

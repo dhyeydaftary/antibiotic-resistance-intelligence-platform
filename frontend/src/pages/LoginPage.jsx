@@ -13,6 +13,14 @@ import { login } from "@/api/authApi";
 import { useAuth } from "@/context/AuthContext";
 import usePageTitle from '../hooks/usePageTitle';
 
+// ===================================================================
+// Route: /login (gated by GuestRoute — redirects an authenticated user
+// away). Calls api/authApi.js's login(); on a NOT_VERIFIED response
+// (account exists but never completed OTP verification), redirects to
+// /verify-email instead of showing a generic error. On success, hands
+// the token/user to AuthContext's login() (persists to storage per
+// "remember me") and navigates to /home.
+// ===================================================================
 function LoginPage() {
   usePageTitle('Login');
   
@@ -44,6 +52,8 @@ function LoginPage() {
 
   const isFormValid = Object.keys(fieldErrors).length === 0;
 
+  // Marks a field touched (on next tick — see comment inside) so its
+  // validation error becomes visible.
   function handleBlur(field) {
     // Deferred via setTimeout: if blur fires because the user clicked
     // something else (like the Sign Up link) rather than another form
@@ -57,6 +67,8 @@ function LoginPage() {
     }, 0);
   }
 
+  // Validates, calls the login API, and either signs the user in or
+  // surfaces the appropriate error (including the not_verified redirect prompt).
   const onSubmit = async (ev) => {
     ev.preventDefault();
     setGlobalError(null);

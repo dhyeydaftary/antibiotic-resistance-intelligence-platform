@@ -1,3 +1,13 @@
+// ===================================================================
+// BarChart — a top-level chart container from the same generated/
+// vendored components/charts/ library as area-chart.jsx (see that
+// file's header for the "why minimal annotation" note). Used by
+// PredictionResultPage (per-antibiotic confidence bars) and
+// ComorbidityPrevalencePanel (horizontal prevalence bars). Supports
+// vertical/horizontal orientation and stacked/grouped series, with its
+// own hand-rolled scale/tooltip/hit-testing logic (visx primitives,
+// not a full charting framework).
+// ===================================================================
 "use client";;
 import { localPoint } from "@visx/event";
 import { ParentSize } from "@visx/responsive";

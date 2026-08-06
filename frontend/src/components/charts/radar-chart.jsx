@@ -1,3 +1,9 @@
+// ===================================================================
+// RadarChart — a top-level chart container from the same generated/
+// vendored components/charts/ library as area-chart.jsx (see that
+// file's header). Used by landing/Hero.jsx's real Klebsiella pneumoniae
+// resistance-profile preview (one axis per antibiotic, radius = rate).
+// ===================================================================
 "use client";;
 import { Group } from "@visx/group";
 import { ParentSize } from "@visx/responsive";

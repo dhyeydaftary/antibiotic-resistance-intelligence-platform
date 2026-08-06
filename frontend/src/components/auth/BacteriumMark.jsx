@@ -1,3 +1,5 @@
+// Decorative inline SVG (stylized bacterium/rod shape) used as editorial
+// flourish art on auth-adjacent pages — purely visual, no logic.
 export const BacteriumMark = ({ className = "", ...props }) => (
   <svg
     viewBox="0 0 220 90"

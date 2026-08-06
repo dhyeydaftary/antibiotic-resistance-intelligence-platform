@@ -6,9 +6,12 @@ import dnaDoodle from '../../assets/images/dna-doodle.png';
 
 const ROTATE_SECONDS = 10;
 
+// Auto-rotating editorial quote banner (constants/homeContent.js's
+// static ROTATING_QUOTES — placeholder copy, no backend).
 function HomeQuoteBanner() {
   const [index, setIndex] = useState(0);
 
+  // Advances to the next quote, wrapping around at the end of the list.
   const next = useCallback(() => {
     setIndex((i) => (i + 1) % ROTATING_QUOTES.length);
   }, []);

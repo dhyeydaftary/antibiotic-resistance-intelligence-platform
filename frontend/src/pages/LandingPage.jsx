@@ -1,3 +1,12 @@
+// ===================================================================
+// Route: "/" — the only public, unauthenticated marketing page (see
+// routes/AppRoutes.jsx; no GuestRoute/ProtectedRoute gate). Purely a
+// composition of editorial/marketing sections under components/landing/
+// — no API calls, no app data. Owns the Lenis smooth-scroll instance
+// (shared with Header/Footer/BackToTop via lenisRef, so their
+// scroll-to-section links use the same smoothing), disabled entirely
+// under prefers-reduced-motion.
+// ===================================================================
 import { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
 
@@ -18,11 +27,15 @@ import CTA from '../components/landing/CTA';
 import Footer from '../components/landing/Footer';
 import BackToTop from '../components/landing/BackToTop';
 
+// Public marketing page: composes every components/landing/* section
+// and drives the shared smooth-scroll (Lenis) instance.
 function LandingPage() {
   usePageTitle();
-  
+
   const lenisRef = useRef(null);
 
+  // Sets up (and tears down) the Lenis smooth-scroll RAF loop, skipped
+  // entirely for users who prefer reduced motion.
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (prefersReducedMotion) return;

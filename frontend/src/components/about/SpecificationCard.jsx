@@ -1,3 +1,6 @@
+// UNUSED — grep confirms no file imports SpecificationCard. A generic
+// label/value spec-card component with no current call site; MetadataGrid
+// implements its own equivalent card markup inline instead.
 export default function SpecificationCard({ label, value, note, className = '', active = false }) {
     return (
         <div

@@ -1,5 +1,14 @@
+// ===================================================================
+// Every auth-related API call — signup, login, OTP verify/resend,
+// forgot/reset password, session check. Mirrors gateway/routes/auth.js
+// endpoint-for-endpoint. Every function returns a uniform { ok, ... }
+// shape rather than throwing, so calling pages never need try/catch —
+// they just check result.ok. Consumed by LoginPage, SignupPage,
+// VerifyEmailPage, ForgotPasswordPage, and AuthContext (getMe).
+// ===================================================================
 import api from './axiosConfig';
 
+// Converts an axios error into this module's uniform { ok: false, ... } shape.
 function normalizeError(err, fallbackMessage = 'Something went wrong. Please try again.') {
   const errBody = err?.response?.data?.error;
   if (!errBody) {
@@ -13,6 +22,7 @@ function normalizeError(err, fallbackMessage = 'Something went wrong. Please try
   };
 }
 
+// Creates a pending signup and triggers the verification OTP email.
 export async function signup({ name, email, password }) {
   try {
     const response = await api.post('/auth/signup', { name, email, password });
@@ -23,6 +33,8 @@ export async function signup({ name, email, password }) {
   }
 }
 
+// Authenticates credentials and returns a token, or a distinct
+// not_verified error so the caller can redirect to OTP verification.
 export async function login({ email, password, remember = false }) {
   try {
     const response = await api.post('/auth/login', { email, password, remember });
@@ -42,6 +54,8 @@ export async function login({ email, password, remember = false }) {
   }
 }
 
+// Verifies the signup OTP; on success the account becomes real and a
+// token is issued (auto-login).
 export async function verifyOtp({ email, code }) {
   try {
     const response = await api.post('/auth/verify-otp', { email, code });
@@ -59,6 +73,7 @@ export async function verifyOtp({ email, code }) {
   }
 }
 
+// Requests a fresh signup OTP for a pending, unverified signup.
 export async function resendOtp({ email }) {
   try {
     const response = await api.post('/auth/resend-otp', { email });
@@ -69,6 +84,7 @@ export async function resendOtp({ email }) {
   }
 }
 
+// Requests a password-reset OTP for an existing account.
 export async function forgotPassword({ email }) {
   try {
     const response = await api.post('/auth/forgot-password', { email });
@@ -79,6 +95,7 @@ export async function forgotPassword({ email }) {
   }
 }
 
+// Read-only check of a password-reset code, for the UI's step transition.
 // Distinct from verifyOtp — hits the reset-specific endpoint, since the
 // gateway tracks signup-verification codes (otp) and password-reset codes
 // (resetToken) as separate fields with separate endpoints.
@@ -98,6 +115,7 @@ export async function verifyResetOtp({ email, code }) {
   }
 }
 
+// Sets a new password after a reset code has been verified.
 export async function resetPassword({ email, code, password }) {
   try {
     await api.post('/auth/reset-password', { email, code, password });

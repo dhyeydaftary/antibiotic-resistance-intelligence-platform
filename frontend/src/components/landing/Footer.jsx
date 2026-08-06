@@ -4,7 +4,10 @@ import { Target, ShieldAlert } from 'lucide-react';
 
 const FOUNDATIONS = ['CatBoost', 'SHAP', 'WHO AWaRe', 'Explainable AI', 'Transparent ML'];
 
+// Landing-page footer: sitemap links (anchor links smooth-scroll via
+// Lenis, route links navigate), educational disclaimer, and legal links.
 export default function Footer({ lenisRef }) {
+  // Smooth-scrolls to an in-page anchor via the shared Lenis instance.
   const handleAnchorClick = (e, href) => {
     e.preventDefault();
     if (lenisRef?.current) {

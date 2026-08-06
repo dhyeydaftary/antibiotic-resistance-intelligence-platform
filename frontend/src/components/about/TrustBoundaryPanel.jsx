@@ -9,6 +9,8 @@ const fadeUp = {
     }),
 };
 
+// Claim-list card + large pull-quote, side by side — the actual
+// rendering used by AboutPhilosophy.
 export default function TrustBoundaryPanel({ quote, subtext, claims }) {
     return (
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-center">

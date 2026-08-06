@@ -1,3 +1,6 @@
+// Route: /terms — public. Rendered through the shared LegalDocument
+// layout also used by PrivacyPage; see that file's header for the
+// "accurate to the real app, not generic template text" note.
 import usePageTitle from '../hooks/usePageTitle';
 import LegalDocument from '../components/legal/LegalDocument';
 

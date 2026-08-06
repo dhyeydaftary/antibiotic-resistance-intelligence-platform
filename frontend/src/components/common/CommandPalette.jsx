@@ -10,6 +10,19 @@ import { getHistory } from '../../api/historyApi';
 import { ORGANISM_OPTIONS, ANTIBIOTICS, APP_PAGES } from '../../constants/domainData';
 import { fuzzyFilter, getRecentCommands, recordCommandUse } from '../../utils/fuzzyMatch';
 
+// ===================================================================
+// Global Cmd+K / Ctrl+K command palette, mounted once by App.jsx
+// (outside the route-transition tree so it survives navigation). Its
+// command list is built from four sources merged into one flat,
+// fuzzy-searchable array: static quick actions, static app pages
+// (constants/domainData.js's APP_PAGES), a live getHistory() fetch (5
+// most recent predictions, refetched every time the palette opens),
+// and the static organism/antibiotic lists — so search "CIP" surfaces
+// both the antibiotic and (once history loads) any recent prediction
+// naming it. Recently-used commands are tracked via
+// utils/fuzzyMatch.js's localStorage helpers and shown first when the
+// query is empty.
+// ===================================================================
 const PAGE_ICONS = {
   '/home': Home,
   '/predict': FlaskConical,
@@ -18,6 +31,7 @@ const PAGE_ICONS = {
   '/explore': Compass,
 };
 
+// Wraps the first substring in `text` matching `query` in an accent span.
 function highlightMatch(text, query) {
   if (!query) return text;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
@@ -31,6 +45,7 @@ function highlightMatch(text, query) {
   );
 }
 
+// Small pill label for a command's badge (e.g. "NEW", "RECENT", AWaRe tier).
 function Badge({ children, tone = 'accent' }) {
   const tones = {
     accent: 'text-app-accent bg-app-accent-soft',
@@ -54,6 +69,7 @@ export default function CommandPalette() {
   const listRef = useRef(null);
   const navigate = useNavigate();
 
+  // Global Cmd+K / Ctrl+K toggle and Escape-to-close, active app-wide.
   useEffect(() => {
     function handleKeyDown(e) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -66,6 +82,8 @@ export default function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // Resets and refocuses on open, and refetches recent predictions fresh
+  // each time (so the list is never stale from a previous session).
   useEffect(() => {
     if (isOpen) {
       setQuery('');
@@ -81,6 +99,7 @@ export default function CommandPalette() {
 
   const close = useCallback(() => setIsOpen(false), []);
 
+  // Fixed, always-available top-level actions (new prediction, compare, etc).
   const quickActions = useMemo(() => [
     { id: 'qa-new', label: 'New Prediction', icon: PlusCircle, shortcut: 'N', action: () => navigate('/predict') },
     { id: 'qa-compare', label: 'Compare Cases', icon: GitCompare, badge: 'NEW', action: () => navigate('/history') },
@@ -89,6 +108,8 @@ export default function CommandPalette() {
     { id: 'qa-explore', label: 'Open Explore', icon: Compass, action: () => navigate('/explore') },
   ], [navigate]);
 
+  // Merges quick actions, pages, recent predictions, organisms, and
+  // antibiotics into one flat searchable command list.
   const allCommands = useMemo(() => {
     const pages = APP_PAGES.map((p) => ({
       id: `page-${p.path}`, label: p.label, group: 'Navigation',
@@ -119,6 +140,9 @@ export default function CommandPalette() {
     return [...actions, ...pages, ...recent, ...organisms, ...antibiotics];
   }, [recentPredictions, quickActions, navigate]);
 
+  // Builds the grouped, ordered list actually rendered: empty query shows
+  // Recent/Actions/Navigation defaults; a query fuzzy-ranks and groups
+  // every command via utils/fuzzyMatch.js.
   const groups = useMemo(() => {
     const q = query.trim();
 
@@ -153,6 +177,7 @@ export default function CommandPalette() {
 
   useEffect(() => setSelectedIndex(0), [query]);
 
+  // Records the command as recently-used, executes its action, and closes the palette.
   const runItem = useCallback((item) => {
     if (!item) return;
     recordCommandUse(item.id, item.label);
@@ -160,6 +185,7 @@ export default function CommandPalette() {
     close();
   }, [close]);
 
+  // Arrow-key navigation and Enter-to-run within the open palette's input.
   function handleKeyDown(e) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();

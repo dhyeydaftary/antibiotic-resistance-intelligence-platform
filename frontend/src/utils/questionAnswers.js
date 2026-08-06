@@ -1,3 +1,6 @@
+// Answers the canned questions in constants/questionAnswers.js's question
+// bank (rendered by components/explore/QuestionBankPanel.jsx), matched by
+// string prefix against the question text.
 import { ANTIBIOTIC_AWARE_MAP } from '../constants/exploreContent';
 
 // Every answer here is either computed from the real dataset-stats response

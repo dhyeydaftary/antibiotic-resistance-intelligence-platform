@@ -1,3 +1,20 @@
+// ===================================================================
+// Route: /predict (ProtectedRoute-gated). The form that starts the core
+// ML flow: collects the 9 required fields + 24 optional clinical
+// fields, optionally auto-filled from an uploaded PDF lab report
+// (extractReportFromPDF), then submits to getPrediction() and
+// navigates to /predict/result/live with the response in router state
+// (PredictionResultPage reads it from location.state — no refetch,
+// no persistence yet; the record only gets a real ID once History
+// reloads it from the gateway).
+//
+// Field contract (VALIDATORS, OPTIONAL_DEFAULTS, OPTIONAL_NUMERIC_FIELDS)
+// deliberately mirrors gateway/utils/predictionValidation.js and
+// ml-backend/predictor/serializers.py field-for-field — keep all three
+// in sync. Defines its own local Field/TextInput/SelectInput/SectionLabel
+// below (distinct from components/app/Field.jsx and components/auth/
+// TextInput.jsx — this page predates/diverges from that shared kit).
+// ===================================================================
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -97,6 +114,7 @@ const EXTRACTABLE_BOOLEAN_FIELDS = [
 const EXTRACTABLE_NUMERIC_FIELDS = ['age', 'infection_freq', ...OPTIONAL_NUMERIC_FIELDS];
 const EXTRACTABLE_SELECT_FIELDS = ['gender', 'organism', 'ward_type', 'specimen_source'];
 
+// Small uppercase section divider label (e.g. "Demographics", "Vitals & body metrics").
 function SectionLabel({ children }) {
   return (
     <div className="mb-3.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-[#8E8E93]">
@@ -105,6 +123,7 @@ function SectionLabel({ children }) {
   );
 }
 
+// Labeled form-field wrapper local to this page.
 function Field({ label, children }) {
   return (
     <label className="block">
@@ -114,6 +133,7 @@ function Field({ label, children }) {
   );
 }
 
+// Numeric/text input local to this page, with a touched-gated inline error.
 function TextInput({ name, value, onChange, onBlur, type = 'text', error, touched, ...rest }) {
   const showError = touched && error;
   return (
@@ -137,6 +157,7 @@ function TextInput({ name, value, onChange, onBlur, type = 'text', error, touche
   );
 }
 
+// Custom-arrow native <select> local to this page.
 function SelectInput({ name, value, onChange, options, placeholder }) {
   return (
     <div className="relative">
@@ -158,6 +179,8 @@ function SelectInput({ name, value, onChange, options, placeholder }) {
   );
 }
 
+// Prediction request form — required + optional clinical fields, PDF
+// auto-fill, live request preview, and submission to the ML pipeline.
 function PredictionInputPage() {
   usePageTitle('Predict');
   
@@ -185,6 +208,8 @@ function PredictionInputPage() {
 
   const [touched, setTouched] = useState({});
 
+  // Validates only the required numeric/date fields; errors are only
+  // shown once `touched` marks that field (see handleBlur).
   const fieldErrors = useMemo(() => {
     const errors = {};
     Object.keys(VALIDATORS).forEach((key) => {
@@ -196,6 +221,9 @@ function PredictionInputPage() {
 
   const isFormValid = Object.keys(fieldErrors).length === 0;
 
+  // Counts how many of the 9 required fields are filled, for the live
+  // progress bar in the preview panel (2 baked in: gender/organism always
+  // have a default value).
   const filledCount = useMemo(() => {
     let count = 2;
     if (formData.age !== '') count += 1;
@@ -210,6 +238,8 @@ function PredictionInputPage() {
 
   const progress = filledCount / FIELD_COUNT;
 
+  // Counts how many of the 24 optional clinical fields the user has set
+  // (non-default), shown as "N/24 set" next to the collapsible section.
   const optionalFilledCount = useMemo(() => {
     return Object.keys(OPTIONAL_DEFAULTS).filter((key) => {
       const val = formData[key];
@@ -218,6 +248,7 @@ function PredictionInputPage() {
     }).length;
   }, [formData]);
 
+  // Generic controlled-input handler for every field (checkbox-aware).
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
@@ -226,14 +257,19 @@ function PredictionInputPage() {
     }));
   }
 
+  // Marks a required field touched so its validation error becomes visible.
   function handleBlur(e) {
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
   }
 
+  // Opens the native file picker via the hidden file input.
   function triggerFileUpload() {
     fileInputRef.current?.click();
   }
 
+  // Uploads the selected PDF for LLM field extraction, then merges any
+  // extracted values into formData (type-converted per field kind) and
+  // auto-expands the optional section if anything was filled.
   async function handleFileSelect(e) {
     const file = e.target.files?.[0];
     // Reset so selecting the same file again still fires this handler
@@ -313,6 +349,9 @@ function PredictionInputPage() {
     }
   }
 
+  // Validates, builds the API payload (omitting untouched optional
+  // fields so the backend's own defaults apply), submits, and navigates
+  // to the result page with the response in router state.
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);

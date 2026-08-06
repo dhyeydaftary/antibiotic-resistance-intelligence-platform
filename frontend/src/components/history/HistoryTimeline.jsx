@@ -4,6 +4,7 @@ import { ChevronRight, FileDown, FileSpreadsheet, FileJson, ArrowUpRight } from 
 import PrimaryButton from '../app/PrimaryButton';
 import AntibioticChip from './AntibioticChip';
 
+// Small "NR"/"NS"/"NI" count pill; renders nothing if count is 0.
 function ResultCountBadge({ count, tone, letter }) {
   if (!count) return null;
   const tones = {
@@ -18,6 +19,9 @@ function ResultCountBadge({ count, tone, letter }) {
   );
 }
 
+// One record's card within the timeline — collapsed header (organism,
+// R/S/I counts, confidence, export/open actions), expandable to show
+// every antibiotic's AntibioticChip.
 function SummaryRow({ summary, isExpanded, onToggle, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) {
   const formatTime = (d) => new Date(d).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
@@ -87,6 +91,8 @@ function SummaryRow({ summary, isExpanded, onToggle, onView, onDownloadPdf, onDo
   );
 }
 
+// Default history view: records grouped by calendar day along a
+// vertical timeline rail, each day's records rendered via SummaryRow.
 const HistoryTimeline = ({ summaries, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) => {
   const [expandedId, setExpandedId] = useState(null);
 
@@ -98,6 +104,7 @@ const HistoryTimeline = ({ summaries, onView, onDownloadPdf, onDownloadCsv, onDo
     );
   }
 
+  // Buckets the already-sorted summaries by their display date label.
   const grouped = summaries.reduce((groups, s) => {
     const key = new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     if (!groups[key]) groups[key] = [];

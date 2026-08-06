@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { SearchX } from 'lucide-react';
 import usePageTitle from '../hooks/usePageTitle';
 
+// Route: catch-all "*" in routes/AppRoutes.jsx — matches any unrecognized path.
 function NotFoundPage() {
   usePageTitle('Page Not Found');
   

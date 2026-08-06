@@ -20,6 +20,8 @@ const COMORB_LABELS = {
   immunocompromised: 'immunocompromised status',
 };
 
+// Builds 2-3 templated insight sentences from real stats — organism
+// focus (or overall coverage if none selected), ward context, comorbidity context.
 function buildInsight({ stats, selectedOrganism }) {
   const organisms = stats.organismDistribution || [];
   const totalRows = stats.totalRows || 0;
@@ -70,6 +72,8 @@ function buildInsight({ stats, selectedOrganism }) {
   return insights;
 }
 
+// Renders buildInsight()'s templated key-insight bullets, reactive to
+// the organism selected in OrganismLibraryPanel/SunburstChart.
 function DatasetInsightPanel({ stats, selectedOrganism }) {
   const insights = buildInsight({ stats, selectedOrganism });
 

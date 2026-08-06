@@ -13,10 +13,25 @@ import EmptyHistory from '../components/history/EmptyHistory';
 import HistorySkeleton from '../components/history/HistorySkeleton';
 import ScrollReveal from '../components/home/ScrollReveal';
 
+// ===================================================================
+// Route: /history (ProtectedRoute-gated). Fetches ALL of the user's
+// saved predictions once via getHistory() (unfiltered, unpaginated —
+// gateway/routes/prediction.js's GET /history DOES support server-side
+// query filters, but this page doesn't use them) and does every
+// filter/sort/paginate/stat-aggregation step client-side over the full
+// in-memory list. Renders as either a timeline or a table
+// (HistoryTimeline / HistoryTable), switchable via viewMode.
+//
+// Talks to: api/historyApi.js (fetch), utils/reportGenerator.js
+// (per-record PDF/CSV/JSON export, reused from PredictionResultPage),
+// components/history/* (all the panels below).
+// ===================================================================
 const DEFAULT_FILTERS = {
   search: '', status: 'All', dateFrom: '', dateTo: '', antibiotic: 'All', organism: 'All', sort: 'newest',
 };
 
+// Derives per-record display fields (R/S/I counts, avg confidence) from
+// a raw history API record.
 function summarizeRecord(record) {
   const preds = record.predictions || [];
   const counts = preds.reduce((acc, p) => ({ ...acc, [p.result]: (acc[p.result] || 0) + 1 }), {});
@@ -36,6 +51,8 @@ function summarizeRecord(record) {
   };
 }
 
+// Reshapes a summarized record back into the {_id, createdAt, ...} shape
+// utils/reportGenerator.js expects for export.
 function buildReportItem(record) {
   return { _id: record.id, createdAt: record.date, inputData: record.inputData, predictions: record.predictions, aiInsights: record.aiInsights };
 }
@@ -54,6 +71,8 @@ function daysAgoLabel(dateValue) {
   return target.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// History view: stats, insights, filters, and timeline/table listing of
+// every saved prediction.
 const HistoryPage = () => {
   usePageTitle('History');
   
@@ -65,6 +84,8 @@ const HistoryPage = () => {
   const [viewMode, setViewMode] = useState('timeline');
   const itemsPerPage = 8;
 
+  // Loads the full prediction history for this user; failure degrades
+  // to an empty list rather than showing an error state.
   const fetchHistory = useCallback(async () => {
     setLoading(true);
     try {
@@ -82,6 +103,8 @@ const HistoryPage = () => {
 
   const summaries = useMemo(() => rawRecords.map(summarizeRecord), [rawRecords]);
 
+  // Aggregates top-level stat-tile numbers: total count, predictions in
+  // the last 7 days, overall resistance rate, and most-recent-prediction label.
   const stats = useMemo(() => {
     if (!rawRecords.length) return { total: 0, thisWeek: 0, avgResistance: 0, lastPrediction: 'No predictions yet' };
 
@@ -118,6 +141,7 @@ const HistoryPage = () => {
     return result;
   }, [summaries]);
 
+  // Per-organism record count and resistance rate, for filter-dropdown hover previews.
   const organismStats = useMemo(() => {
     const map = {};
     summaries.forEach((s) => {
@@ -133,6 +157,9 @@ const HistoryPage = () => {
     return result;
   }, [summaries]);
 
+  // Applies every active filter (organism, date range, antibiotic/status,
+  // free-text search) then sorts — the core client-side filtering
+  // pipeline this whole page reads from.
   const filteredSummaries = useMemo(() => {
     let filtered = summaries.filter((s) => {
       if (filters.organism !== 'All' && s.organism !== filters.organism) return false;
@@ -176,6 +203,8 @@ const HistoryPage = () => {
 
   useEffect(() => { setCurrentPage(1); }, [filters]);
 
+  // Exports every currently-filtered record as one summary CSV (distinct
+  // from a per-record export via reportGenerator).
   const handleExport = () => {
     if (filteredSummaries.length === 0) { alert('No data to export.'); return; }
     const headers = ['Date', 'Organism', 'Resistant', 'Susceptible', 'Intermediate', 'Avg Confidence (%)'];
@@ -194,6 +223,8 @@ const HistoryPage = () => {
 
   const handleNewPrediction = () => navigate('/predict');
 
+  // Re-opens a past record on PredictionResultPage by passing its data
+  // through router state, the same way a fresh prediction does.
   const handleViewRecord = useCallback((summary) => {
     navigate('/predict/result/live', {
       state: { prediction: { predictions: summary.predictions, aiInsights: summary.aiInsights }, inputData: summary.inputData },

@@ -1,3 +1,7 @@
+// Static domain reference data mirrored from the backend's allow-lists
+// (gateway/utils/domainAllowLists.js, ml-backend/constants.py) — used to
+// populate dropdowns/filters (organism select, antibiotic lists) without
+// a round-trip. Keep in sync if the backend's lists change.
 export const ORGANISM_OPTIONS = [
   'Acinetobacter baumannii', 'Citrobacter spp.', 'Enterobacteria spp.',
   'Escherichia coli', 'Klebsiella pneumoniae', 'Morganella morganii',
