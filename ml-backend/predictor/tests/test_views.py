@@ -16,7 +16,9 @@ from django.conf import settings
 from django.test import TestCase
 
 
+# Tests research_papers_view's organism allow-list validation.
 class ResearchPapersViewTests(TestCase):
+    # Issues an authenticated GET against the research-papers endpoint.
     def _get(self, params):
         return self.client.get(
             '/api/predictor/research-papers/',

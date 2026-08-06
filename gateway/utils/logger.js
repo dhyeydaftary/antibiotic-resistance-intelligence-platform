@@ -9,6 +9,8 @@
 // JSON.stringify(new Error()) produces '{}' since Error's own enumerable
 // properties don't include message/stack, which would silently throw away
 // the most useful part of an error log.
+// Converts a log context object into a JSON-safe shape, expanding Error
+// instances so their message/stack aren't lost.
 function serializeContext(context) {
   const out = {};
   for (const [key, value] of Object.entries(context)) {
@@ -19,6 +21,7 @@ function serializeContext(context) {
   return out;
 }
 
+// Formats and emits a single structured log line to stdout/stderr.
 function write(level, message, context) {
   const entry = {
     timestamp: new Date().toISOString(),
@@ -34,10 +37,12 @@ function write(level, message, context) {
   }
 }
 
+// Logs an informational event.
 function logInfo(message, context = {}) {
   write('info', message, context);
 }
 
+// Logs an error event.
 function logError(message, context = {}) {
   write('error', message, context);
 }

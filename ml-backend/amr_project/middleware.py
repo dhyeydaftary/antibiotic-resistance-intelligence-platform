@@ -1,3 +1,8 @@
+# Registered in settings.py's MIDDLEWARE list, runs on every request
+# before it reaches any view in predictor/views.py. This is the gateway-
+# Django trust boundary: pairs with gateway/utils/djangoClient.js, which
+# sets X-Internal-Api-Key on every outgoing call — INTERNAL_API_KEY must
+# match on both sides (env var on each service).
 import hmac
 
 from django.conf import settings
@@ -12,6 +17,8 @@ from django.http import JsonResponse
 EXEMPT_PATHS = set()
 
 
+# Django middleware gating every /api/predictor/ request behind a shared
+# internal API key.
 class InternalApiKeyMiddleware:
     """
     Rejects any request to this service that doesn't carry the shared
@@ -22,9 +29,11 @@ class InternalApiKeyMiddleware:
     is the actual enforcement boundary.
     """
 
+    # Stores Django's next-handler callable, per the middleware protocol.
     def __init__(self, get_response):
         self.get_response = get_response
 
+    # Checks the request's internal API key before passing it through.
     def __call__(self, request):
         if not request.path.startswith('/api/predictor/') or request.path in EXEMPT_PATHS:
             return self.get_response(request)

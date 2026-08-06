@@ -1,6 +1,19 @@
+// ===================================================================
+// Auth middleware — gates every protected route (all of
+// routes/prediction.js, plus /logout-everywhere and /me in
+// routes/auth.js). Verifies the JWT's signature/expiry AND that its
+// tokenVersion still matches the user's current tokenVersion in Mongo,
+// so a password reset or "logout everywhere" invalidates old tokens
+// immediately rather than waiting for natural expiry. On success sets
+// req.userId for downstream handlers; on any failure, uniformly returns
+// 401 AUTH_ERROR (deliberately doesn't distinguish "expired" from
+// "malformed" from "stale tokenVersion" in the response).
+// ===================================================================
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+// Express middleware: verifies a request's JWT and rejects revoked tokens.
+// Called by every protected route.
 async function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
 

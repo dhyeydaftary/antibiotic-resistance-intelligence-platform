@@ -15,6 +15,7 @@ const { buildPredictionApp, buildAuthApp, signTestToken } = require('./helpers')
 // read fresh before writing the test — not against what the fix looked
 // like when it first landed.
 
+// Seeds a fixture user for tests that don't need real password hashing.
 function seedUser(userStore, overrides = {}) {
   return userStore.seed({
     email: overrides.email || 'user@example.com',
@@ -421,6 +422,8 @@ describe('Safe error-forwarding (handleDjangoError)', () => {
   });
 });
 
+// Rebuilds index.js's security-middleware chain standalone, without its
+// Mongo-connect/listen side effects, for header/CORS assertions.
 // gateway/index.js constructs its Express app with side effects (connects
 // to MongoDB, calls app.listen()) that must never run in a test process.
 // Since index.js doesn't export an app factory, this rebuilds the exact
@@ -531,6 +534,8 @@ describe('CORS', () => {
   });
 });
 
+// Builds a full app (real auth routes + security middleware) so headers
+// can be checked on genuine 401/429/500 responses, not just 200s.
 // Mirrors index.js's middleware ordering: helmet + Permissions-Policy +
 // CORS are applied at the very top of the app, before any route (or the
 // final error handler) runs — so they must be present on every response
@@ -595,6 +600,7 @@ function buildFullAppWithHeaders() {
   return app;
 }
 
+// Shared assertion: checks all the helmet-set security headers on a response.
 function assertSecurityHeadersPresent(res) {
   assert.equal(res.headers['x-frame-options'], 'DENY');
   assert.equal(res.headers['x-content-type-options'], 'nosniff');

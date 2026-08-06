@@ -15,6 +15,7 @@ from django.conf import settings
 from django.test import TestCase, override_settings
 
 
+# Tests the core accept/reject behavior of InternalApiKeyMiddleware.
 @override_settings(ROOT_URLCONF='predictor.tests.stub_urls')
 class InternalApiKeyMiddlewareTests(TestCase):
     def test_request_with_no_key_is_rejected(self):
@@ -56,6 +57,7 @@ class InternalApiKeyMiddlewareTests(TestCase):
         self.assertNotEqual(response.status_code, 401)
 
 
+# Tests edge cases of the key comparison itself (empty, prefix, timing-safety).
 @override_settings(ROOT_URLCONF='predictor.tests.stub_urls')
 class InternalApiKeyMiddlewareEdgeCaseTests(TestCase):
     def test_empty_string_key_header_is_rejected(self):

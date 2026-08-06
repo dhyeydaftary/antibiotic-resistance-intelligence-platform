@@ -20,6 +20,7 @@ const { hashOtp, getOtpExpiry } = require('../utils/otpUtil');
 
 const VALID_PASSWORD = 'Str0ng!Pass';
 
+// Asserts a recorded SecurityEvent has exactly the expected shape/values.
 // SecurityEvent.js's schema declares exactly these four fields — asserted
 // exhaustively (not just spot-checked) so an accidental future field
 // addition (e.g. someone adding `passwordHash` to a recordSecurityEvent
@@ -34,6 +35,7 @@ function assertEventShape(event, expected) {
   }
 }
 
+// Asserts a serialized event contains none of the given secret values.
 // Checks every field's value against every known secret in scope for the
 // triggering flow — not a spot-check of one field, a scan of the entire
 // serialized event for every secret string that existed anywhere in the
@@ -49,6 +51,7 @@ function assertNoSecretsLeaked(event, secrets) {
   }
 }
 
+// Seeds a fixture verified User with a real bcrypt password hash.
 async function seedVerifiedUser(userStore, overrides = {}) {
   const passwordHash = await bcrypt.hash(overrides.password || VALID_PASSWORD, 10);
   return userStore.seed({
