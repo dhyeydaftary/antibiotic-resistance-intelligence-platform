@@ -16,6 +16,7 @@ const HERO_STATS = [
     { label: 'Stewardship Standard', value: 'WHO AWaRe 2023' },
 ];
 
+// About page Act I: hero header, subtitle, and the 4-stat fact bar.
 export default function AboutOpening() {
     return (
         <section

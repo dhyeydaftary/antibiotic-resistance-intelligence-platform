@@ -17,6 +17,10 @@ const ROUTE_LINKS = [
   { label: "About", to: "/about", testId: "nav-about" },
 ];
 
+// Fixed landing-page nav bar: scroll-aware backdrop blur, anchor links
+// (smooth-scrolled via the shared Lenis instance) vs. route links, and
+// an auth-aware primary CTA (Dashboard if logged in, else Sign in/Try
+// a prediction).
 export default function Header({ lenisRef }) {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);

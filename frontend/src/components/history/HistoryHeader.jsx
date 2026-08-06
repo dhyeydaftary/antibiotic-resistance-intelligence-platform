@@ -2,6 +2,8 @@ import React from 'react';
 import { Download, Plus } from 'lucide-react';
 import PrimaryButton from '../app/PrimaryButton';
 
+// HistoryPage's title bar: page heading, timeline/table view toggle,
+// export-all-filtered-as-CSV, and "new analysis" shortcut.
 const HistoryHeader = ({ onExport, onNewAnalysis, viewMode, onViewModeChange }) => {
   return (
     <div className="mb-8">

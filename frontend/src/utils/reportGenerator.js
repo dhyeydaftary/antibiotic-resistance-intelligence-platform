@@ -1,3 +1,17 @@
+// ===================================================================
+// Client-side export of a single prediction-history record — JSON, CSV,
+// or a fully laid-out clinical-style PDF (jsPDF + jspdf-autotable, with
+// Chart.js used only as an offscreen renderer to rasterize chart images
+// into the PDF, since jsPDF can't draw live charts). Entirely
+// client-side: no server round-trip, the record is already in memory
+// (from HistoryPage or PredictionResultPage).
+//
+// downloadPdf() is the interesting one — it hand-lays-out a multi-page
+// report (header, patient data table, risk banner, chart images,
+// predictions table, SHAP table, AI insights prose, disclaimer, footer)
+// using absolute mm coordinates and manual pagination (ensureSpace),
+// not a templating library.
+// ===================================================================
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Chart, registerables } from 'chart.js';
@@ -5,6 +19,7 @@ import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
 
 // --- Font embedding: Merriweather TTFs served from /public/fonts ---
+// Fetches a font file and returns it as a base64 string for jsPDF embedding.
 async function loadFontBase64(url) {
   const res = await fetch(url);
   const buffer = await res.arrayBuffer();
@@ -14,6 +29,7 @@ async function loadFontBase64(url) {
   return btoa(binary);
 }
 
+// Loads and embeds the Merriweather font (regular/bold/italic) into the PDF doc.
 async function registerReportFonts(doc) {
   const [regular, bold, italic] = await Promise.all([
     loadFontBase64('/fonts/Merriweather_24pt-Regular.ttf'),
@@ -29,6 +45,7 @@ async function registerReportFonts(doc) {
 }
 
 // --- Logo: rendered from the same mark used in AuthHeader.jsx, in monochrome ---
+// Rasterizes the app's SVG logo mark into a PNG data URL for embedding in the PDF.
 function renderLogoToImage(size = 120) {
   return new Promise((resolve) => {
     const svgMarkup = `
@@ -62,10 +79,13 @@ const HAIRLINE = [210, 210, 210];
 const PANEL_BG = [246, 246, 246];
 const FLAG_COLOR = { Low: [90, 90, 90], Moderate: [90, 90, 90], 'Moderate-High': [40, 40, 40], High: [20, 20, 20] };
 
+// Formats a stored timestamp into a locale-readable string.
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleString();
 }
 
+// Builds a descriptive, collision-resistant export filename from a
+// history record (organism, date, short record ID).
 function buildFilename(item, ext) {
   const organism = (item.inputData?.organism || 'Unknown').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '');
   const dateStr = new Date(item.createdAt).toISOString().slice(0, 10);
@@ -73,11 +93,13 @@ function buildFilename(item, ext) {
   return `AMR-Insight_Report_${organism}_${dateStr}_${shortId}.${ext}`;
 }
 
+// Exports a history record as a raw JSON file.
 export function downloadJson(item) {
   const blob = new Blob([JSON.stringify(item, null, 2)], { type: 'application/json' });
   triggerDownload(blob, buildFilename(item, 'json'));
 }
 
+// Exports a history record's predictions as a flat CSV file.
 export function downloadCsv(item) {
   const headers = ['Antibiotic', 'Result', 'AWaRe Category', 'Confidence', 'Top Contributing Feature'];
   const rows = item.predictions.map((p) => [p.antibiotic, p.result, p.awareCategory, p.confidence, p.shapExplanation?.[0]?.feature || '']);
@@ -92,6 +114,8 @@ export function downloadCsv(item) {
 const RETINA_SCALE = 3;
 const CHART_GRAY = ['#2A2A2A', '#8A8A8A', '#C7C7C7'];
 
+// Renders a Chart.js config offscreen at retina resolution and returns a
+// PNG data URL — the bridge letting jsPDF embed a "live" chart as an image.
 function renderChartToImage(config, w, h) {
   return new Promise((resolve) => {
     const canvas = document.createElement('canvas');
@@ -106,8 +130,10 @@ function renderChartToImage(config, w, h) {
     });
   });
 }
+// Scales a font size for the retina-resolution offscreen chart canvas.
 function sf(base) { return { size: base * RETINA_SCALE }; }
 
+// Builds the Chart.js config for the R/S/I result-distribution doughnut chart.
 function buildDistributionChartConfig(predictions) {
   const counts = { R: 0, S: 0, I: 0 };
   predictions.forEach((p) => { counts[p.result] = (counts[p.result] || 0) + 1; });
@@ -123,6 +149,7 @@ function buildDistributionChartConfig(predictions) {
   };
 }
 
+// Builds the Chart.js config for the per-antibiotic confidence bar chart.
 function buildConfidenceChartConfig(predictions) {
   return {
     type: 'bar',
@@ -145,6 +172,8 @@ const MARGIN = 16;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 const FONT = 'Merriweather';
 
+// Draws a section-divider rule + uppercase heading at y, returns the new
+// cursor y position.
 function sectionHeader(doc, text, y) {
   doc.setDrawColor(...HAIRLINE);
   doc.setLineWidth(0.3);
@@ -158,11 +187,16 @@ function sectionHeader(doc, text, y) {
   return y + 6;
 }
 
+// Manual pagination: if the next block wouldn't fit above the footer
+// line, starts a new page and returns the reset cursor y; otherwise a no-op.
 function ensureSpace(doc, y, needed) {
   if (y + needed > 278) { doc.addPage(); return 24; }
   return y;
 }
 
+// Word-wraps `text` at maxWidth, bolding any word that matches keywordSet
+// (antibiotic names, R/S/I terms) — a lightweight rich-text renderer since
+// jsPDF has no native inline-bold-within-a-paragraph support.
 function renderRichText(doc, text, x, y, maxWidth, keywordSet, lineHeight = 4.8) {
   const words = text.split(/\s+/);
   let cursorX = x, cursorY = y;
@@ -182,12 +216,16 @@ function renderRichText(doc, text, x, y, maxWidth, keywordSet, lineHeight = 4.8)
   return cursorY + lineHeight;
 }
 
+// Builds the set of words renderRichText should bold: fixed clinical
+// terms plus every antibiotic name in this report.
 function buildKeywordSet(predictions) {
   const set = new Set(['Resistant', 'Susceptible', 'Intermediate', 'Reserve', 'Watch', 'Access']);
   predictions.forEach((p) => set.add(p.antibiotic));
   return set;
 }
 
+// Entry point: builds and downloads the full multi-page clinical-style
+// PDF report for one prediction record.
 export async function downloadPdf(item) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   await registerReportFonts(doc);
@@ -393,6 +431,7 @@ export async function downloadPdf(item) {
   doc.save(buildFilename(item, 'pdf'));
 }
 
+// Triggers a browser file download for a Blob via a throwaway <a> element.
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

@@ -37,6 +37,9 @@ export default function LegalDocument({ kicker, title, effectiveDate, intro, def
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
     }, [title]);
 
+    // Sets the active section (wrapping around at both ends), with an
+    // optional 550ms input lock so a fast scroll/swipe can't skip
+    // multiple sections in one gesture.
     // Centralized index navigator with modulo looping
     const goToIndex = useCallback((newIndex, forceLock = true) => {
         if (forceLock && isLockedRef.current) return;
@@ -50,6 +53,8 @@ export default function LegalDocument({ kicker, title, effectiveDate, intro, def
         }
     }, [total]);
 
+    // Intercepts mouse-wheel scroll over the document panel and steps
+    // through sections one at a time, instead of scrolling the page.
     // Wheel event handler on document panel (intercepts scroll over panel & steps through sections)
     useEffect(() => {
         const panelEl = panelRef.current;
@@ -73,13 +78,14 @@ export default function LegalDocument({ kicker, title, effectiveDate, intro, def
         };
     }, [activeIndex, goToIndex]);
 
-    // Touch swipe handlers for mobile
+    // Records the touch start Y position, to compute swipe distance on touchend.
     const handleTouchStart = (e) => {
         if (e.touches && e.touches.length > 0) {
             touchStartYRef.current = e.touches[0].clientY;
         }
     };
 
+    // Advances/retreats a section on a vertical swipe past a 40px threshold.
     const handleTouchEnd = (e) => {
         if (isLockedRef.current) return;
         if (!e.changedTouches || e.changedTouches.length === 0) return;

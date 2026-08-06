@@ -1,5 +1,13 @@
 // frontend/src/constants/questionAnswers.js
-
+//
+// UNUSED / SUPERSEDED — grep confirms nothing imports QUESTION_ANSWERS.
+// This was an earlier draft of the Explore page's question bank with
+// invented placeholder statistics (the 45%/85-90%/30-40% figures below
+// are NOT real). It was replaced by utils/questionAnswers.js's
+// getAnswer(), which computes answers from real dataset-stats data and
+// explicitly says so unavailable rather than inventing a number. Kept
+// here for reference only — if asked live, this is dead code, not a
+// contradiction of the "no invented numbers" principle elsewhere.
 export const QUESTION_ANSWERS = {
   'What organism shows the highest multi-drug resistance rate?': 
     'Based on the dataset, Klebsiella pneumoniae shows the highest multi-drug resistance rate, with over 45% of samples showing resistance to at least three antibiotic classes.',

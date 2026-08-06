@@ -1,6 +1,10 @@
 import { useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 
+// Hand-rolled inline-SVG sunburst specific to the Explore page — distinct
+// from the reusable components/charts/sunburst-chart.jsx library
+// component; this one is self-contained on purpose (see below) and not
+// built on the shared charts/ primitives.
 // Self-contained 2-ring sunburst — zero dependencies, same convention as
 // MiniLineChart on Home. Real hierarchy from the real dataset-stats
 // response: inner ring = "Named organisms" vs "Unknown", outer ring = each
@@ -24,11 +28,13 @@ const OUTER_R1 = 142;
 const BLUE_SHADES = ['#0071E3', '#2B87E8', '#4C9CED', '#6EB1F1', '#8FC6F5', '#B0DBFA', '#D1EFFE'];
 const UNKNOWN_COLOR = '#6E6E73';
 
+// Converts a polar angle (degrees, 0 = top) into SVG (x, y) coordinates.
 function polarToCartesian(cx, cy, r, angleDeg) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
+// Builds the SVG path `d` string for one donut-ring arc segment.
 function arcPath(cx, cy, rInner, rOuter, startAngle, endAngle) {
   const largeArc = endAngle - startAngle > 180 ? 1 : 0;
   const outerStart = polarToCartesian(cx, cy, rOuter, endAngle);
@@ -44,6 +50,8 @@ function arcPath(cx, cy, rInner, rOuter, startAngle, endAngle) {
   ].join(' ');
 }
 
+// Two-ring organism-distribution sunburst: inner ring = named vs.
+// Unknown, outer ring = each individual organism's share.
 function SunburstChart({ organisms, totalRows }) {
   const containerRef = useRef(null);
   const [hovered, setHovered] = useState(null); // { key, label, count, top, left }

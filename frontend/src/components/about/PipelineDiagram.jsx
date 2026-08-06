@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// The 5 real pipeline stages, in execution order — mirrors the actual
+// backend flow: dataset (ml_artifacts/cleaned_dataset.csv) ->
+// preprocessing (predict.py's build_feature_row) -> 15 CatBoost models
+// (predict.py's MODELS/predict_resistance) -> SHAP (predict.py's
+// get_shap_explanation) -> prediction + confidence (the API response
+// consumed by PredictionResultPage). Static content for the interactive
+// walkthrough below, not fetched from the backend.
 const STAGES = [
     {
         id: 'dataset',
@@ -74,6 +81,8 @@ const STAGES = [
     },
 ];
 
+// Interactive 5-stage pipeline explorer: a tab strip selects a STAGES
+// entry, and its detail/specs animate in below.
 export default function PipelineDiagram() {
     const [activeIndex, setActiveIndex] = useState(0);
     const activeStage = STAGES[activeIndex];

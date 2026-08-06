@@ -10,6 +10,7 @@ const RESULT_STRIPE = {
   I: 'bg-intermediate',
 };
 
+// Formats a stored date string into a short display date.
 function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
@@ -18,6 +19,9 @@ function formatDate(dateStr) {
  * recentPredictions: [{ recordId, organism, result, confidence, date }]
  * (already flattened — see HomePage.jsx for how this is derived from getHistory())
  */
+// "Start a new prediction" CTA + a short list of the user's most recent
+// predictions (rows link nowhere individually — see inline note below;
+// "View all" routes to /history where per-record detail actually lives).
 function HomeResearchPanel({ recentPredictions }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">

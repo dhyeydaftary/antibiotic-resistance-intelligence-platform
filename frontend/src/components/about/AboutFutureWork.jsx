@@ -29,6 +29,7 @@ const DIRECTIONS = [
     },
 ];
 
+// About page Act VII: honest future-work directions + closing quote.
 export default function AboutFutureWork() {
     return (
         <ResearchSection

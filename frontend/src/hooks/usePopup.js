@@ -1,8 +1,14 @@
+// Computes a viewport-aware top/left position for a floating panel
+// (dropdown/popover) anchored to a trigger element — flips to the
+// opposite side (above/left) when there isn't room on the preferred
+// side, and clamps to stay fully on-screen. Recalculates on open,
+// scroll, and resize.
 import { useState, useEffect, useCallback } from 'react';
 
 export const usePopup = (isOpen, triggerRef, panelRef) => {
   const [position, setPosition] = useState({ top: 0, left: 0, right: 'auto' });
 
+  // Reads the trigger/panel DOM rects and derives a non-overflowing position.
   const calculatePosition = useCallback(() => {
     if (!triggerRef.current || !panelRef.current || !isOpen) return;
 

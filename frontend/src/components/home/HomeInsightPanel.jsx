@@ -7,6 +7,7 @@ import { RESEARCH_FEED, WHAT_CHANGED, pickDailyQuestion } from '../../constants/
 import { getAnswer } from '../../utils/questionAnswers';
 import { getDatasetStats } from '../../api/datasetApi';
 
+// Title + optional "view more" link, shared by each of the 3 columns below.
 function ColumnHeader({ title, linkTo, linkLabel }) {
   return (
     <div className="mb-3 flex items-center justify-between">
@@ -40,6 +41,7 @@ function HomeInsightPanel() {
   const [statsError, setStatsError] = useState(false);
   const [answerOpen, setAnswerOpen] = useState(false);
 
+  // Fetches dataset stats solely to answer "today's question" with real numbers.
   useEffect(() => {
     let cancelled = false;
     getDatasetStats()

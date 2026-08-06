@@ -9,6 +9,7 @@ const STRENGTH_COLOR = {
   4: "#30D158", // Strong
 };
 
+// Renders evaluatePassword()'s strengthIndex (0-4) as a colored progress bar.
 export const StrengthMeter = ({ strength = "empty", strengthIndex = 0 }) => {
   const widthPct = (strengthIndex / 4) * 100;
   const color = STRENGTH_COLOR[strengthIndex] ?? STRENGTH_COLOR[0];

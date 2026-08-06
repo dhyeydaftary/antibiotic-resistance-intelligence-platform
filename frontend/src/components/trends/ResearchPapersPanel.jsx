@@ -10,11 +10,15 @@ const cardVariants = {
   visible: (i) => ({ opacity: 1, y: 0, transition: { duration: 0.3, delay: i * 0.05 } }),
 };
 
+// Renders real PubMed research papers for the current antibiotic/
+// organism (pubmed_client.py backend, cached there for 6h) — no LLM
+// involved, titles/excerpts are verbatim from PubMed.
 function ResearchPapersPanel({ antibiotic, organism }) {
   const [papers, setPapers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Refetches papers whenever the antibiotic/organism selection changes.
   useEffect(() => {
     setLoading(true);
     setError(null);

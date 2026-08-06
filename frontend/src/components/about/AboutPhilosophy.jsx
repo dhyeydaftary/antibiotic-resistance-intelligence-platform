@@ -8,6 +8,8 @@ const CLAIMS = [
     { label: 'Transparent Limits', text: 'Boundaries stated directly alongside capabilities.' },
 ];
 
+// About page Act II: the project's design philosophy, rendered via the
+// shared TrustBoundaryPanel/ResearchSection layout components.
 export default function AboutPhilosophy() {
     return (
         <ResearchSection

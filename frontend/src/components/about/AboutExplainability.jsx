@@ -10,6 +10,10 @@ const fadeUp = {
     }),
 };
 
+// Worked example for the "how SHAP explainability works" walkthrough —
+// a real, hand-captured prediction (not live-fetched), so this section
+// works without hitting the API. See predict.py's get_shap_explanation()
+// for where this same SHAP output is actually generated at request time.
 // Real output — pulled from catboost_CIP.pkl on dataset row 0
 const EXAMPLE = {
     antibiotic: 'Ciprofloxacin (CIP)',
@@ -28,6 +32,9 @@ const EXAMPLE = {
 
 const MAX_ABS = Math.max(...EXAMPLE.features.map((f) => Math.abs(f.value)));
 
+// Renders one feature's SHAP contribution as a diverging bar (right =
+// pushes toward Susceptible, left = toward Resistant), scaled relative
+// to the largest |value| in EXAMPLE.features.
 function ShapBar({ index, label, value, impact }) {
     const isPositive = value > 0;
     const widthPct = (Math.abs(value) / MAX_ABS) * 100;
@@ -72,6 +79,9 @@ function ShapBar({ index, label, value, impact }) {
     );
 }
 
+// About page Act IV (cont.): explains SHAP explainability via a worked
+// example, and explicitly caveats "SHAP explains model reasoning, not
+// clinical causality."
 export default function AboutExplainability() {
     return (
         <ResearchSection

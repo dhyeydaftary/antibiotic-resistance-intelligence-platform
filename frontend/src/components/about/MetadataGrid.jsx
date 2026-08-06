@@ -8,6 +8,8 @@ const METADATA_ITEMS = [
     { label: 'WHO AWaRe Version', value: '2023 Edition' },
 ];
 
+// Renders METADATA_ITEMS as a "model card"-style key/value table,
+// used in AboutBackMatter.
 export default function MetadataGrid() {
     return (
         <div className="flex h-full flex-col justify-between rounded-[20px] border border-canvas-hairline bg-white shadow-sm overflow-hidden">

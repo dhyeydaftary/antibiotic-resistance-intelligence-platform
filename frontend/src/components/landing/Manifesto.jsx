@@ -32,6 +32,7 @@ const fadeUp = {
   }),
 };
 
+// "Four principles" editorial section — static content, no data.
 export default function Manifesto() {
   return (
     <section id="manifesto" data-testid="manifesto-section" className="bg-canvas px-6 py-24 sm:py-28">

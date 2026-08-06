@@ -1,3 +1,5 @@
+// Shared kicker/title/subtitle heading block used at the top of every
+// auth form (and each step of the forgot-password wizard).
 export const FormHeader = ({ kicker, title, subtitle }) => (
   <div className="mb-10">
     {kicker ? (

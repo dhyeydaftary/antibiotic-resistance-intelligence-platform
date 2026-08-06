@@ -46,10 +46,13 @@ const CHART_VARS = {
   '--border': '#3A3A3C',
 };
 
+// Maps a raw API field key (e.g. "burningUrination") to its display label.
 function prettifyField(key) {
   return FIELD_LABELS[key] || key;
 }
 
+// Horizontal bar chart of prevalence % for a set of fields (comorbidity
+// or symptom), sorted descending; renders nothing if `items` is empty.
 function PrevalenceSection({ icon: Icon, title, subtitle, items }) {
   if (!items || items.length === 0) return null;
   const sorted = [...items].sort((a, b) => b.prevalence - a.prevalence);
@@ -90,6 +93,8 @@ function PrevalenceSection({ icon: Icon, title, subtitle, items }) {
   );
 }
 
+// Renders each vitals/labs field as a min-mean-max range bar; collapsed
+// to the first 3 by default ("Show all N" expands the rest).
 /**
  * vitalsLabsSummary: [{field, min, mean, max, sampleSize}]
  * Displayed as visual range bars: min ←——●——→ max with the mean dot positioned proportionally.
@@ -176,6 +181,8 @@ function VitalsLabsTable({ items }) {
  * All optional — absent on the legacy (non-augmented) dataset.
  * The panel renders nothing if no data is present.
  */
+// Combines comorbidity/symptom prevalence charts and the vitals/labs
+// range table — augmented-dataset only, renders nothing without that data.
 function ComorbidityPrevalencePanel({ comorbidityPrevalence, symptomPrevalence, vitalsLabsSummary }) {
   const hasComorb = comorbidityPrevalence && comorbidityPrevalence.length > 0;
   const hasSymptom = symptomPrevalence && symptomPrevalence.length > 0;

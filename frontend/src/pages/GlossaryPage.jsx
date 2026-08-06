@@ -133,6 +133,9 @@ const TERMS = [
 
 /* ------------------------------------------------------------------ */
 
+// Route: /glossary — public. TERMS above is static content (no API);
+// search below is a client-side substring match over term+definition.
+// Builds the lowercased searchable text for one glossary term.
 function slugSearchable(t) {
     return `${t.term} ${t.definition}`.toLowerCase();
 }
@@ -142,6 +145,8 @@ function slugSearchable(t) {
 // ease) is correct per §4's "reach for springs for anything a user can touch."
 const cardSpring = { type: 'spring', bounce: 0, duration: 0.35 };
 
+// One glossary entry card — term, definition, and "See also" links to
+// related term IDs (jumps + scrolls to that card via onJumpTo).
 function TermCard({ item, onJumpTo, reduceMotion }) {
     return (
         <motion.div
@@ -183,6 +188,7 @@ function TermCard({ item, onJumpTo, reduceMotion }) {
 
 const HEADER_OFFSET = 96; // px reserved for the sticky top bar when scrolling to a section
 
+// Searchable, category-grouped glossary of every term used across the app.
 export default function GlossaryPage() {
     usePageTitle('Glossary');
     
@@ -191,12 +197,14 @@ export default function GlossaryPage() {
     const sectionRefs = useRef({});
     const reduceMotion = useReducedMotion();
 
+    // Filters TERMS by the current search query (substring match, no query = all terms).
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q) return TERMS;
         return TERMS.filter((t) => slugSearchable(t).includes(q));
     }, [query]);
 
+    // Buckets the filtered terms by category, dropping empty categories.
     const groupedCategories = useMemo(() => {
         return CATEGORIES
             .map((cat) => ({ ...cat, terms: filtered.filter((t) => t.category === cat.id) }))
@@ -223,6 +231,7 @@ export default function GlossaryPage() {
         return () => observer.disconnect();
     }, [groupedCategories]);
 
+    // Smooth-scrolls to a category section, offsetting for the sticky header.
     const scrollToCategory = useCallback((catId) => {
         const el = document.getElementById(`cat-${catId}`);
         if (!el) return;
@@ -230,11 +239,13 @@ export default function GlossaryPage() {
         window.scrollTo({ top, behavior: reduceMotion ? 'auto' : 'smooth' });
     }, [reduceMotion]);
 
+    // Prevents the default anchor jump so scrollToCategory's offset applies instead.
     const handleNavClick = (e, catId) => {
         e.preventDefault();
         scrollToCategory(catId);
     };
 
+    // Clears any active search and scrolls to a related term's card by ID.
     const handleJumpTo = (id) => {
         setQuery('');
         requestAnimationFrame(() => {

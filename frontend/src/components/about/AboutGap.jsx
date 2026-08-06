@@ -10,6 +10,8 @@ const fadeUp = {
     }),
 };
 
+// About page Act I (cont.): explains the diagnostic-timeline "gap"
+// (empirical treatment window before lab AST results) this project targets.
 export default function AboutGap() {
     return (
         <ResearchSection

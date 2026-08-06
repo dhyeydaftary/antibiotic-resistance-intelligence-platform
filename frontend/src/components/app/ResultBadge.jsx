@@ -4,6 +4,8 @@ const CONFIG = {
   I: { label: 'Intermediate', bg: 'bg-intermediate/10', text: 'text-intermediate', dot: 'bg-intermediate' },
 };
 
+// Colored pill badge for a prediction's R/S/I result — the single
+// source of the app's Resistant/Susceptible/Intermediate visual language.
 function ResultBadge({ result }) {
   const cfg = CONFIG[result] || CONFIG.I;
   return (

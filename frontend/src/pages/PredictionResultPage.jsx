@@ -20,6 +20,24 @@ import { Grid } from '../components/charts/grid';
 import { ChartTooltip } from '../components/charts/tooltip';
 import usePageTitle from '../hooks/usePageTitle';
 
+// ===================================================================
+// Route: /predict/result/:id (ProtectedRoute-gated). Renders the
+// prediction that PredictionInputPage just navigated here with, passed
+// via router state (location.state.prediction) — not re-fetched from
+// the API. :id is only meaningfully "live" today (PredictionInputPage
+// always navigates to /predict/result/live); a real persisted-history
+// record ID would land here too but this page doesn't currently fetch
+// by ID — it always falls back to FAKE_PREDICTION sample data if
+// location.state is empty (e.g. a hard refresh, or direct URL visit),
+// so the page is never blank.
+//
+// Renders: result-distribution ring chart + per-antibiotic confidence
+// bar chart (components/charts/), the SHAP breakdown per prediction
+// (PredictionRow, expandable), and the AI insights block (summary, risk,
+// next steps, similar historical cases) with RichText highlighting
+// antibiotic names/percentages inline. Export buttons call
+// utils/reportGenerator.js directly (PDF/CSV/JSON), client-side only.
+// ===================================================================
 const FAKE_PREDICTION = {
   predictions: [
     { antibiotic: 'AMX/AMP', result: 'R', confidence: 0.87, awareCategory: 'Access', shapExplanation: [] },
@@ -48,6 +66,9 @@ const CHART_VARS = {
   '--border': '#3A3A3C',
 };
 
+// Builds the RichText keyword list: every antibiotic name in this
+// result plus the fixed R/S/I and AWaRe-tier terms, longest-first so
+// regex alternation matches the longest term at each position.
 function buildHighlightTerms(predictions) {
   const terms = [];
   predictions.forEach((p) => {
@@ -62,12 +83,17 @@ function buildHighlightTerms(predictions) {
   return terms.sort((a, b) => b.term.length - a.term.length);
 }
 
+// Escapes regex metacharacters in a highlight term before it's embedded
+// in the RichText alternation pattern.
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 }
 
 const NUMBER_REGEX = /\d+(\.\d+)?%?/g;
 
+// Splits plain text into React nodes, wrapping every number/percentage
+// in a monospace span — the numeric-emphasis layer under RichText's
+// keyword highlighting.
 function highlightNumbers(text, keyPrefix) {
   const nodes = [];
   let lastIndex = 0;
@@ -92,6 +118,10 @@ function highlightNumbers(text, keyPrefix) {
   return nodes;
 }
 
+// Renders AI-generated prose with antibiotic names/R-S-I/AWaRe terms
+// bolded and numbers monospaced — a lightweight inline-highlighting
+// renderer (word-boundary-aware regex, not a markdown parser) used
+// throughout the AI Insights panel.
 function RichText({ text, terms }) {
   if (!text) return null;
   if (!terms || terms.length === 0) return <>{highlightNumbers(text, 'n')}</>;
@@ -120,6 +150,8 @@ function RichText({ text, terms }) {
   return <>{nodes}</>;
 }
 
+// One antibiotic's prediction row — result badge + confidence, expandable
+// to reveal its top-5 SHAP feature contributions as mini horizontal bars.
 function PredictionRow({ p }) {
   const [expanded, setExpanded] = useState(false);
   const hasShap = p.shapExplanation && p.shapExplanation.length > 0;
@@ -175,6 +207,8 @@ function PredictionRow({ p }) {
   );
 }
 
+// Prediction result view: charts, per-antibiotic SHAP breakdown, AI
+// insights, and export actions. See file header for data-source details.
 function PredictionResultPage() {
   usePageTitle('Result');
   
@@ -186,6 +220,9 @@ function PredictionResultPage() {
     window.scrollTo(0, 0);
   }, []);
 
+  // Falls back to FAKE_PREDICTION sample data whenever this page is
+  // reached without router state (refresh, direct link) — the page
+  // never renders blank/broken.
   const realPrediction = location.state?.prediction;
   const inputData = location.state?.inputData;
   const isLive = Boolean(realPrediction);
@@ -211,6 +248,11 @@ function PredictionResultPage() {
     confidence: Math.round(p.confidence * 100),
   }));
 
+  // Reshapes this page's data into the {_id, createdAt, inputData,
+  // predictions, aiInsights} shape utils/reportGenerator.js expects
+  // (the same shape as a real PredictionHistory record) — a live,
+  // just-submitted result has no real Mongo _id yet, so one is
+  // synthesized here purely for export filenames.
   const reportItem = {
     _id: id !== 'live' ? id : `live-${Date.now()}`,
     createdAt: new Date().toISOString(),

@@ -8,6 +8,8 @@ const TONE_CONFIG = {
   error: { icon: AlertCircle, border: "border-resistant/25", bg: "bg-resistant/10", text: "text-resistant" },
 };
 
+// Inline success/info/error message box used for global form-level
+// feedback across every auth page (e.g. "invalid credentials", "code sent").
 export const Banner = ({ tone = "error", title, description, testId }) => {
   const t = TONE_CONFIG[tone] || TONE_CONFIG.error;
   const Icon = t.icon;

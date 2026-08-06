@@ -2,6 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import ResultBadge from '../app/ResultBadge';
 
+// One antibiotic result chip (used in HistoryTimeline cards) that shows
+// a detail popover — confidence, AWaRe tier, top SHAP driver — on hover.
+// Portals the popover to document.body so it isn't clipped by the
+// scrolling card container, and manually positions it via getBoundingClientRect.
 const AntibioticChip = ({ prediction }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [position, setPosition] = useState(null);
@@ -11,6 +15,8 @@ const AntibioticChip = ({ prediction }) => {
   const POPOVER_WIDTH = 224;
   const POPOVER_HEIGHT_ESTIMATE = 140;
 
+  // Computes the popover's fixed-position coordinates, flipping above
+  // the chip if there isn't room below, and clamping horizontally.
   const handleEnter = () => {
     if (!chipRef.current) return;
     const rect = chipRef.current.getBoundingClientRect();

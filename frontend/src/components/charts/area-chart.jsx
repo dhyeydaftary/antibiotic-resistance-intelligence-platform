@@ -1,3 +1,17 @@
+// ===================================================================
+// AreaChart — one of components/charts/'s top-level chart containers
+// (visx-based, ~130-file internal library). This whole directory reads
+// as generated/vendored component-library code (auto-formatted prop
+// ordering, biome lint-ignore annotations, "use client";; double
+// semicolons) rather than hand-authored app logic, so only this
+// top-level entry point is annotated — internals (chart-phase.js,
+// time-series-chart-shell.jsx, the tooltip/ subfolder, etc.) are left
+// as-is. Used directly by PredictionResultPage (confidence bars),
+// TrendsPage/HomePage (resistance-rate area/line charts).
+// AreaChart auto-sizes via visx's ParentSize, reads <Area> children to
+// find which data keys to plot, and renders through the shared
+// TimeSeriesChartInner (handles axes/grid/tooltip/enter-animation).
+// ===================================================================
 "use client";;
 import { ParentSize } from "@visx/responsive";
 import { Children, isValidElement, useCallback, useMemo, useRef, useState } from "react";

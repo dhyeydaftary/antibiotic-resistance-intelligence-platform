@@ -1,3 +1,6 @@
+// Per-character shimmering-color loop animation, respects prefers-
+// reduced-motion. Used by components/charts/chart-loading-label.jsx for
+// chart "Loading…" text.
 "use client";;
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback } from "react";

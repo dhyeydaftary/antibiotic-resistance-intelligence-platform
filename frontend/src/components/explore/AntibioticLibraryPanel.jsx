@@ -9,6 +9,7 @@ const CATEGORY_DOT = {
   Reserve: 'bg-resistant',
 };
 
+// All 15 antibiotics grouped by WHO AWaRe tier (Access/Watch/Reserve).
 /**
  * Display-only now — clicking a pill used to "select" an antibiotic for
  * DatasetInsightPanel, but that added a selection state with no real

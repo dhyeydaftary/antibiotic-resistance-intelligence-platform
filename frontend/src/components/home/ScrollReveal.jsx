@@ -1,3 +1,6 @@
+// Shared scroll-in-view animation wrapper, despite living under
+// components/home/ — also used by HistoryPage, TrendsPage, and
+// DatasetExplorerPage to stagger their section reveals.
 import { motion } from 'framer-motion';
 
 /**

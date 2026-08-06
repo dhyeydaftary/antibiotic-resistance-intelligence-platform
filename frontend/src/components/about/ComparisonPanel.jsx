@@ -9,6 +9,8 @@ const fadeUp = {
     }),
 };
 
+// Side-by-side "capable of" vs. "not capable of" split panel — the
+// actual rendering used by AboutTrustBoundary.
 export default function ComparisonPanel({ capabilities, boundaries, takeaway }) {
     return (
         <div className="space-y-6">

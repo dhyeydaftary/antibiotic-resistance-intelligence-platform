@@ -1,3 +1,7 @@
+// Scores how well `query` matches `text` for CommandPalette search:
+// exact match highest, then prefix, then word-boundary, then substring,
+// then a typo-tolerant subsequence match penalized by gap count.
+// Returns -1 for no match at all.
 export function fuzzyScore(text, query) {
   if (!query) return 0;
 
@@ -28,6 +32,8 @@ export function fuzzyScore(text, query) {
   return -1; // no match
 }
 
+// Scores and sorts a list of items by fuzzyScore against `query`
+// (best match first); returns items unranked (score 0) if query is empty.
 export function fuzzyFilter(items, query, getText) {
   if (!query) return items.map((item) => ({ item, score: 0 }));
   return items
@@ -40,6 +46,7 @@ export function fuzzyFilter(items, query, getText) {
 const RECENT_KEY = 'amr_recent_commands';
 const MAX_RECENT = 6;
 
+// Reads the CommandPalette's recently-used command list from localStorage.
 export function getRecentCommands() {
   try {
     const raw = localStorage.getItem(RECENT_KEY);
@@ -49,6 +56,7 @@ export function getRecentCommands() {
   }
 }
 
+// Moves a command to the front of the recent list (deduping) and persists it.
 export function recordCommandUse(id, label) {
   try {
     const recent = getRecentCommands().filter((r) => r.id !== id);

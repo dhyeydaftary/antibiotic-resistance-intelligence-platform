@@ -37,10 +37,12 @@ const LAB_FIELDS = [
   { key: 'egfr', label: 'eGFR', unit: 'mL/min' },
 ];
 
+// Checks whether an inputData field has a meaningful (non-empty) value.
 function hasValue(v) {
   return v !== undefined && v !== null && v !== '';
 }
 
+// Small icon + uppercase label row, used to head each PatientContext section.
 function SectionHeader({ icon: Icon, label, count }) {
   return (
     <div className="flex items-center gap-1.5">
@@ -53,6 +55,8 @@ function SectionHeader({ icon: Icon, label, count }) {
   );
 }
 
+// Renders only the fields from `fields` that actually have a value on
+// this record, as a small metric-tile grid.
 function MetricGrid({ fields, inputData }) {
   const active = fields.filter((f) => hasValue(inputData[f.key]));
   if (active.length === 0) return null;
@@ -74,6 +78,8 @@ function MetricGrid({ fields, inputData }) {
   );
 }
 
+// Displays a history record's captured clinical context (ward/specimen,
+// comorbidity/symptom flags, vitals, labs), skipping any section with no data.
 /**
  * Renders the clinical picture captured at prediction time (ward, comorbidities,
  * symptoms, vitals, labs) from a history record's raw inputData. Every section is

@@ -1,5 +1,8 @@
 import React from 'react';
 
+// UNUSED — grep confirms no file imports HistoryRow. An earlier flat
+// table-row design superseded by HistoryTable.jsx/HistoryTimeline.jsx.
+// Kept for reference; not wired into HistoryPage's render tree.
 const HistoryRow = ({ prediction, isExpanded, onToggle }) => {
   const formatDate = (dateString) => {
     const date = new Date(dateString);

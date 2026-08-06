@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 
+// App-wide filled primary button with a tap-scale micro-interaction
+// (framer-motion), used across prediction/history/trends/explore pages.
 function PrimaryButton({ children, type = 'button', onClick, disabled, className = '' }) {
   return (
     <motion.button
