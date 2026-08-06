@@ -106,3 +106,16 @@ export async function resetPassword({ email, code, password }) {
     return normalizeError(err);
   }
 }
+
+// Session-validity check — confirms a stored token still resolves to a
+// real, current user on the gateway (distinct from login, which issues a
+// new token). Used once at app mount, not on every navigation.
+export async function getMe() {
+  try {
+    const response = await api.get('/auth/me');
+    const { data } = response.data;
+    return { ok: true, user: data.user };
+  } catch (err) {
+    return normalizeError(err);
+  }
+}
