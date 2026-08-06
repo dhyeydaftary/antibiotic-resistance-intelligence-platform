@@ -1,0 +1,93 @@
+import React, { useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { Sparkles, FlaskConical, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import Panel from '../app/Panel';
+
+// Three-card "quick insights" strip above the history list: overall R/S/I
+// mix, most-frequent antibiotic, and week-over-week resistance trend —
+// all derived client-side from the already-loaded summaries.
+const HistoryInsights = ({ summaries }) => {
+  // Computes the three insight-card values from the full summary list.
+  const insights = useMemo(() => {
+    if (!summaries || !summaries.length) return null;
+
+    const allPreds = summaries.flatMap((s) => s.predictions);
+    const total = allPreds.length;
+    const resistance = allPreds.filter((p) => p.result === 'R').length;
+    const susceptible = allPreds.filter((p) => p.result === 'S').length;
+    const intermediate = allPreds.filter((p) => p.result === 'I').length;
+
+    const resistanceRate = Math.round((resistance / total) * 100);
+    const susceptibilityRate = Math.round((susceptible / total) * 100);
+    const intermediateRate = Math.round((intermediate / total) * 100);
+
+    const antibioticCount = {};
+    allPreds.forEach((p) => { antibioticCount[p.antibiotic] = (antibioticCount[p.antibiotic] || 0) + 1; });
+    const mostCommonAntibiotic = Object.keys(antibioticCount).reduce((a, b) => antibioticCount[a] > antibioticCount[b] ? a : b);
+    const mostCommonPct = Math.round((antibioticCount[mostCommonAntibiotic] / total) * 100);
+
+    const now = new Date();
+    const sevenAgo = new Date(now); sevenAgo.setDate(sevenAgo.getDate() - 7);
+    const fourteenAgo = new Date(now); fourteenAgo.setDate(fourteenAgo.getDate() - 14);
+
+    const recent = summaries.filter((s) => new Date(s.date) >= sevenAgo);
+    const previous = summaries.filter((s) => new Date(s.date) >= fourteenAgo && new Date(s.date) < sevenAgo);
+    const recentR = recent.flatMap((s) => s.predictions).filter((p) => p.result === 'R').length;
+    const previousR = previous.flatMap((s) => s.predictions).filter((p) => p.result === 'R').length;
+    const trendChange = previousR > 0 ? Math.round(((recentR - previousR) / previousR) * 100) : 0;
+
+    return { resistanceRate, susceptibilityRate, intermediateRate, mostCommonAntibiotic, mostCommonPct, trendChange, recentCount: recent.length };
+  }, [summaries]);
+
+  if (!insights) return null;
+
+  const outcomeLabel = insights.resistanceRate > 40 ? 'Resistant' : insights.susceptibilityRate > 40 ? 'Susceptible' : 'Intermediate';
+  const TrendIcon = insights.trendChange > 0 ? TrendingUp : insights.trendChange < 0 ? TrendingDown : Minus;
+  const trendColor = insights.trendChange > 0 ? 'text-resistant' : insights.trendChange < 0 ? 'text-susceptible' : 'text-onpanel-muted';
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 6 },
+    visible: (i) => ({ opacity: 1, y: 0, transition: { duration: 0.35, delay: i * 0.05 } }),
+  };
+
+  return (
+    <Panel className="mb-6 border-accent-indigo/25 p-5">
+      <div className="mb-4 flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-accent-indigo">
+        <Sparkles size={13} /> Quick insights
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <motion.div custom={0} initial="hidden" animate="visible" variants={cardVariants} className="rounded-[14px] bg-panel-raised p-4">
+          <div className="font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">Most common outcome</div>
+          <div className="mt-1 font-display text-[22px] font-semibold text-onpanel-ink">{outcomeLabel}</div>
+          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">
+            {insights.resistanceRate}% R · {insights.susceptibilityRate}% S · {insights.intermediateRate}% I
+          </div>
+          <div className="mt-3 flex h-1.5 w-full overflow-hidden rounded-full bg-panel-border">
+            <div className="h-full bg-resistant" style={{ width: `${insights.resistanceRate}%` }} />
+            <div className="h-full bg-intermediate" style={{ width: `${insights.intermediateRate}%` }} />
+            <div className="h-full bg-susceptible" style={{ width: `${insights.susceptibilityRate}%` }} />
+          </div>
+        </motion.div>
+
+        <motion.div custom={1} initial="hidden" animate="visible" variants={cardVariants} className="rounded-[14px] bg-panel-raised p-4">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">
+            <FlaskConical size={11} /> Most frequent antibiotic
+          </div>
+          <div className="mt-1 truncate font-display text-[22px] font-semibold text-onpanel-ink">{insights.mostCommonAntibiotic}</div>
+          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">{insights.mostCommonPct}% of predictions</div>
+        </motion.div>
+
+        <motion.div custom={2} initial="hidden" animate="visible" variants={cardVariants} className="rounded-[14px] bg-panel-raised p-4">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">
+            <TrendIcon size={11} /> Resistance trend
+          </div>
+          <div className={`mt-1 font-display text-[22px] font-semibold ${trendColor}`}>{Math.abs(insights.trendChange)}%</div>
+          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">{insights.recentCount} predictions this week</div>
+        </motion.div>
+      </div>
+    </Panel>
+  );
+};
+
+export default HistoryInsights;

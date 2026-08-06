@@ -7,6 +7,7 @@ db.sqlite3
 *.log
 media/
 staticfiles/
+.coverage
 
 # Node / React (frontend)
 node_modules/
@@ -15,6 +16,7 @@ dist/
 
 # Node / Express (gateway)
 gateway/node_modules/
+gateway/coverage/
 
 # Environment files (never commit secrets)
 .env
@@ -23,8 +25,24 @@ gateway/node_modules/
 
 # Editor/OS junk
 .vscode/
+.idea/
 .DS_Store
 Thumbs.db
+*.swp
+*.sw?
 
 # Jupyter
 .ipynb_checkpoints/
+
+# ml-backend: local working copies of the source dataset, needed only for
+# generate_synthetic_features.py's relative INPUT_PATH convention — the
+# canonical tracked copy lives at ml-backend/ml_artifacts/cleaned_dataset.csv
+# and is explicitly un-ignored below regardless of where else a copy appears.
+/ml-backend/**/cleaned_dataset.csv
+!/ml-backend/ml_artifacts/cleaned_dataset.csv
+
+# CatBoost training log output (auto-generated on every train_models.py run)
+catboost_info/
+
+# Claude Code session config/state (local, not shared team config)
+.claude/

@@ -1,0 +1,100 @@
+<svg viewBox="0 0 840 560" xmlns="http://www.w3.org/2000/svg" font-family="Helvetica, Arial, sans-serif">
+  <!-- Shared AMR-Insight diagram theme (light/dark via prefers-color-scheme).
+       Token names and values are kept identical across every file in
+       docs/assets/diagrams/ — if you tune a color here, apply the same
+       change to the other SVGs in this directory so they stay visually
+       consistent. -->
+  <style>
+    .canvas { fill: #ffffff; }
+    .ink-strong { fill: #0f172a; }
+    .ink { fill: #1e293b; }
+    .ink-muted { fill: #64748b; }
+    .ink-faint { fill: #94a3b8; }
+    .accent-ink { fill: #4f46e5; }
+    .node-neutral { fill: #f1f5f9; stroke: #94a3b8; }
+    .node-accent { fill: #eef2ff; stroke: #6366f1; }
+    .edge-neutral { stroke: #94a3b8; }
+    .edge-accent { stroke: #4f46e5; }
+    .arrow-neutral { fill: #94a3b8; }
+    .arrow-accent { fill: #4f46e5; }
+
+    @media (prefers-color-scheme: dark) {
+      .canvas { fill: #0d1117; }
+      .ink-strong { fill: #f0f6fc; }
+      .ink { fill: #e6edf3; }
+      .ink-muted { fill: #8b949e; }
+      .ink-faint { fill: #6e7681; }
+      .accent-ink { fill: #a5b4fc; }
+      .node-neutral { fill: #161b22; stroke: #6e7681; }
+      .node-accent { fill: #1c2333; stroke: #818cf8; }
+      .edge-neutral { stroke: #6e7681; }
+      .edge-accent { stroke: #818cf8; }
+      .arrow-neutral { fill: #6e7681; }
+      .arrow-accent { fill: #818cf8; }
+    }
+  </style>
+
+  <rect x="0" y="0" width="840" height="560" class="canvas"/>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" class="arrow-neutral"/>
+    </marker>
+  </defs>
+
+  <text x="420" y="28" text-anchor="middle" font-size="18" font-weight="700" class="ink-strong">What conditions what</text>
+
+  <text x="150" y="55" text-anchor="middle" font-size="13" font-weight="700" class="ink-muted">REAL / MEASURED FIELDS</text>
+  <text x="680" y="20" text-anchor="middle" font-size="13" font-weight="700" class="accent-ink">SYNTHETIC VARIABLE GROUPS</text>
+
+  <!-- LEFT: real fields -->
+  <rect x="40" y="60" width="220" height="50" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="150" y="90" text-anchor="middle" font-size="14" class="ink">Organism</text>
+
+  <rect x="40" y="180" width="220" height="50" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="150" y="210" text-anchor="middle" font-size="14" class="ink">Demographics (age, gender)</text>
+
+  <rect x="40" y="300" width="220" height="50" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="150" y="330" text-anchor="middle" font-size="13" class="ink">Diabetes, hypertension</text>
+
+  <rect x="40" y="420" width="220" height="60" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="150" y="445" text-anchor="middle" font-size="13" class="ink">Hospital_before,</text>
+  <text x="150" y="463" text-anchor="middle" font-size="13" class="ink">Infection_Freq</text>
+
+  <!-- RIGHT: synthetic groups -->
+  <rect x="560" y="40" width="240" height="60" rx="8" stroke-width="1.5" class="node-accent"/>
+  <text x="680" y="65" text-anchor="middle" font-size="14" class="ink">Specimen source</text>
+  <text x="680" y="83" text-anchor="middle" font-size="11" class="ink-muted">(also conditions symptoms)</text>
+
+  <rect x="560" y="120" width="240" height="60" rx="8" stroke-width="1.5" class="node-accent"/>
+  <text x="680" y="145" text-anchor="middle" font-size="13" class="ink">Ward type &amp;</text>
+  <text x="680" y="163" text-anchor="middle" font-size="13" class="ink">prior antibiotic use</text>
+
+  <rect x="560" y="200" width="240" height="80" rx="8" stroke-width="1.5" class="node-accent"/>
+  <text x="680" y="225" text-anchor="middle" font-size="14" class="ink">Comorbidities</text>
+  <text x="680" y="242" text-anchor="middle" font-size="11" class="ink-muted">CKD, liver disease, cancer,</text>
+  <text x="680" y="257" text-anchor="middle" font-size="11" class="ink-muted">immunocompromised</text>
+  <text x="680" y="273" text-anchor="middle" font-size="11" class="accent-ink">(CKD status also feeds Labs &amp; vitals)</text>
+
+  <rect x="560" y="300" width="240" height="50" rx="8" stroke-width="1.5" class="node-accent"/>
+  <text x="680" y="330" text-anchor="middle" font-size="14" class="ink">Labs &amp; vitals</text>
+
+  <rect x="560" y="370" width="240" height="50" rx="8" stroke-width="1.5" class="node-accent"/>
+  <text x="680" y="400" text-anchor="middle" font-size="14" class="ink">Symptoms</text>
+
+  <rect x="560" y="440" width="240" height="50" rx="8" stroke-width="1.5" class="node-accent"/>
+  <text x="680" y="470" text-anchor="middle" font-size="13" class="ink">Body measurements (weight, BMI)</text>
+
+  <!-- Edges -->
+  <line x1="260" y1="85"  x2="558" y2="70"  stroke-width="1.3" marker-end="url(#arrow)" class="edge-neutral"/>
+  <line x1="260" y1="445" x2="558" y2="150" stroke-width="1.3" marker-end="url(#arrow)" class="edge-neutral"/>
+  <line x1="260" y1="455" x2="558" y2="325" stroke-width="1.3" marker-end="url(#arrow)" class="edge-neutral"/>
+  <line x1="260" y1="205" x2="558" y2="240" stroke-width="1.3" marker-end="url(#arrow)" class="edge-neutral"/>
+  <line x1="260" y1="325" x2="558" y2="240" stroke-width="1.3" marker-end="url(#arrow)" class="edge-neutral"/>
+  <line x1="260" y1="195" x2="558" y2="320" stroke-width="1.3" marker-end="url(#arrow)" class="edge-neutral"/>
+  <line x1="260" y1="215" x2="558" y2="465" stroke-width="1.3" marker-end="url(#arrow)" class="edge-neutral"/>
+
+  <line x1="60" y1="520" x2="90" y2="520" stroke-width="1.3" class="edge-accent"/>
+  <text x="98" y="524" font-size="11" class="ink-muted">Blue annotation text = second-order (a synthetic variable conditioning another synthetic variable)</text>
+  <text x="420" y="545" text-anchor="middle" font-size="11" class="ink-faint">Full per-variable detail: the conditioning table above</text>
+</svg>

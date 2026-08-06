@@ -1,0 +1,2 @@
+coverage==7.15.3
+pip-audit==2.10.1
