@@ -1,3 +1,11 @@
+# Backs GET /explain-trend/ (views.py's explain_trend_view, called after
+# trends.py's get_resistance_trend()). Turns a raw month-by-month
+# resistance-rate series into a narrative: summary, key observations,
+# data-grounded "possible causes" (explicitly limited to sample-size/
+# coverage-gap explanations — never invents clinical/epidemiological
+# causes), WHO AWaRe-tier clinical relevance, and a simple linear
+# forecast. All deterministic/statistical — no LLM call here (contrast
+# with ai_insights.py's Gemini-backed summary).
 import numpy as np
 from .predict import AWARE_MAP
 
@@ -7,10 +15,12 @@ FORECAST_MIN_PERIODS = 3
 GAP_MONTHS_THRESHOLD = 3  # flag gaps of 3+ missing months
 
 
+# Rounds a 0-1 rate to a whole-number percentage.
 def _pct(rate):
     return round(rate * 100)
 
 
+# Classifies a rate change as rising, declining, or roughly stable.
 def _direction_word(delta):
     if delta > 0.02:
         return "rising"
@@ -19,11 +29,14 @@ def _direction_word(delta):
     return "roughly stable"
 
 
+# Converts a "YYYY-MM" period string into a single sortable month index.
 def _period_to_month_index(period):
     year, month = period.split('-')
     return int(year) * 12 + (int(month) - 1)
 
 
+# Builds the narrative summary sentence(s) describing the trend's shape
+# and data coverage.
 def _build_summary(antibiotic, organism, series, first, last, first_idx, last_idx):
     organism_phrase = f" in {organism}" if organism and organism != 'all' else " across all organisms in the dataset"
     delta = last['resistanceRate'] - first['resistanceRate']
@@ -57,6 +70,7 @@ def _build_summary(antibiotic, organism, series, first, last, first_idx, last_id
     return summary
 
 
+# Summarizes the highest/lowest points and overall volatility of the series.
 def _build_key_observations(series, highest, lowest):
     rates = [p['resistanceRate'] for p in series]
     stdev = float(np.std(rates)) if len(rates) > 1 else 0.0
@@ -70,6 +84,8 @@ def _build_key_observations(series, highest, lowest):
     }
 
 
+# Flags data-quality caveats (small samples, coverage gaps) — never
+# invents a clinical or epidemiological cause.
 def _build_possible_causes(series):
     """
     Strictly data-grounded. Only flags things verifiable from the dataset
@@ -107,6 +123,7 @@ def _build_possible_causes(series):
     return causes[:3]
 
 
+# Describes the antibiotic's WHO AWaRe tier and its current resistance rate.
 def _build_clinical_relevance(antibiotic, last):
     tier = AWARE_MAP.get(antibiotic, 'Access')
     rate_pct = _pct(last['resistanceRate'])
@@ -130,6 +147,7 @@ def _build_clinical_relevance(antibiotic, last):
     )
 
 
+# Projects next month's resistance rate via a time-weighted linear fit.
 def _build_forecast(series, first_idx, last_idx):
     if len(series) < FORECAST_MIN_PERIODS:
         return None
@@ -165,6 +183,7 @@ def _build_forecast(series, first_idx, last_idx):
     }
 
 
+# Entry point: builds the full narrative trend-explanation response.
 def generate_trend_insights(antibiotic, organism, series):
     if not series:
         return {

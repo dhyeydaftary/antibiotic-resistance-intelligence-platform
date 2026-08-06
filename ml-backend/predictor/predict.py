@@ -1,3 +1,32 @@
+# ===================================================================
+# Core ML prediction pipeline — the actual "AI" in AMR-Insight. Called
+# from predictor/views.py's PredictView (POST /predict/, reached from
+# the gateway's routes/prediction.js -> POST /api/predictor/predict).
+# Not a Django model/view itself — pure functions, imported and called
+# directly, so it can also be exercised standalone (see test_predict.py,
+# train_models.py, experiments/model-comparison/).
+#
+# Pipeline, per request: build_feature_row() turns the validated patient
+# payload into the exact 47-column row the models were trained on ->
+# predict_resistance() runs one independently-trained CatBoost model
+# PER ANTIBIOTIC (15 total, loaded once at import time into MODELS) ->
+# get_shap_explanation() extracts the top contributing features per
+# antibiotic via CatBoost's native TreeSHAP. views.py then hands this
+# result to ai_insights.py to turn into a plain-English summary.
+#
+# Why one model per antibiotic rather than one multi-output model: each
+# antibiotic's resistance mechanism/pattern is different enough that
+# separate models outperformed a shared one in evaluation (see
+# experiments/model-comparison/); it also means one antibiotic's model
+# can be retrained/swapped independently (see the MODELS loading loop
+# below for where a new antibiotic would register).
+#
+# Talks to: ml_artifacts/*.json (feature schema, label encodings,
+# median-imputation defaults) and ml_artifacts/catboost_*_v3.pkl (the
+# trained models themselves) — both produced by train_models.py.
+# constants.py for the shared ORGANISM_LIST (also mirrored in the
+# gateway's utils/domainAllowLists.js — keep both in sync).
+# ===================================================================
 import joblib
 import pandas as pd
 import json
@@ -85,6 +114,18 @@ for antibiotic in ANTIBIOTIC_COLUMNS:
     MODELS[antibiotic] = joblib.load(filepath)
 
 
+# Builds the feature row a trained model expects from raw input.
+# Must match training-time column order exactly.
+# Builds the exact 47-column row the v3 models expect, in FEATURE_COLUMNS
+# order, from a validated patient_data dict (already shaped/range-checked
+# by serializers.py before this runs). One-hot encodes organism/ward/
+# specimen categoricals by hand (not pd.get_dummies) so every column the
+# model expects is always present in a fixed order, even when this
+# patient's category wasn't seen — get_dummies would silently omit a
+# column for a category with zero occurrences in this single-row input.
+# Missing optional numeric fields fall back to FEATURE_DEFAULTS (training-
+# set medians, not 0 — see NEW_NUMERIC_FIELDS above) so an omitted lab
+# value doesn't get encoded as a clinically extreme reading.
 def build_feature_row(patient_data):
     row = {
         'Age': patient_data['age'],
@@ -124,6 +165,8 @@ def build_feature_row(patient_data):
     return pd.DataFrame([ordered_row], columns=FEATURE_COLUMNS)
 
 
+# Extracts the top-N SHAP feature contributions for one antibiotic's
+# predicted class.
 def get_shap_explanation(antibiotic, X, predicted_class_index, top_n=5):
     """
     Uses CatBoost's native SHAP support (TreeSHAP under the hood) —
@@ -164,6 +207,16 @@ def get_shap_explanation(antibiotic, X, predicted_class_index, top_n=5):
     ]
 
 
+# Runs every per-antibiotic model against one patient and returns all
+# 15 resistance predictions with confidence and SHAP explanations.
+# Entry point called by views.py. Runs all 15 per-antibiotic models
+# against the same feature row and returns one result dict per
+# antibiotic — result label (R/I/S), confidence (winning class's
+# predicted probability, not a calibrated probability), WHO AWaRe
+# category (for the antibiotic-stewardship framing in the UI/report),
+# and the top-5 SHAP feature contributions for THAT antibiotic's
+# prediction specifically (SHAP values are class- and model-specific,
+# so this can't be computed once and reused across antibiotics).
 def predict_resistance(patient_data):
     X = build_feature_row(patient_data)
 

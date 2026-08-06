@@ -12,6 +12,7 @@ const BRAND = {
 
 // --- Reusable components ---
 
+// Renders the small circular AMR-Insight logo mark used in the email header.
 function logoBadge() {
     return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="display:inline-table;">
@@ -28,10 +29,12 @@ function logoBadge() {
   `;
 }
 
+// Renders a thin horizontal rule to visually separate email sections.
 function divider() {
     return `<div style="height:1px; background:${BRAND.border}; margin: 28px 0;"></div>`;
 }
 
+// Renders a styled call-to-action button linking to the given URL.
 function ctaButton(label, href) {
     return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 8px 0;">
@@ -46,6 +49,8 @@ function ctaButton(label, href) {
   `;
 }
 
+// Renders one bullet-style title+description row in the welcome email's
+// feature list.
 function featureRow(title, description) {
     return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 18px;">
@@ -62,6 +67,7 @@ function featureRow(title, description) {
   `;
 }
 
+// Wraps arbitrary inner HTML in a rounded, tinted callout box.
 function infoBox(innerHtml, tone = 'neutral') {
     const bg = tone === 'accent' ? BRAND.accentSoft : BRAND.panel;
     return `
@@ -73,6 +79,8 @@ function infoBox(innerHtml, tone = 'neutral') {
 
 // --- Shell ---
 
+// Wraps inner email content in the full branded HTML shell (head, header,
+// footer, responsive styles) shared by every outgoing email.
 function wrapEmail(innerHtml, previewText = '') {
     return `
     <!DOCTYPE html>

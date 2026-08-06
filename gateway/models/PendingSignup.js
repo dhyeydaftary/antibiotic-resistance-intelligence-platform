@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Mongo schema for a not-yet-verified signup attempt, auto-expiring via TTL.
 // A signup that hasn't completed OTP verification yet. Deliberately NOT a
 // User document — nothing is written to the users collection until
 // /verify-otp succeeds, so an abandoned signup (wrong email, closed tab,

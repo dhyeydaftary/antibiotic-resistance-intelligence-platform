@@ -11,6 +11,7 @@ const { hashOtp, getOtpExpiry } = require('../utils/otpUtil');
 
 const VALID_PASSWORD = 'Str0ng!Pass';
 
+// Seeds a fixture verified User with a real bcrypt password hash.
 async function seedVerifiedUser(userStore, overrides = {}) {
   const passwordHash = await bcrypt.hash(overrides.password || VALID_PASSWORD, 10);
   return userStore.seed({

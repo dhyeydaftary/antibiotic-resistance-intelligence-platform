@@ -1,3 +1,8 @@
+# Backs GET /trends/ and GET /explain-trend/ (via trend_insights.py).
+# Purely descriptive statistics over the historical dataset (month-over-
+# month resistance rate for one antibiotic, optionally filtered by
+# organism/ward) — no model inference here, unlike predict.py. Called
+# from views.py's trends_view/explain_trend_view.
 import pandas as pd
 import os
 import json
@@ -19,6 +24,7 @@ _antibiotic_columns = None
 _has_ward_type = None
 
 
+# Lazily loads and caches the (augmented if available) historical dataset.
 def _load_data():
     global _df, _has_ward_type
     if _df is None:
@@ -30,6 +36,7 @@ def _load_data():
     return _df
 
 
+# Lazily loads and caches the list of antibiotic column names.
 def _load_antibiotic_columns():
     global _antibiotic_columns
     if _antibiotic_columns is None:
@@ -38,6 +45,8 @@ def _load_antibiotic_columns():
     return _antibiotic_columns
 
 
+# Computes month-by-month resistance rate for one antibiotic, optionally
+# filtered by organism/ward. Raises ValueError for unknown filter values.
 def get_resistance_trend(antibiotic, organism=None, ward_type=None):
     df = _load_data()
     antibiotic_columns = _load_antibiotic_columns()

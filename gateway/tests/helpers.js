@@ -31,6 +31,7 @@ const VERIFY_TOKEN_PATH = require.resolve('../middleware/verifyToken');
 const DJANGO_CLIENT_PATH = require.resolve('../utils/djangoClient');
 const EMAIL_UTIL_PATH = require.resolve('../utils/emailUtil');
 
+// Deletes require.cache entries so the next require() re-evaluates fresh.
 function clearCache(...resolvedPaths) {
   for (const p of resolvedPaths) {
     delete require.cache[p];
@@ -38,11 +39,13 @@ function clearCache(...resolvedPaths) {
 }
 
 let idCounter = 0;
+// Generates a fresh, unique fake Mongo ObjectId string for test fixtures.
 function nextId() {
   idCounter += 1;
   return String(idCounter).padStart(24, '0');
 }
 
+// Computes a matching TTL expiry for a directly-seeded PendingSignup fixture.
 // Mirrors auth.js's own getPendingSignupExpiry() (PENDING_SIGNUP_TTL_MINUTES
 // = 20, kept local to that file, not exported) — tests that seed a
 // PendingSignup directly need a matching expiresAt so it stays consistent
@@ -51,6 +54,7 @@ function pendingSignupExpiry() {
   return new Date(Date.now() + 20 * 60 * 1000);
 }
 
+// Builds an in-memory mock of the User model's Mongo collection.
 // In-memory Map-based stand-in for MongoDB. Documents are plain objects
 // held by reference in the Map, so a route that mutates a field and calls
 // .save() has that mutation visible on the very next find() — this is what
@@ -60,6 +64,7 @@ function pendingSignupExpiry() {
 function createUserStore() {
   const byId = new Map();
 
+  // Attaches a mock .save() method that writes the doc back into the Map.
   function withSave(doc) {
     if (!doc.save) {
       doc.save = async function save() {
@@ -70,6 +75,7 @@ function createUserStore() {
     return doc;
   }
 
+  // Fills in a fresh User document's default field values.
   function withDefaults(fields) {
     return {
       _id: nextId(),
@@ -117,6 +123,7 @@ function createUserStore() {
   };
 }
 
+// Wires a mock store's methods onto the real User model object.
 function attachUserStore(User, store) {
   User.findOne = store.findOne;
   User.findById = store.findById;
@@ -130,6 +137,7 @@ function attachUserStore(User, store) {
 function createPendingSignupStore() {
   const byId = new Map();
 
+  // Attaches mock .save() and .deleteOne() methods backed by the Map.
   function withInstanceMethods(doc) {
     if (!doc.save) {
       doc.save = async function save() {
@@ -145,6 +153,7 @@ function createPendingSignupStore() {
     return doc;
   }
 
+  // Fills in a fresh PendingSignup document's default field values.
   function withDefaults(fields) {
     return {
       _id: nextId(),
@@ -181,11 +190,13 @@ function createPendingSignupStore() {
   };
 }
 
+// Wires a mock store's methods onto the real PendingSignup model object.
 function attachPendingSignupStore(PendingSignup, store) {
   PendingSignup.findOne = store.findOne;
   PendingSignup.create = store.create;
 }
 
+// Replaces SecurityEvent.create with an in-memory recorder for assertions.
 function mockSecurityEvent(SecurityEvent) {
   const events = [];
   SecurityEvent.create = async (fields) => {
@@ -195,6 +206,7 @@ function mockSecurityEvent(SecurityEvent) {
   return events;
 }
 
+// Replaces PredictionHistory.find/.create with in-memory mocks.
 // Captures every filter object passed to PredictionHistory.find(), so
 // tests can assert on the actual Mongo query the route built rather than
 // just the HTTP response. .sort() resolves to whatever `results` currently
@@ -214,6 +226,7 @@ function mockPredictionHistory(PredictionHistory) {
   return { findCalls, records };
 }
 
+// Replaces sendOtpEmail/sendWelcomeEmail with in-memory recorders.
 // Captures OTP/reset codes and welcome-email calls without ever hitting the
 // real Resend API.
 function mockEmailUtil(emailUtil) {
@@ -230,6 +243,8 @@ function mockEmailUtil(emailUtil) {
   return { otpEmails, welcomeEmails };
 }
 
+// Builds a self-contained test Express app for the auth routes, with
+// fresh mocked models and rate limiters.
 // Builds a fresh Express app mounting routes/auth.js, with a fresh
 // require.cache entry for the route file and its rate limiters (so a
 // previous test group's rate-limit counters never leak in), and a fresh
@@ -268,6 +283,8 @@ function buildAuthApp() {
   return { app, userStore, User, pendingStore, PendingSignup, events, emails };
 }
 
+// Builds a self-contained test Express app for the prediction routes,
+// with fresh mocked models and rate limiters.
 // Builds a fresh Express app mounting routes/prediction.js, same
 // fresh-require-cache treatment for the route and its rate limiters.
 function buildPredictionApp() {
@@ -296,6 +313,7 @@ function buildPredictionApp() {
   return { app, userStore, User, djangoClient, PredictionHistory, history };
 }
 
+// Builds a minimal test app for exercising verifyToken in isolation.
 // Minimal app exercising the real verifyToken middleware in isolation,
 // against a throwaway stub route.
 function buildVerifyTokenApp() {
@@ -313,6 +331,7 @@ function buildVerifyTokenApp() {
   return { app, userStore, User };
 }
 
+// Signs a JWT for use as a test fixture, bypassing the real /login flow.
 function signTestToken(userId, tokenVersion = 0, options = {}) {
   return jwt.sign({ userId, tokenVersion }, process.env.JWT_SECRET, {
     expiresIn: options.expiresIn || '24h',

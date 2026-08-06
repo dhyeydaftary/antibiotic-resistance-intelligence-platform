@@ -1,5 +1,8 @@
+// Per-user rate limiters for routes/prediction.js — applied after
+// verifyToken, so req.userId is always set (see keyByUser below).
 const rateLimit = require('express-rate-limit');
 
+// Sends the standard 429 response when a rate limit is exceeded.
 // Shared response shape, consistent with authRateLimiters.js.
 function rateLimitResponse(req, res) {
   res.status(429).json({
@@ -18,10 +21,12 @@ function rateLimitResponse(req, res) {
 // address. IP-based keying would either punish every user behind the same
 // NAT/shared IP together, or let one account dodge the limit by rotating
 // IPs; per-user keying does neither.
+// Rate-limit key generator: buckets by authenticated user, not IP.
 function keyByUser(req) {
   return req.userId;
 }
 
+// Generous per-user limiter for cheap, read-only routes.
 // Cheap/read-only routes: /trends, /dataset-stats, /explain-trend, /history.
 // No external API cost — just a Mongo query or a read from Django's
 // in-memory dataset — so the budget is generous, mainly to blunt scripted
@@ -44,13 +49,14 @@ function keyByUser(req) {
 // would need to run for a while to approach that volume.
 const readLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,
+  max: 400,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: keyByUser,
   handler: rateLimitResponse,
 });
 
+// Tight per-user limiter for routes with real external/API cost.
 // Expensive routes: /predict, /extract-report, /research-papers. Each of
 // these triggers a real external cost or a third-party API call — /predict
 // and /extract-report both invoke Gemini (see ai_insights.py /

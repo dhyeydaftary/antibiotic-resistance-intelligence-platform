@@ -1,3 +1,8 @@
+# Backs GET /dataset-stats/ (views.py's dataset_stats_view) — summary
+# statistics about the training dataset itself (row/column counts, date
+# range, organism/ward/specimen distributions, comorbidity & symptom
+# prevalence, vitals/labs ranges), shown on the frontend's dataset-
+# overview surface. Not involved in prediction at all.
 import pandas as pd
 import os
 import json
@@ -49,6 +54,7 @@ _antibiotic_columns = None
 _has_augmented_columns = None
 
 
+# Lazily loads and caches the (augmented if available) historical dataset.
 def _load_data():
     global _df, _has_augmented_columns
     if _df is None:
@@ -61,6 +67,7 @@ def _load_data():
     return _df
 
 
+# Lazily loads and caches the list of antibiotic column names.
 def _load_antibiotic_columns():
     global _antibiotic_columns
     if _antibiotic_columns is None:
@@ -69,11 +76,13 @@ def _load_antibiotic_columns():
     return _antibiotic_columns
 
 
+# Converts a Pandas value_counts() result into a list of {key, count} dicts.
 def _value_counts_list(series, key_name):
     counts = series.dropna().value_counts()
     return [{key_name: str(val), "count": int(count)} for val, count in counts.items()]
 
 
+# Computes the prevalence (% "Yes") of each Yes/No column present in df.
 def _yes_no_prevalence(df, columns_map):
     """For each Yes/No column present, return the % of rows marked 'Yes'."""
     result = []
@@ -93,6 +102,7 @@ def _yes_no_prevalence(df, columns_map):
     return result
 
 
+# Computes min/mean/max/sample-size for each numeric column present in df.
 def _numeric_summary(df, columns_map):
     """For each numeric vitals/labs column present, return basic distribution stats."""
     result = []
@@ -112,6 +122,7 @@ def _numeric_summary(df, columns_map):
     return result
 
 
+# Entry point: builds the full dataset-overview statistics response.
 def get_dataset_stats():
     df = _load_data()
     antibiotic_columns = _load_antibiotic_columns()

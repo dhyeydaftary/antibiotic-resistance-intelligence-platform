@@ -1,3 +1,10 @@
+# Backs GET /research-papers/ (views.py's research_papers_view). The one
+# module here that calls a third-party API directly (PubMed's E-utilities,
+# not Gemini) — no LLM involved; results are real, unmodified PubMed
+# metadata (title/journal/date/abstract excerpt/link). In-process
+# dict cache (_cache) keyed by (antibiotic, organism), TTL'd at 6h,
+# since papers don't change hourly and this keeps repeated frontend
+# requests for the same antibiotic/organism from re-hitting PubMed.
 import os
 import sys
 import time
@@ -43,6 +50,7 @@ GENERIC_NAME_MAP = {
 _cache = {}  # (antibiotic, organism) -> (timestamp, results)
 
 
+# Builds a PubMed search query string for an antibiotic (+ optional organism).
 def _build_query(antibiotic, organism):
     names = GENERIC_NAME_MAP.get(antibiotic)
     if not names:
@@ -60,6 +68,7 @@ def _build_query(antibiotic, organism):
     return query
 
 
+# Builds the common tool/email/api_key query params for every E-utilities call.
 def _base_params():
     params = {'tool': TOOL_NAME, 'email': CONTACT_EMAIL}
     if API_KEY:
@@ -67,6 +76,7 @@ def _base_params():
     return params
 
 
+# Calls PubMed's esearch endpoint and returns matching PMIDs.
 def _esearch(query):
     params = {
         **_base_params(),
@@ -81,6 +91,7 @@ def _esearch(query):
     return response.json().get('esearchresult', {}).get('idlist', [])
 
 
+# Extracts an XML element's full text, including nested tags.
 def _full_text(element):
     """
     PubMed's XML often nests tags inside titles/abstracts — e.g. italicized
@@ -93,6 +104,7 @@ def _full_text(element):
     return ''.join(element.itertext()).strip()
 
 
+# Calls PubMed's efetch endpoint and parses PMIDs into paper metadata.
 def _efetch(pmids):
     if not pmids:
         return []
@@ -143,6 +155,8 @@ def _efetch(pmids):
     return papers
 
 
+# Entry point: searches and returns cached/fresh PubMed papers for an
+# antibiotic/organism pair.
 def get_research_papers(antibiotic, organism=None):
     """
     Real PubMed search results only — title, journal, date, a short verbatim
