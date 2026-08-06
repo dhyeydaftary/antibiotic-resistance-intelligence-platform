@@ -1,3 +1,12 @@
+# DRF serializers used two ways here: PredictionRequestSerializer is the
+# real authority on /predict/ request shape (views.py's predict_view
+# validates against it — the gateway's utils/predictionValidation.js
+# mirrors these same fields/ranges as a pre-check, but this file is the
+# source of truth; keep both in sync on any change). The remaining
+# classes (PredictionResponseSerializer and its nested pieces) document
+# the response shape predict_resistance() + generate_ai_insights()
+# produce but are not actively invoked to serialize the response —
+# views.py returns those dicts directly.
 import os
 import sys
 
@@ -9,6 +18,8 @@ if BASE_DIR not in sys.path:
 from constants import ORGANISM_LIST
 
 
+# Validates and shapes an incoming /predict/ request body. The real
+# authority on request contract — everything else mirrors this.
 class PredictionRequestSerializer(serializers.Serializer):
     age = serializers.IntegerField(min_value=0, max_value=120)
     gender = serializers.ChoiceField(choices=['Male', 'Female'])
@@ -57,12 +68,14 @@ class PredictionRequestSerializer(serializers.Serializer):
     bmi = serializers.FloatField(required=False, allow_null=True, min_value=8, max_value=80)
 
 
+# Documents the shape of one SHAP feature-contribution entry.
 class ShapFeatureSerializer(serializers.Serializer):
     feature = serializers.CharField()
     contribution = serializers.FloatField()
     direction = serializers.CharField()
 
 
+# Documents the shape of one antibiotic's prediction result.
 class PredictionResultItemSerializer(serializers.Serializer):
     antibiotic = serializers.CharField()
     result = serializers.CharField()
@@ -71,23 +84,27 @@ class PredictionResultItemSerializer(serializers.Serializer):
     shapExplanation = ShapFeatureSerializer(many=True)
 
 
+# Documents one antibiotic's historical resistance rate breakdown.
 class HistoricalResistanceBreakdownSerializer(serializers.Serializer):
     antibiotic = serializers.CharField()
     resistantRate = serializers.FloatField()
     recordsConsidered = serializers.IntegerField()
 
 
+# Documents the shape of the similar-historical-cases summary block.
 class SimilarHistoricalCasesSerializer(serializers.Serializer):
     sampleSize = serializers.IntegerField()
     matchCriteria = serializers.CharField()
     resistanceBreakdown = HistoricalResistanceBreakdownSerializer(many=True)
 
 
+# Documents the shape of the risk-level assessment block.
 class RiskAssessmentSerializer(serializers.Serializer):
     level = serializers.CharField()
     text = serializers.CharField()
 
 
+# Documents the shape of the full aiInsights response block.
 class AiInsightsSerializer(serializers.Serializer):
     summary = serializers.CharField()
     confidenceInterpretation = serializers.CharField()
@@ -98,6 +115,7 @@ class AiInsightsSerializer(serializers.Serializer):
     disclaimer = serializers.CharField()
 
 
+# Documents the full /predict/ response shape end-to-end.
 class PredictionResponseSerializer(serializers.Serializer):
     predictions = PredictionResultItemSerializer(many=True)
     aiInsights = AiInsightsSerializer()

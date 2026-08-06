@@ -1,3 +1,23 @@
+// ===================================================================
+// Gateway entrypoint — the single Express process every client request
+// hits first. Wires up global security headers (helmet + Permissions-
+// Policy), CORS, JSON body parsing, request logging, mounts the two
+// route groups (/api/auth, /api/predictor), and owns process-level
+// concerns (global error handler, unhandledRejection/uncaughtException,
+// Mongo connect + listen).
+//
+// Talks to: routes/auth.js, routes/prediction.js (mounted here),
+// utils/logger.js (all logging in this file goes through it), MongoDB
+// (via mongoose.connect — the gateway's own datastore for
+// users/predictions/security events; the ML/prediction data itself
+// lives in Django, reached via utils/djangoClient.js from
+// routes/prediction.js, not from here directly).
+//
+// If asked "what would break if this file were removed": everything —
+// this is the process that listens on PORT. If asked "where does a
+// request go first": here, through helmet -> CORS -> json parsing ->
+// request logger -> the matching route file, in that order.
+// ===================================================================
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -65,6 +85,8 @@ app.use(helmet({
   frameguard: { action: 'deny' },
 }));
 
+// Denies browser features (camera, mic, geolocation, etc.) via response header.
+// Defense-in-depth for a JSON API that should never be rendered in a browser.
 // Permissions-Policy: not implemented by helmet 8.x at all (the underlying
 // spec is still evolving upstream; helmet dropped support for it rather
 // than maintain an incomplete/shifting implementation) — confirmed directly
@@ -80,6 +102,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Logs method/path/status/duration for every request once it finishes.
 // Minimal request/access log — custom middleware rather than morgan,
 // consistent with the "no new dependencies" choice in utils/logger.js.
 // Logs only method, path, status, and duration. Deliberately never logs
@@ -113,6 +136,7 @@ const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
 
 // Middleware
 app.use(cors({
+  // Decides whether a browser-originated request's Origin is allowed.
   origin(origin, callback) {
     // No Origin header at all means this isn't a browser cross-origin
     // request — curl, Postman, server-to-server calls don't send one, and
@@ -134,6 +158,8 @@ app.get('/', (req, res) => {
   res.json({ message: 'AMR-Insight gateway is running' });
 });
 
+// Catches any error that escapes a route's own try/catch and returns the
+// standard error envelope instead of leaking a raw stack trace.
 // Final error-handling middleware — catches anything that reaches Express
 // without having been handled by a route's own try/catch (e.g. a bug in
 // middleware itself, or a synchronous throw before a route's try block).
@@ -154,6 +180,7 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Logs any Promise rejection that no code ever caught, so it isn't lost.
 // unhandledRejection: a rejected Promise with no .catch anywhere. Node's
 // own default here is just a warning (not a crash), but we log explicitly
 // rather than relying on that default silently changing between Node
@@ -163,6 +190,8 @@ process.on('unhandledRejection', (reason) => {
   logError('Unhandled promise rejection', { reason });
 });
 
+// Logs a fatal, unrecovered exception and exits so a process manager can
+// restart into a known-good state.
 // uncaughtException: per Node's own guidance, once this fires the process
 // is in an undefined state — continuing to serve requests risks corrupted
 // in-memory state or repeating whatever broke in a way that's worse than

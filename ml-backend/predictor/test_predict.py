@@ -70,6 +70,8 @@ FULL_EXTRA_FIELDS = {
 }
 
 
+# Runs predict_resistance() for one patient scenario and prints results
+# plus SHAP breakdowns for a few focus antibiotics.
 def print_scenario(title, patient_data, focus_antibiotics=("CIP", "IPM", "GEN")):
     print("=" * 70)
     print(title)

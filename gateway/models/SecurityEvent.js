@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+// Mongo schema for one append-only security-audit-trail entry.
 // Append-only security-audit trail. Write-only from the app's perspective —
 // there is deliberately no read endpoint exposing this collection (this
 // project has explicitly dropped RBAC/admin panels). Event metadata only:

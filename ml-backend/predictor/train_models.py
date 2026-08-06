@@ -129,10 +129,12 @@ NEW_FEATURE_COLUMNS = (
 FULL_FEATURE_COLUMNS = OLD_FEATURE_COLUMNS + NEW_FEATURE_COLUMNS
 
 
+# Loads the raw augmented training CSV.
 def load_dataset():
     return pd.read_csv(DATA_PATH)
 
 
+# Encodes the original 19-feature baseline schema from raw dataset columns.
 def engineer_old_features(df):
     dates = pd.to_datetime(df['Collection_Date'], errors='coerce')
     out = pd.DataFrame({
@@ -151,6 +153,7 @@ def engineer_old_features(df):
     return out[OLD_FEATURE_COLUMNS]
 
 
+# Encodes the synthetic clinical-variable columns into model-ready features.
 def engineer_new_features(df):
     out = pd.DataFrame(index=df.index)
     for col in NEW_BINARY_COLUMNS:
@@ -162,16 +165,19 @@ def engineer_new_features(df):
     return out[NEW_FEATURE_COLUMNS]
 
 
+# Combines old + new engineered features into the full training matrix.
 def build_feature_matrix(df):
     old = engineer_old_features(df)
     new = engineer_new_features(df)
     return pd.concat([old, new], axis=1)[FULL_FEATURE_COLUMNS]
 
 
+# Converts an antibiotic name into a filesystem-safe artifact filename.
 def safe_name(antibiotic):
     return antibiotic.replace('/', '_').replace(' ', '_')
 
 
+# Runs 5-fold stratified CV for one antibiotic's model and reports metrics.
 def cv_evaluate(X, y):
     """
     5-fold stratified CV. Out-of-fold predictions are aggregated across all
@@ -206,6 +212,8 @@ def cv_evaluate(X, y):
     }
 
 
+# Computes the top-N features by mean absolute SHAP value, for the
+# post-training importance report.
 def shap_top_features(model, X_sample, feature_names, top_n=10):
     pool = Pool(X_sample)
     shap_values = model.get_feature_importance(data=pool, type='ShapValues')
@@ -216,6 +224,8 @@ def shap_top_features(model, X_sample, feature_names, top_n=10):
     return [(feature_names[i], float(mean_abs[i])) for i in order]
 
 
+# Entry point: trains and evaluates all 15 per-antibiotic models, writes
+# the deployed .pkl artifacts plus comparison/defaults/SHAP reports.
 def main():
     df = load_dataset()
     X_full = build_feature_matrix(df)
