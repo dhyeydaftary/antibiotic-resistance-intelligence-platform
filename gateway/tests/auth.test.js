@@ -4,6 +4,7 @@ const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
 
 const { buildAuthApp, signTestToken } = require('./helpers');
 const { hashOtp, getOtpExpiry } = require('../utils/otpUtil');
@@ -647,5 +648,92 @@ describe('Password reset flow', () => {
     const postResetCheck = await request(app).get('/protected').set('Authorization', `Bearer ${preResetToken}`);
     assert.equal(postResetCheck.status, 401);
     assert.equal(postResetCheck.body.error.code, 'AUTH_ERROR');
+  });
+});
+
+describe('GET /api/auth/me', () => {
+  test('a valid token returns the current user, in the same shape as /login\'s user object', async () => {
+    const { app, userStore } = buildAuthApp();
+    await seedVerifiedUser(userStore, { email: 'me-valid@example.com' });
+
+    const loginRes = await request(app).post('/api/auth/login').send({
+      email: 'me-valid@example.com',
+      password: VALID_PASSWORD,
+    });
+    assert.equal(loginRes.status, 200);
+
+    const meRes = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${loginRes.body.data.token}`);
+
+    assert.equal(meRes.status, 200);
+    assert.equal(meRes.body.success, true);
+    assert.equal(meRes.body.data.user.email, 'me-valid@example.com');
+    assert.equal(meRes.body.data.user.id, loginRes.body.data.user.id);
+    // Same response shape /login already returns for data.user — both come
+    // from the same toPublicUser() helper.
+    assert.deepStrictEqual(
+      Object.keys(meRes.body.data.user).sort(),
+      Object.keys(loginRes.body.data.user).sort()
+    );
+  });
+
+  test('no token returns 401 AUTH_ERROR', async () => {
+    const { app } = buildAuthApp();
+    const res = await request(app).get('/api/auth/me');
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error.code, 'AUTH_ERROR');
+  });
+
+  test('a malformed/invalid token returns 401 AUTH_ERROR', async () => {
+    const { app } = buildAuthApp();
+    const res = await request(app).get('/api/auth/me').set('Authorization', 'Bearer not-a-valid-jwt');
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error.code, 'AUTH_ERROR');
+  });
+
+  test('an expired token returns 401 AUTH_ERROR', async () => {
+    const { app, userStore } = buildAuthApp();
+    const stored = await seedVerifiedUser(userStore, { email: 'me-expired@example.com' });
+
+    // Same construction as authorization.test.js's expired-JWT case: an
+    // iat far enough in the past that even a short expiresIn puts exp
+    // before now, rather than relying on negative-duration parsing.
+    const longAgo = Math.floor(Date.now() / 1000) - 100000;
+    const expiredToken = jwt.sign(
+      { userId: stored._id, tokenVersion: stored.tokenVersion, iat: longAgo },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${expiredToken}`);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error.code, 'AUTH_ERROR');
+  });
+
+  test('a token for a deleted user returns 401 AUTH_ERROR', async () => {
+    const { app, userStore } = buildAuthApp();
+    const stored = await seedVerifiedUser(userStore, { email: 'me-deleted@example.com' });
+    const token = signTestToken(stored._id, stored.tokenVersion);
+
+    // Simulates the repro this whole feature exists for: the user document
+    // is gone (e.g. deleted directly in the database) but the token is
+    // still cryptographically valid and unexpired.
+    userStore.byId.delete(String(stored._id));
+
+    const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error.code, 'AUTH_ERROR');
+  });
+
+  test('a token with a stale/mismatched tokenVersion returns 401 AUTH_ERROR', async () => {
+    const { app, userStore } = buildAuthApp();
+    const stored = await seedVerifiedUser(userStore, { email: 'me-stale-version@example.com', tokenVersion: 3 });
+
+    const staleToken = signTestToken(stored._id, 2); // stored is now at tokenVersion 3
+
+    const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${staleToken}`);
+    assert.equal(res.status, 401);
+    assert.equal(res.body.error.code, 'AUTH_ERROR');
   });
 });
