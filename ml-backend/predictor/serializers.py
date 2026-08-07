@@ -65,6 +65,12 @@ class PredictionRequestSerializer(serializers.Serializer):
     respiratory_rate = serializers.FloatField(required=False, allow_null=True, min_value=4, max_value=60)
     spo2 = serializers.FloatField(required=False, allow_null=True, min_value=50, max_value=100)
     weight_kg = serializers.FloatField(required=False, allow_null=True, min_value=2, max_value=300)
+    # Not a model feature (Height_cm was dropped from the v3 feature set —
+    # see predict.py's MODELS-loading comment); accepted here purely so the
+    # frontend's auto-calculated-BMI height input has somewhere validated
+    # to land and gets persisted in prediction history. build_feature_row()
+    # never reads it.
+    height_cm = serializers.FloatField(required=False, allow_null=True, min_value=50, max_value=250)
     bmi = serializers.FloatField(required=False, allow_null=True, min_value=8, max_value=80)
 
 
