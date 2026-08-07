@@ -82,7 +82,7 @@ FIELD_SCHEMA = {
     "respiratory_rate": "number, breaths per minute",
     "spo2": "number, oxygen saturation percentage",
     "weight_kg": "number, weight in kilograms",
-    "bmi": "number",
+    "height_cm": "number, height in centimeters",
 }
 
 PROMPT_TEMPLATE = """You are extracting structured clinical data from a lab/medical report.

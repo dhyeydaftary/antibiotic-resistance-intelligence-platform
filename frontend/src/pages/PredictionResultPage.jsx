@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft, ChevronDown, FileDown, FileJson, FileSpreadsheet,
-  AlertTriangle, TrendingUp, Sparkles, ListChecks,
+  AlertTriangle, TrendingUp, Sparkles, ListChecks, ArrowUpDown, ArrowUp, ArrowDown,
 } from 'lucide-react';
 import Panel from '../components/app/Panel';
 import PrimaryButton from '../components/app/PrimaryButton';
@@ -220,6 +220,16 @@ function PredictionResultPage() {
     window.scrollTo(0, 0);
   }, []);
 
+  // Client-side sort for the Predictions list only — null keeps the
+  // backend's original panel order, 'desc'/'asc' re-sort by confidence.
+  // No refetch: displayData.predictions never changes, only the order
+  // this list renders it in.
+  const [sortDirection, setSortDirection] = useState(null);
+
+  function cycleSortDirection() {
+    setSortDirection((prev) => (prev === null ? 'desc' : prev === 'desc' ? 'asc' : null));
+  }
+
   // Falls back to FAKE_PREDICTION sample data whenever this page is
   // reached without router state (refresh, direct link) — the page
   // never renders blank/broken.
@@ -236,6 +246,13 @@ function PredictionResultPage() {
   const total = displayData.predictions.length;
 
   const highlightTerms = useMemo(() => buildHighlightTerms(displayData.predictions), [displayData.predictions]);
+
+  const sortedPredictions = useMemo(() => {
+    if (!sortDirection) return displayData.predictions;
+    const sorted = [...displayData.predictions];
+    sorted.sort((a, b) => (sortDirection === 'asc' ? a.confidence - b.confidence : b.confidence - a.confidence));
+    return sorted;
+  }, [displayData.predictions, sortDirection]);
 
   const ringData = [
     { label: 'Resistant', value: counts.R || 0, maxValue: total, color: '#FF3B30' },
@@ -358,12 +375,29 @@ function PredictionResultPage() {
                 <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-onpanel-faint">
                   Predictions
                 </span>
-                <span className="font-mono text-[11px] text-onpanel-faint">
-                  {total} antibiotics
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={cycleSortDirection}
+                    title="Sort by confidence"
+                    className="flex items-center gap-1.5 rounded-full border border-panel-border px-2.5 py-1 font-mono text-[11px] font-medium text-onpanel-faint transition-colors hover:border-accent-blue hover:text-onpanel-ink"
+                  >
+                    {sortDirection === 'desc' ? (
+                      <ArrowDown size={12} />
+                    ) : sortDirection === 'asc' ? (
+                      <ArrowUp size={12} />
+                    ) : (
+                      <ArrowUpDown size={12} />
+                    )}
+                    Confidence
+                  </button>
+                  <span className="font-mono text-[11px] text-onpanel-faint">
+                    {total} antibiotics
+                  </span>
+                </div>
               </div>
               <div className="border-t border-panel-border">
-                {displayData.predictions.map((p) => (
+                {sortedPredictions.map((p) => (
                   <PredictionRow key={p.antibiotic} p={p} />
                 ))}
               </div>
