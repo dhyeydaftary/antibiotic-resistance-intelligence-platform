@@ -49,7 +49,7 @@ Source: `gateway/.env.example`
 
 ## Frontend (React/Vite)
 
-Per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md), the frontend now has real, mostly-required configuration — a `frontend/.env.example` file doesn't exist yet in this repository, which is worth treating as a real gap now rather than the non-issue it was when `VITE_GATEWAY_URL` was the only variable:
+Per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md), the frontend now has real, mostly-required configuration — `frontend/.env.example` exists, matching this convention:
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
@@ -63,14 +63,15 @@ Per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md), the fro
 
 ## Setup
 
-Copy each backend service's example file and fill in real values before running:
+Copy each service's example file and fill in real values before running:
 
 ```bash
 cd ml-backend && cp .env.example .env
 cd ../gateway && cp .env.example .env
+cd ../frontend && cp .env.example .env.local
 ```
 
-**Security:** never commit populated `.env` files or real API keys to version control. Only `.env.example` files should be tracked in the repository.
+**Security:** never commit populated `.env`/`.env.local` files, the Firebase service account key, or any real API keys to version control. Only `.env.example` files should be tracked in the repository.
 
 Full step-by-step install instructions, including where to obtain each API key, are in the root [`README.md`](../../README.md#installation).
 
