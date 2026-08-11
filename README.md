@@ -228,6 +228,7 @@ npm run dev   # http://localhost:5000
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local   # fill in your Firebase project's web config
 npm run dev   # http://localhost:5173 (Vite default)
 ```
 
