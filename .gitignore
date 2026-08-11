@@ -18,10 +18,13 @@ dist/
 gateway/node_modules/
 gateway/coverage/
 
-# Environment files (never commit secrets)
+# Environment files
 .env
 .env.local
 *.env
+
+# Firebase service account key
+gateway/firebase-service-account.json
 
 # Editor/OS junk
 .vscode/

@@ -84,8 +84,8 @@ Full per-antibiotic figures live in [`docs/ml/model-cards.md`](../ml/model-cards
 The following are explicit, deliberate scope decisions for the current release, not gaps:
 
 - **Single flat user type** — no role-based access control, no admin panel.
-- **Authentication** — email/OTP verification and JWT sessions only; two-factor authentication beyond signup/reset OTP is deferred, not implemented.
-- **Email delivery is sandbox-tier.** The gateway's transactional email sends from Resend's default sandbox sender address, which restricts delivery to the registered account's own email — this is a scoping decision appropriate for a project at this stage, not a production email configuration.
+- **Authentication** — Firebase-backed (password, Google, GitHub), with the Gateway issuing its own downstream session JWT per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md); two-factor authentication beyond Firebase's own account security is deferred, not implemented.
+- **Email delivery is sandbox-tier, but no longer a functional blocker.** The gateway still sends one non-blocking welcome email via Resend's default sandbox sender (restricted to the registered account's own address) on first sign-in — this is a scoping decision appropriate for a project at this stage, not a production email configuration. Unlike before this project's Firebase migration, this limitation no longer affects account verification itself, since Firebase now owns that delivery entirely.
 - **Not open to external contributors** — this is currently a 3-person team project. The repository is licensed under [Apache License 2.0](../../LICENSE), but that governs reuse of the code, not acceptance of outside contributions, which isn't happening yet regardless of licensing.
 
 The following are genuine current gaps, stated plainly rather than reframed as decisions:

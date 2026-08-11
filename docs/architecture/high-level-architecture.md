@@ -13,6 +13,7 @@ review_frequency: on-architecture-change
 [`docs/architecture/system-context.md`](system-context.md) deliberately treats AMR-Insight as a single box, showing only its outermost boundary — the User, Gemini, PubMed, and the training dataset. This document is one level down: the internal structure inside that box, the three services that make it up, how they actually talk to each other, and the trust boundary each hop crosses. For the request-by-request detail of one specific flow through this structure, see [`docs/architecture/request-lifecycle.md`](request-lifecycle.md); for why this three-service split exists at all rather than a simpler alternative, see [ADR-0001](adr/ADR-0001-three-service-architecture.md).
 
 <div align="center">
+<br/>
 
 ```mermaid
 flowchart LR
@@ -23,7 +24,7 @@ flowchart LR
     end
 
     subgraph Gateway["Gateway — Node/Express"]
-        GW[Auth, rate limiting,<br/>validation, history]
+        GW[Session issuance, rate limiting,<br/>validation, history]
     end
 
     subgraph MLBackend["ML Backend — Django"]
@@ -31,26 +32,31 @@ flowchart LR
     end
 
     DB[(MongoDB)]
+    FB[Firebase]
     AI[Google Gemini]
     PM[PubMed API]
 
     U -->|HTTPS| FE
-    FE ==>|"JWT (Authorization header)"| GW
+    FE ==>|"password/Google/GitHub auth"| FB
+    FE ==>|"Firebase ID token, once"| GW
+    GW -.->|"verifies ID token"| FB
+    FE ==>|"Gateway session JWT (Authorization header)"| GW
     GW ==>|"X-Internal-Api-Key"| DJ
     GW --> DB
     DJ --> AI
     DJ --> PM
 ```
 
+<br/>
 </div>
 
-Thick arrows mark the two request-level trust boundaries in this system — every other connection shown is either external-to-the-browser (`User → Frontend`) or a fixed, single-caller infrastructure connection (`Gateway → MongoDB`), not a per-request identity check the way the two thick edges are.
+Per [ADR-0005](adr/ADR-0005-firebase-auth-migration.md), authentication is now layered: Firebase is the **identity provider** (password, Google, GitHub — the frontend talks to it directly), while the Gateway remains the **session/authorization authority**, issuing its own JWT after verifying a Firebase-issued ID token exactly once at login. Every subsequent request uses that Gateway-issued token, not a raw Firebase token — the thick arrows still mark the two request-level trust boundaries that matter for authorization (`Gateway session JWT`, `X-Internal-Api-Key`); the two thin arrows show the identity-verification step that happens once, at login, not on every request.
 
 ## The Three Services
 
 **Frontend (React/Vite).** A pure client-side single-page app, built once (`vite build`) into static files and deployed independently of the other two services — there is no server in this repository that serves the built frontend. It never calls Django directly; every request goes through the gateway, over the one shared axios instance every page uses (see [ADR-0001](adr/ADR-0001-three-service-architecture.md) for why that consolidation happened). **The frontend is treated as an untrusted client, architecturally, not just in practice** — every security-sensitive decision (password policy, login lockout, rate limits, account-enumeration protection, and everything else described in [`docs/security/threat-model.md`](../security/threat-model.md)) is enforced server-side regardless of what the frontend's own client-side validation says. The frontend's checks exist for user experience — fast feedback without a round trip — not as a security boundary; a request that skips the browser entirely and calls the gateway directly is held to exactly the same rules.
 
-**Gateway (Node/Express).** The sole authenticated entry point to the whole system. Owns user accounts, JWT issuance and verification, prediction history (MongoDB), and email (OTP, welcome messages, via Resend). Every request that reaches Django or MongoDB passes through this service first — nothing else in the system has a direct path to either. Also owns the security controls that don't belong to a specific downstream service: CORS, security headers (`helmet`), and per-user rate limiting.
+**Gateway (Node/Express).** The sole authenticated entry point to the whole system. Verifies a Firebase-issued ID token once at login (see [ADR-0005](adr/ADR-0005-firebase-auth-migration.md)) and issues its own downstream session JWT from that point on — the actual authorization mechanism for every subsequent request remains this service's own, per [ADR-0006](adr/ADR-0006-session-and-token-security-architecture.md), not Firebase's token directly. Owns the MongoDB `User` record (associated by Firebase UID), prediction history, and outbound email (welcome messages, via Resend — OTP delivery is Firebase's own responsibility now). Every request that reaches Django or MongoDB passes through this service first — nothing else in the system has a direct path to either. Also owns the security controls that don't belong to a specific downstream service: CORS, security headers (`helmet`), and per-user rate limiting.
 
 **ML Backend (Django).** Owns the actual prediction logic — 15 CatBoost models (loaded once at process startup, not per request; see [ADR-0003](adr/ADR-0003-prediction-model-strategy.md)), SHAP explainability, the trends/dataset-statistics endpoints (served from an in-memory-cached CSV, not a database), and the two external integrations (Gemini, PubMed). Has no user model, no sessions, and no concept of "who is logged in" — it doesn't need one, since access control here works differently from the gateway (see below).
 

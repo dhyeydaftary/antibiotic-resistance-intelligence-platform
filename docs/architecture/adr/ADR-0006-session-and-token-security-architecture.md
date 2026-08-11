@@ -10,7 +10,7 @@ review_frequency: on-auth-architecture-change
 
 ## Status
 
-Accepted.
+Accepted. Not superseded or modified by [ADR-0005](ADR-0005-firebase-auth-migration.md) — this decision and its reasoning remain fully current. What changed is the entry point: the `tokenVersion`-carrying JWT described below is now issued after the Gateway verifies a Firebase-issued identity, rather than directly after password/OTP verification.
 
 ## Context
 
@@ -26,9 +26,10 @@ The table below covers what's actually implemented today — see [Consequences](
 
 | Event | `tokenVersion` incremented? |
 |---|---|
-| Login (correct credentials) | No — a login doesn't invalidate other sessions, it just issues a new token under the current version |
-| Password reset (`/reset-password`) | Yes |
+| `/session` (Firebase-verified login, new or returning account) | No — a login doesn't invalidate other sessions, it just issues a new token under the current version |
 | Logout everywhere (`POST /logout-everywhere`) | Yes — including invalidating the very token used to make this call |
+
+> As of [ADR-0005](ADR-0005-firebase-auth-migration.md), password reset is Firebase's own responsibility and no longer bumps this app's `tokenVersion` at all — a row for `/reset-password` (which no longer exists) previously appeared here.
 
 **JWT lifetime is also tied to the login-time "remember me" choice** — 24 hours if unchecked, 7 days if checked — rather than a flat duration regardless of that signal, since the flag already existed in the UI but wasn't actually affecting how long the resulting token stayed valid.
 
@@ -54,6 +55,7 @@ The table below covers what's actually implemented today — see [Consequences](
 
 ## Related Documentation
 
+- [`docs/architecture/adr/ADR-0005-firebase-auth-migration.md`](ADR-0005-firebase-auth-migration.md) — this ADR is explicitly not superseded by that migration; see its Architecture Boundary section for exactly how the two now fit together
 - [`docs/security/threat-model.md`](../../security/threat-model.md) — Sub-phase 2 (Session & Token Security) in the full security hardening account, including how this decision fits alongside the account-lockout and audit-logging work built later in the same overall pass
 - [`docs/architecture/adr/ADR-0001-three-service-architecture.md`](ADR-0001-three-service-architecture.md) — the gateway's role as the sole authenticated entry point, which is what `verifyToken`/`tokenVersion` actually protect
 - [`docs/architecture/request-lifecycle.md`](../request-lifecycle.md) — `tokenVersion` shown in context as step 2 of a real, traced request
