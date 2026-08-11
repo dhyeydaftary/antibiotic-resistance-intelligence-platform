@@ -11,18 +11,21 @@ const securityEventSchema = new mongoose.Schema({
     type: String,
     required: true,
     enum: [
-      'LOGIN_SUCCESS',
-      'LOGIN_FAILURE',
-      'LOGIN_LOCKOUT',
-      'SIGNUP',
-      'EMAIL_VERIFIED',
-      'PASSWORD_RESET',
+      'SESSION_SUCCESS',
+      'SESSION_FAILURE',
       'LOGOUT_EVERYWHERE',
     ],
   },
   email: {
     type: String,
-    required: true,
+    // Not required: a session-exchange event where Firebase token
+    // verification itself fails has no identifiable email at all
+    // (verification failed before any claims could be decoded) -- still
+    // a meaningful event to record for monitoring, just one without an
+    // associated address. No read endpoint exists for this collection
+    // (write-only, by design), so nothing downstream assumes email is
+    // always present.
+    default: null,
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,

@@ -26,7 +26,6 @@ function App() {
   const isAuthPage =
     location.pathname === '/login' ||
     location.pathname === '/signup' ||
-    location.pathname === '/verify-email' ||
     location.pathname === '/forgot-password';
 
   // AnimatePresence keyed on pathname re-triggers exit/enter animations on

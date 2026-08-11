@@ -85,16 +85,16 @@ AMR-Insight takes structured patient/clinical inputs (or an uploaded lab report,
 | Trend exploration | Resistance trends across organisms/antibiotics, with LLM-generated explanatory insight |
 | Prediction history | Authenticated users can filter and revisit past predictions (result, antibiotic, confidence, organism, date, free-text search) |
 | PDF report export | Download a formatted PDF from either the Prediction Result page or the History page (client-side, via jsPDF) |
-| Authentication | Email/OTP verification, JWT-based sessions with server-side revocation, bcrypt password hashing |
+| Authentication | Firebase-backed (password, Google, GitHub sign-in), with a Gateway-issued session JWT and server-side revocation ([ADR-0005](docs/architecture/adr/ADR-0005-firebase-auth-migration.md)) |
 
-**Explicitly out of scope for this release:** role-based access control and admin panels (single flat user type by design), two-factor authentication beyond signup/reset OTP. A dedicated non-goals document is planned for `docs/product/vision.md` but not yet written; see [Known Limitations](docs/data/known-limitations.md) in the meantime.
+**Explicitly out of scope for this release:** role-based access control and admin panels (single flat user type by design), two-factor authentication beyond Firebase's own account security. A dedicated non-goals document is planned for `docs/product/vision.md` but not yet written; see [Known Limitations](docs/data/known-limitations.md) in the meantime.
 
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | ML Backend (P1) | Django + Django REST Framework, CatBoost (×15 models), native SHAP, Google Gemini (insight generation + report extraction), PubMed API (research context) |
-| Gateway (P2) | Node.js, Express, MongoDB (Mongoose), JWT, bcrypt, Resend (transactional email) |
+| Gateway (P2) | Node.js, Express, MongoDB (Mongoose), Firebase Admin SDK, JWT, Resend (transactional email) |
 | Frontend (P3) | React 19, Vite, Tailwind CSS, Framer Motion, Recharts, Chart.js, jsPDF |
 | Data | Kaggle AMR dataset (10,710 rows, 23 source columns), synthetic clinical feature augmentation, WHO AWaRe reference mapping |
 
@@ -102,7 +102,7 @@ AMR-Insight takes structured patient/clinical inputs (or an uploaded lab report,
 
 **In plain terms:** three independent services, each with one job — a frontend that never talks to the ML backend directly, a gateway that owns every security-sensitive decision, and an ML backend that owns prediction logic and nothing else. The full reasoning behind this specific split, rather than a simpler single-service alternative, is in [ADR-0001](docs/architecture/adr/ADR-0001-three-service-architecture.md).
 
-A React SPA talks to a Node/Express gateway, which owns authentication and prediction history, sends transactional email via Resend, and proxies several ML-backed endpoints to a Django backend that loads all 15 CatBoost models at startup and calls Gemini for insight generation and report extraction. There are two distinct PDF flows, in opposite directions: a user can *export* a prediction as a PDF client-side (via jsPDF) from either the Prediction Result page or the History page — the gateway is not involved — and a user can separately *upload* an existing lab report PDF on the Prediction Input page, which the gateway proxies to Django/Gemini for field extraction.
+A React SPA authenticates directly against Firebase (password, Google, or GitHub), then talks to a Node/Express gateway — which verifies that identity once, issues its own session JWT, and owns prediction history — sends transactional email via Resend, and proxies several ML-backed endpoints to a Django backend that loads all 15 CatBoost models at startup and calls Gemini for insight generation and report extraction. There are two distinct PDF flows, in opposite directions: a user can *export* a prediction as a PDF client-side (via jsPDF) from either the Prediction Result page or the History page — the gateway is not involved — and a user can separately *upload* an existing lab report PDF on the Prediction Input page, which the gateway proxies to Django/Gemini for field extraction.
 
 <div align="center">
 <br/>
@@ -110,8 +110,10 @@ A React SPA talks to a Node/Express gateway, which owns authentication and predi
 ```mermaid
 flowchart TD
     User(("User")) --> FE["React / Vite Frontend"]
-    FE ==>|"JWT-authenticated REST"| GW["Node / Express Gateway"]
-    GW -->|"auth, history"| DB[("MongoDB")]
+    FE ==>|"password/Google/GitHub"| FB["Firebase"]
+    FE ==>|"Gateway session JWT"| GW["Node / Express Gateway"]
+    GW -.->|"verifies Firebase ID token, once"| FB
+    GW -->|"session, history"| DB[("MongoDB")]
     GW -->|"transactional email"| Resend["Resend"]
     GW ==>|"ML-backed endpoints (internal API key)"| ML["Django ML Backend"]
     ML -->|"15x CatBoost + SHAP"| Models[("ml_artifacts/*.pkl")]
@@ -163,8 +165,8 @@ Full, literal tree, including every `docs/` subcategory, lives in [`docs/README.
 <table>
 <tr>
 <td width="50%">
-<img src="docs/assets/screenshots/signup-password-policy.png" width="100%" alt="Signup form with live password policy checklist"/>
-<p align="center"><em>Signup — server-enforced password policy validated live, not just on submit.</em></p>
+<img src="docs/assets/screenshots/login-multi-provider.png" width="100%" alt="Login form with password, Google, and GitHub sign-in options"/>
+<p align="center"><em>Sign in — password, Google, or GitHub, all backed by Firebase. Password accounts still get the same live, server-mirrored policy checklist as before.</em></p>
 </td>
 <td width="50%">
 <img src="docs/assets/screenshots/prediction-input-autofilled.png" width="100%" alt="Prediction input form, fields auto-filled from an uploaded PDF"/>
@@ -217,7 +219,7 @@ python manage.py runserver   # http://localhost:8000
 ```bash
 cd gateway
 npm install
-cp .env.example .env   # fill in MONGO_URI, JWT_SECRET, RESEND_API_KEY
+cp .env.example .env   # fill in MONGO_URI, JWT_SECRET, RESEND_API_KEY, FIREBASE_SERVICE_ACCOUNT_PATH
 npm run dev   # http://localhost:5000
 ```
 
@@ -243,9 +245,11 @@ Zooming out from that one request to the whole product — a user's actual path 
 ```mermaid
 flowchart TD
     L["Landing"] --> S["Signup"]
-    S --> V["Email Verification"]
-    V --> Login["Login"]
-    Login --> H["Home"]
+    L --> Login["Login"]
+    S -->|"password"| V["Email Verification"]
+    S -->|"Google / GitHub"| H["Home"]
+    V --> Login
+    Login --> H
 
     H --> P["Prediction Input"]
     P --> SH["SHAP + AI Insights"]
@@ -285,7 +289,7 @@ Every prediction includes a SHAP-based, per-feature contribution breakdown, comp
 
 ## API
 
-All endpoints are served through the gateway at `/api/predictor` and `/api/auth`, JWT-protected except signup/login/OTP flows. Example — `POST /api/predictor/predict`:
+All endpoints are served through the gateway at `/api/predictor` and `/api/auth`, JWT-protected except `/api/auth/session` (the Firebase-token exchange itself — see [ADR-0005](docs/architecture/adr/ADR-0005-firebase-auth-migration.md)). Example — `POST /api/predictor/predict`:
 
 **Request**
 
@@ -327,7 +331,7 @@ All endpoints are served through the gateway at `/api/predictor` and `/api/auth`
 }
 ```
 
-Full endpoint reference (all 7 `predictor` routes — 6 proxied to Django, plus `/history` querying MongoDB directly — all 8 `auth` routes, and the shared error-code catalog): [`docs/api/endpoint-reference.md`](docs/api/endpoint-reference.md), with the machine-readable contract at [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
+Full endpoint reference (all 7 `predictor` routes — 6 proxied to Django, plus `/history` querying MongoDB directly — all 3 `auth` routes, and the shared error-code catalog): [`docs/api/endpoint-reference.md`](docs/api/endpoint-reference.md), with the machine-readable contract at [`docs/api/openapi.yaml`](docs/api/openapi.yaml)
 
 ---
 
@@ -335,7 +339,7 @@ Full endpoint reference (all 7 `predictor` routes — 6 proxied to Django, plus 
 
 **In plain terms:** this project went through a deliberate, 13-phase security review — not a single end-of-project pass — covering authentication, session revocation, injection protection, rate limiting, dependency vulnerabilities (including a confirmed remote-code-execution fix), and more, each phase audited before implementation and independently verified after.
 
-JWT-based sessions with bcrypt-hashed passwords and server-side revocation via a `tokenVersion` counter (invalidated on password reset or `POST /logout-everywhere`); signup, password-reset, and login flows are protected by email OTP verification, a separate per-account lockout on repeated failed logins, and per-endpoint rate limiting.
+Firebase-backed authentication (password, Google, GitHub) with a Gateway-issued session JWT layered downstream of it — the Gateway verifies a Firebase identity once at login, then owns its own `tokenVersion`-based server-side revocation from that point on (invalidated on `POST /logout-everywhere`), a deliberate architecture decision recorded in [ADR-0005](docs/architecture/adr/ADR-0005-firebase-auth-migration.md), not a full hand-off. Password policy, email verification, and login lockout are now Firebase's own responsibility.
 
 <div align="center">
 <br/>
@@ -352,7 +356,7 @@ flowchart LR
 <br/>
 </div>
 
-Single flat user type — no RBAC or admin panel by design, given the current scope and timeline. Two-factor authentication beyond OTP is deferred, not implemented. Full detail, including every known residual gap, stated plainly rather than hidden: [`docs/security/threat-model.md`](docs/security/threat-model.md) and [`SECURITY.md`](SECURITY.md).
+Single flat user type — no RBAC or admin panel by design, given the current scope and timeline. Two-factor authentication beyond Firebase's own account security is deferred, not implemented. Full detail, including every known residual gap, stated plainly rather than hidden: [`docs/security/threat-model.md`](docs/security/threat-model.md) and [`SECURITY.md`](SECURITY.md).
 
 ---
 
