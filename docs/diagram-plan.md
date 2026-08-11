@@ -418,12 +418,12 @@ Mermaid Diagram
 
 ##### Reason
 
-Signup/OTP/verify/JWT is a genuinely non-trivial multi-step sequence (per the gateway's real routes: signup, verify-otp, resend-otp, login, forgot-password, verify-reset-otp, reset-password) that's easy to describe wrong in prose and easy to get exactly right in a sequence diagram.
+Per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md), authentication is now a layered, two-system flow (Firebase as identity provider, the Gateway issuing its own downstream session token) — genuinely non-trivial to describe correctly in prose, and a good fit for a sequence diagram, though the specific sequence below has changed entirely from what this recommendation originally described (the old signup/OTP/verify/JWT flow across 7 gateway-only routes no longer exists).
 
 ##### Suggested Diagram (Mermaid)
 
 - **Type:** Sequence diagram
-- **Represents:** Signup → OTP email (via Resend) → verification → JWT issuance, and the parallel forgot-password/reset flow
+- **Represents:** Frontend authenticates directly against Firebase (password, Google, or GitHub) → Firebase issues an ID token → frontend sends it once to the Gateway's `POST /session` → Gateway verifies it via the Firebase Admin SDK → Gateway finds-or-creates the `User` record → Gateway issues its own session JWT → frontend uses that JWT (not the Firebase token) for every subsequent request
 - **Complexity:** Medium
 - **Placement:** Primary content of whichever doc covers gateway auth
 

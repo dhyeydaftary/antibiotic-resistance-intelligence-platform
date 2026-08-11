@@ -16,11 +16,20 @@
 
 require('dotenv').config();
 
+// Points config/firebaseAdmin.js's require(serviceAccountPath) at a fake,
+// safe-to-commit fixture (tests/fixtures/) instead of a real key -- must
+// be set before ANYTHING first requires that module (it calls
+// initializeApp()/cert() at load time), so this sits here, before every
+// other require in this file. initializeApp()/cert() only store the
+// value; they don't validate it cryptographically until an actual
+// network call is made, which never happens here -- verifyIdToken is
+// mocked separately, below.
+process.env.FIREBASE_SERVICE_ACCOUNT_PATH = require('path').join(__dirname, 'fixtures', 'fake-firebase-service-account.json');
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 
 const USER_MODEL_PATH = require.resolve('../models/User');
-const PENDING_SIGNUP_MODEL_PATH = require.resolve('../models/PendingSignup');
 const SECURITY_EVENT_MODEL_PATH = require.resolve('../models/SecurityEvent');
 const PREDICTION_HISTORY_MODEL_PATH = require.resolve('../models/PredictionHistory');
 const AUTH_ROUTE_PATH = require.resolve('../routes/auth');
@@ -30,6 +39,7 @@ const PREDICTION_RATE_LIMITERS_PATH = require.resolve('../middleware/predictionR
 const VERIFY_TOKEN_PATH = require.resolve('../middleware/verifyToken');
 const DJANGO_CLIENT_PATH = require.resolve('../utils/djangoClient');
 const EMAIL_UTIL_PATH = require.resolve('../utils/emailUtil');
+const FIREBASE_ADMIN_PATH = require.resolve('../config/firebaseAdmin');
 
 // Deletes require.cache entries so the next require() re-evaluates fresh.
 function clearCache(...resolvedPaths) {
@@ -43,15 +53,6 @@ let idCounter = 0;
 function nextId() {
   idCounter += 1;
   return String(idCounter).padStart(24, '0');
-}
-
-// Computes a matching TTL expiry for a directly-seeded PendingSignup fixture.
-// Mirrors auth.js's own getPendingSignupExpiry() (PENDING_SIGNUP_TTL_MINUTES
-// = 20, kept local to that file, not exported) — tests that seed a
-// PendingSignup directly need a matching expiresAt so it stays consistent
-// with otpExpiry, same as the real route would set it.
-function pendingSignupExpiry() {
-  return new Date(Date.now() + 20 * 60 * 1000);
 }
 
 // Builds an in-memory mock of the User model's Mongo collection.
@@ -75,21 +76,15 @@ function createUserStore() {
     return doc;
   }
 
-  // Fills in a fresh User document's default field values.
+  // Fills in a fresh User document's default field values, matching the
+  // real schema (models/User.js) -- password/OTP/lockout fields are gone
+  // post-Firebase-migration; firebaseUid is the real identity anchor now.
   function withDefaults(fields) {
     return {
       _id: nextId(),
+      firebaseUid: `fb-${nextId()}`,
       tokenVersion: 0,
-      loginAttempts: 0,
-      loginLockedUntil: null,
-      otpAttempts: 0,
-      resetAttempts: 0,
       hasReceivedWelcomeEmail: false,
-      isVerified: false,
-      otp: null,
-      otpExpiry: null,
-      resetToken: null,
-      resetTokenExpiry: null,
       ...fields,
     };
   }
@@ -106,6 +101,12 @@ function createUserStore() {
       if (query.email !== undefined) {
         for (const doc of byId.values()) {
           if (doc.email === query.email) return withSave(doc);
+        }
+        return null;
+      }
+      if (query.firebaseUid !== undefined) {
+        for (const doc of byId.values()) {
+          if (doc.firebaseUid === query.firebaseUid) return withSave(doc);
         }
         return null;
       }
@@ -128,72 +129,6 @@ function attachUserStore(User, store) {
   User.findOne = store.findOne;
   User.findById = store.findById;
   User.create = store.create;
-}
-
-// Same Map-based approach as createUserStore, sized for PendingSignup's
-// smaller field set. Also needs a working deleteOne (instance method, to
-// match how auth.js calls it: `pending.deleteOne()`) — the real
-// /verify-otp deletes the pending row once it becomes a User.
-function createPendingSignupStore() {
-  const byId = new Map();
-
-  // Attaches mock .save() and .deleteOne() methods backed by the Map.
-  function withInstanceMethods(doc) {
-    if (!doc.save) {
-      doc.save = async function save() {
-        byId.set(String(doc._id), doc);
-        return doc;
-      };
-    }
-    if (!doc.deleteOne) {
-      doc.deleteOne = async function deleteOne() {
-        byId.delete(String(doc._id));
-      };
-    }
-    return doc;
-  }
-
-  // Fills in a fresh PendingSignup document's default field values.
-  function withDefaults(fields) {
-    return {
-      _id: nextId(),
-      otpAttempts: 0,
-      otp: null,
-      otpExpiry: null,
-      expiresAt: null,
-      ...fields,
-    };
-  }
-
-  return {
-    byId,
-    // Test-only helper: insert a document directly, bypassing /signup.
-    seed(fields) {
-      const doc = withInstanceMethods(withDefaults(fields));
-      byId.set(doc._id, doc);
-      return doc;
-    },
-    async findOne(query = {}) {
-      if (query.email !== undefined) {
-        for (const doc of byId.values()) {
-          if (doc.email === query.email) return withInstanceMethods(doc);
-        }
-        return null;
-      }
-      return null;
-    },
-    async create(fields) {
-      const doc = withInstanceMethods(withDefaults(fields));
-      byId.set(doc._id, doc);
-      return doc;
-    },
-  };
-}
-
-// Wires a mock store's methods onto the real PendingSignup model object.
-function attachPendingSignupStore(PendingSignup, store) {
-  PendingSignup.findOne = store.findOne;
-  PendingSignup.create = store.create;
 }
 
 // Replaces SecurityEvent.create with an in-memory recorder for assertions.
@@ -226,44 +161,55 @@ function mockPredictionHistory(PredictionHistory) {
   return { findCalls, records };
 }
 
-// Replaces sendOtpEmail/sendWelcomeEmail with in-memory recorders.
-// Captures OTP/reset codes and welcome-email calls without ever hitting the
-// real Resend API.
+// Replaces sendWelcomeEmail with an in-memory recorder. sendOtpEmail is
+// gone from utils/emailUtil.js post-Firebase-migration -- OTP delivery is
+// Firebase's own responsibility now, not this app's code.
 function mockEmailUtil(emailUtil) {
-  const otpEmails = [];
   const welcomeEmails = [];
-  emailUtil.sendOtpEmail = async (to, code, purpose) => {
-    otpEmails.push({ to, code, purpose });
-    return { success: true, id: 'test-email-id' };
-  };
   emailUtil.sendWelcomeEmail = async (to, name) => {
     welcomeEmails.push({ to, name });
     return { success: true, id: 'test-welcome-id' };
   };
-  return { otpEmails, welcomeEmails };
+  return { welcomeEmails };
+}
+
+// Replaces config/firebaseAdmin.js's exported auth.verifyIdToken with a
+// controllable mock. Call .setNextResult() before each request this test
+// makes -- either a decoded-claims object (success) or an Error instance
+// (verification failure, e.g. expired/invalid/malformed token).
+function mockFirebaseAuth(firebaseAdmin) {
+  let nextResult = null;
+  firebaseAdmin.auth.verifyIdToken = async () => {
+    if (nextResult instanceof Error) throw nextResult;
+    return nextResult;
+  };
+  return {
+    setNextResult(result) {
+      nextResult = result;
+    },
+  };
 }
 
 // Builds a self-contained test Express app for the auth routes, with
-// fresh mocked models and rate limiters.
-// Builds a fresh Express app mounting routes/auth.js, with a fresh
-// require.cache entry for the route file and its rate limiters (so a
-// previous test group's rate-limit counters never leak in), and a fresh
-// in-memory User/SecurityEvent store attached to the (cache-preserved)
-// model objects.
+// fresh mocked models, a mocked Firebase Admin verifyIdToken, and fresh
+// rate limiters.
+// firebaseAdmin.js is deliberately NOT cache-busted (like the model
+// files) -- its initializeApp() guard (if (!getApps().length)) means a
+// second, cache-busted require would just skip re-initializing anyway;
+// re-mocking its already-shared .auth.verifyIdToken per call is enough.
 function buildAuthApp() {
   clearCache(AUTH_ROUTE_PATH, AUTH_RATE_LIMITERS_PATH);
 
   const User = require(USER_MODEL_PATH);
-  const PendingSignup = require(PENDING_SIGNUP_MODEL_PATH);
   const SecurityEvent = require(SECURITY_EVENT_MODEL_PATH);
   const emailUtil = require(EMAIL_UTIL_PATH);
+  const firebaseAdmin = require(FIREBASE_ADMIN_PATH);
 
   const userStore = createUserStore();
   attachUserStore(User, userStore);
-  const pendingStore = createPendingSignupStore();
-  attachPendingSignupStore(PendingSignup, pendingStore);
   const events = mockSecurityEvent(SecurityEvent);
   const emails = mockEmailUtil(emailUtil);
+  const firebaseAuthMock = mockFirebaseAuth(firebaseAdmin);
 
   const authRoutes = require(AUTH_ROUTE_PATH);
   const verifyToken = require(VERIFY_TOKEN_PATH);
@@ -273,14 +219,14 @@ function buildAuthApp() {
   // Debug-only stub route, backed by the real verifyToken middleware and
   // the same User store this app instance just attached — lets tests check
   // whether a given token is (still) accepted after an auth action like
-  // /reset-password or /logout-everywhere, without needing to spin up a
-  // second app (which would attach a second, disconnected store to the
-  // same shared User model object).
+  // /logout-everywhere, without needing to spin up a second app (which
+  // would attach a second, disconnected store to the same shared User
+  // model object).
   app.get('/protected', verifyToken, (req, res) => {
     res.status(200).json({ success: true, data: { userId: req.userId }, error: null });
   });
 
-  return { app, userStore, User, pendingStore, PendingSignup, events, emails };
+  return { app, userStore, User, events, emails, firebaseAuthMock };
 }
 
 // Builds a self-contained test Express app for the prediction routes,
@@ -343,19 +289,16 @@ module.exports = {
   nextId,
   createUserStore,
   attachUserStore,
-  createPendingSignupStore,
-  attachPendingSignupStore,
-  pendingSignupExpiry,
   mockSecurityEvent,
   mockPredictionHistory,
   mockEmailUtil,
+  mockFirebaseAuth,
   buildAuthApp,
   buildPredictionApp,
   buildVerifyTokenApp,
   signTestToken,
   paths: {
     USER_MODEL_PATH,
-    PENDING_SIGNUP_MODEL_PATH,
     SECURITY_EVENT_MODEL_PATH,
     PREDICTION_HISTORY_MODEL_PATH,
     AUTH_ROUTE_PATH,
@@ -365,5 +308,6 @@ module.exports = {
     VERIFY_TOKEN_PATH,
     DJANGO_CLIENT_PATH,
     EMAIL_UTIL_PATH,
+    FIREBASE_ADMIN_PATH,
   },
 };

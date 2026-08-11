@@ -109,9 +109,18 @@ security:
   - bearerAuth: []
 
 paths:
-  /auth/signup:
+  /auth/session:
     post:
-      summary: Create an unverified account and send a verification OTP
+      summary: Exchange a Firebase ID token for a Gateway session JWT
+      description: >
+        Per ADR-0005, Firebase is this app's identity provider -- the
+        frontend authenticates directly against Firebase (password,
+        Google, or GitHub) and sends the resulting ID token here, once,
+        at login. Verifies the token server-side, finds-or-creates the
+        MongoDB User record (keyed by Firebase UID), and issues the
+        Gateway's own downstream session token. Works identically for a
+        brand-new account or a returning one -- there is no separate
+        signup endpoint.
       security: []
       requestBody:
         required: true
@@ -119,45 +128,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, email, password]
+              required: [idToken]
               properties:
-                name: { type: string }
-                email: { type: string }
-                password: { type: string }
-      responses:
-        '201':
-          description: Account created, OTP sent
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean, example: true }
-                  data:
-                    type: object
-                    properties:
-                      email: { type: string }
-                  error: { nullable: true, example: null }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '500': { $ref: '#/components/responses/InternalError' }
-
-  /auth/login:
-    post:
-      summary: Authenticate and receive a JWT
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, password]
-              properties:
-                email: { type: string }
-                password: { type: string }
+                idToken: { type: string, description: "A Firebase-issued ID token" }
       responses:
         '200':
-          description: Login successful
+          description: Session established
           content:
             application/json:
               schema:
@@ -172,34 +148,25 @@ paths:
                   error: { nullable: true, example: null }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401':
-          description: Invalid credentials
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorEnvelope' }
-        '403':
-          description: Account exists but is not yet verified (code NOT_VERIFIED)
+          description: >
+            AUTH_ERROR if the Firebase ID token itself failed
+            verification, or EMAIL_NOT_VERIFIED if the token verified
+            but Firebase hasn't confirmed that email yet (only reachable
+            via password signup -- Google/GitHub arrive pre-verified)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorEnvelope' }
         '500': { $ref: '#/components/responses/InternalError' }
 
-  /auth/verify-otp:
-    post:
-      summary: Verify signup OTP; on success, marks the account verified and returns a JWT (auto-login)
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, code]
-              properties:
-                email: { type: string }
-                code: { type: string }
+  /auth/me:
+    get:
+      summary: Session-validity check -- confirms a stored Gateway token still resolves to a real, current user
+      description: >
+        Called once at app mount, not on every navigation. Distinct from
+        /session, which authenticates and issues a new token.
       responses:
         '200':
-          description: Verified — token issued
+          description: Current user
           content:
             application/json:
               schema:
@@ -209,89 +176,9 @@ paths:
                   data:
                     type: object
                     properties:
-                      token: { type: string }
                       user: { $ref: '#/components/schemas/User' }
-        '400': { description: "Validation error, ALREADY_VERIFIED, OTP_EXPIRED, or OTP_INCORRECT" }
-        '404': { description: "NOT_FOUND — no account matches the email" }
-        '500': { $ref: '#/components/responses/InternalError' }
-
-  /auth/resend-otp:
-    post:
-      summary: Regenerate and resend the signup verification OTP
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email]
-              properties:
-                email: { type: string }
-      responses:
-        '200': { description: "OTP resent" }
-        '400': { description: "Validation error or ALREADY_VERIFIED" }
-        '404': { description: "NOT_FOUND" }
-        '500': { $ref: '#/components/responses/InternalError' }
-
-  /auth/forgot-password:
-    post:
-      summary: Generate and email a password-reset code
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email]
-              properties:
-                email: { type: string }
-      responses:
-        '200': { description: "Reset code sent" }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { description: "NOT_FOUND" }
-        '500': { $ref: '#/components/responses/InternalError' }
-
-  /auth/verify-reset-otp:
-    post:
-      summary: Check a reset code without consuming it (UI step 2 → 3 transition)
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, code]
-              properties:
-                email: { type: string }
-                code: { type: string }
-      responses:
-        '200': { description: "Code valid" }
-        '400': { description: "Validation error, OTP_EXPIRED, or OTP_INCORRECT" }
-        '404': { description: "NOT_FOUND" }
-        '500': { $ref: '#/components/responses/InternalError' }
-
-  /auth/reset-password:
-    post:
-      summary: Re-validate the reset code and update the password
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [email, code, password]
-              properties:
-                email: { type: string }
-                code: { type: string }
-                password: { type: string }
-      responses:
-        '200': { description: "Password updated" }
-        '400': { description: "Validation error, OTP_EXPIRED, or OTP_INCORRECT" }
-        '404': { description: "NOT_FOUND" }
+                  error: { nullable: true, example: null }
+        '401': { $ref: '#/components/responses/Unauthorized' }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /auth/logout-everywhere:
