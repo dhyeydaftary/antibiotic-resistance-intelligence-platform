@@ -90,7 +90,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Persists a fresh token/user to the storage matching "remember me", and
-  // updates in-memory state. Called by LoginPage/VerifyEmailPage on success.
+  // updates in-memory state. Called by LoginPage/SignupPage on success.
   function login(newToken, newUser, remember = false) {
     // Clear both storages first so a previous session in the *other* store
     // (e.g. switching from "remembered" to "not remembered" on a later

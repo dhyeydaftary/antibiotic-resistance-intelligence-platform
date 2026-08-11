@@ -544,23 +544,29 @@ describe('CORS', () => {
 // same helmet/CORS config so a genuine 401 and a genuine 429 (from the
 // real verifyLimiter) can be produced, plus a synthetic route and the same
 // final error-handling middleware shape as index.js for the 500 case.
+// CORS are applied at the very top of the app, before any route (or the
+// final error handler) runs — so they must be present on every response
+// regardless of its eventual status code. Mounts the REAL authRoutes
+// (fresh-required, same model-mocking pattern as helpers.js) alongside the
+// same helmet/CORS config so a genuine 401 and a genuine 429 (from the
+// real sessionLimiter) can be produced, plus a synthetic route and the same
+// final error-handling middleware shape as index.js for the 500 case.
 function buildFullAppWithHeaders() {
   const {
     clearCache, createUserStore, attachUserStore,
-    createPendingSignupStore, attachPendingSignupStore,
-    mockSecurityEvent, paths,
+    mockSecurityEvent, mockFirebaseAuth, paths,
   } = require('./helpers');
   clearCache(paths.AUTH_ROUTE_PATH, paths.AUTH_RATE_LIMITERS_PATH);
 
   const User = require(paths.USER_MODEL_PATH);
-  const PendingSignup = require(paths.PENDING_SIGNUP_MODEL_PATH);
   const SecurityEvent = require(paths.SECURITY_EVENT_MODEL_PATH);
+  const firebaseAdmin = require(paths.FIREBASE_ADMIN_PATH);
   attachUserStore(User, createUserStore());
-  // /login now falls back to PendingSignup when no User is found (see
-  // auth.js) — without this mock, that call hits the real, unconnected
-  // Mongoose model and hangs until Mongoose's buffering timeout.
-  attachPendingSignupStore(PendingSignup, createPendingSignupStore());
   mockSecurityEvent(SecurityEvent);
+  const firebaseAuthMock = mockFirebaseAuth(firebaseAdmin);
+  // A genuine 401 for this test's purposes: an invalid/unverifiable
+  // Firebase token, same as a real bad-credential attempt would produce.
+  firebaseAuthMock.setNextResult(new Error('invalid token'));
   const authRoutes = require(paths.AUTH_ROUTE_PATH);
 
   const app = express();
@@ -610,17 +616,19 @@ function assertSecurityHeadersPresent(res) {
 }
 
 describe('Security headers are present on error responses too, not just 200s', () => {
-  test('401 (bad login), 429 (rate limited), and 500 (unhandled error) responses all still carry the helmet-set security headers', async () => {
+  test('401 (bad session token), 429 (rate limited), and 500 (unhandled error) responses all still carry the helmet-set security headers', async () => {
     const app = buildFullAppWithHeaders();
 
-    const res401 = await request(app).post('/api/auth/login').send({ email: 'nope@example.com', password: 'whatever' });
+    const res401 = await request(app).post('/api/auth/session').send({ idToken: 'invalid-token' });
     assert.equal(res401.status, 401);
     assertSecurityHeadersPresent(res401);
 
     let last429;
-    for (let i = 0; i < 11; i += 1) {
+    // sessionLimiter's real max is 20/15min (see middleware/authRateLimiters.js) —
+    // this loop count must track that value, not be picked independently of it.
+    for (let i = 0; i < 21; i += 1) {
       // eslint-disable-next-line no-await-in-loop
-      last429 = await request(app).post('/api/auth/login').send({ email: 'nope@example.com', password: 'whatever' });
+      last429 = await request(app).post('/api/auth/session').send({ idToken: 'invalid-token' });
     }
     assert.equal(last429.status, 429);
     assertSecurityHeadersPresent(last429);
