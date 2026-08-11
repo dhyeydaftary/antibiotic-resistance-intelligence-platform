@@ -11,7 +11,7 @@ Please avoid publicly disclosing a vulnerability before the project team has had
 Given this project's real security posture, documented honestly rather than idealized:
 
 - **Application-layer issues** in the gateway (Node/Express) and ML backend (Django) — authentication bypass, injection vectors, data exposure across users — are in scope and worth reporting.
-- **Infrastructure/deployment security** is still not fully applicable — there is no production deployment yet. Several settings are deliberately placeholder/deploy-time-only until a real hosting platform is chosen (the gateway's `trust proxy` value, HSTS `preload`, the frontend's CSP `connect-src`) — see [`docs/security/threat-model.md`](docs/security/threat-model.md) for exactly which ones and why. Reporting these as findings isn't necessary; they're already known, tracked, and explained.
+- **Infrastructure/deployment security** is still not fully applicable — there is no production deployment yet. Several settings are deliberately placeholder/deploy-time-only until a real hosting platform is chosen (the gateway's `trust proxy` value, HSTS `preload`, the frontend's CSP `connect-src`) — see [`docs/security/threat-model.md`](docs/security/threat-model.md) for exactly which ones and why. The frontend's `Cross-Origin-Opener-Policy` and the Firebase-required CSP additions are already in place and locally verified, but not yet tested against a real production host — see the same section for what specifically still needs confirming once one is chosen. Reporting these as findings isn't necessary; they're already known, tracked, and explained.
 
 ## Current Security Posture — Verified, Not Assumed
 
