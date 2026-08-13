@@ -117,6 +117,23 @@ describe('POST /api/auth/session', () => {
     assert.equal(res.status, 200);
     assert.equal(userStore.byId.size, 2);
   });
+
+  test('a database error while finding/creating the user is caught by the route\'s own catch block and returns a generic 500 INTERNAL_ERROR', async () => {
+    const { app, User, firebaseAuthMock } = buildAuthApp();
+    firebaseAuthMock.setNextResult(fbClaims());
+    User.findOne = async () => {
+      throw new Error('Mongo connection lost');
+    };
+
+    const res = await request(app).post('/api/auth/session').send({ idToken: 'tok' });
+
+    assert.equal(res.status, 500);
+    assert.deepStrictEqual(res.body, {
+      success: false,
+      data: null,
+      error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.', field: null },
+    });
+  });
 });
 
 describe('POST /api/auth/logout-everywhere', () => {
@@ -166,6 +183,33 @@ describe('POST /api/auth/logout-everywhere', () => {
     const res = await request(app).post('/api/auth/logout-everywhere').set('Authorization', `Bearer ${token}`);
     assert.equal(res.status, 401);
   });
+
+  test("a database error in the route's own User.findById lookup (distinct from verifyToken's own successful lookup for the same request) is caught and returns a generic 500 INTERNAL_ERROR", async () => {
+    const { app, userStore, User } = buildAuthApp();
+    const user = userStore.seed({ email: 'dbfail-logout@example.com', firebaseUid: 'fb-dbfail-logout', tokenVersion: 0 });
+    const token = signTestToken(user._id, 0);
+
+    // verifyToken.js does its own User.findById() before this route's
+    // handler ever runs -- that first call must still succeed (real user,
+    // matching tokenVersion) so the request actually reaches the route.
+    // Only the route's OWN findById call (the second one) should fail.
+    const originalFindById = User.findById;
+    let calls = 0;
+    User.findById = async (id) => {
+      calls += 1;
+      if (calls === 1) return originalFindById(id);
+      throw new Error('Mongo connection lost');
+    };
+
+    const res = await request(app).post('/api/auth/logout-everywhere').set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 500);
+    assert.deepStrictEqual(res.body, {
+      success: false,
+      data: null,
+      error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.', field: null },
+    });
+  });
 });
 
 describe('GET /api/auth/me', () => {
@@ -192,5 +236,28 @@ describe('GET /api/auth/me', () => {
 
     const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${badToken}`);
     assert.equal(res.status, 401);
+  });
+
+  test("a database error in the route's own User.findById lookup (distinct from verifyToken's own successful lookup for the same request) is caught and returns a generic 500 INTERNAL_ERROR", async () => {
+    const { app, userStore, User } = buildAuthApp();
+    const user = userStore.seed({ email: 'dbfail-me@example.com', firebaseUid: 'fb-dbfail-me', tokenVersion: 0 });
+    const token = signTestToken(user._id, 0);
+
+    const originalFindById = User.findById;
+    let calls = 0;
+    User.findById = async (id) => {
+      calls += 1;
+      if (calls === 1) return originalFindById(id); // verifyToken's own lookup
+      throw new Error('Mongo connection lost'); // this route handler's own lookup
+    };
+
+    const res = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
+
+    assert.equal(res.status, 500);
+    assert.deepStrictEqual(res.body, {
+      success: false,
+      data: null,
+      error: { code: 'INTERNAL_ERROR', message: 'Something went wrong. Please try again.', field: null },
+    });
   });
 });
