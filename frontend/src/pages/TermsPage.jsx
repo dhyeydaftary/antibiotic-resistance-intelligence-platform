@@ -1,6 +1,7 @@
 // Route: /terms — public. Rendered through the shared LegalDocument
 // layout also used by PrivacyPage; see that file's header for the
 // "accurate to the real app, not generic template text" note.
+import { Link } from 'react-router-dom';
 import usePageTitle from '../hooks/usePageTitle';
 import LegalDocument from '../components/legal/LegalDocument';
 
@@ -30,9 +31,9 @@ const SECTIONS = [
     {
         id: 'accounts', number: '3', heading: 'Accounts',
         clauses: [
-            'Creating an Account requires a valid email address, verified via a one-time code, and a password meeting the Platform\'s stated strength requirements.',
+            'Creating an Account requires a valid email address, verified via a Firebase-issued verification link, and a password meeting the Platform\'s stated strength requirements.',
             'You are responsible for keeping Your Account credentials confidential, and for any activity that occurs under Your Account.',
-            'You may end every active session on Your Account at any time via "Log out everywhere" in Your Account settings.',
+            'Every active session on Your Account can be ended at once ("logging out everywhere"). This capability exists today, though it is not yet available as a self-service control in the interface — contact us using the details in the footer if You need it invoked.',
             'We may suspend or remove an Account used to abuse the Platform, including automated scraping or attempts to bypass rate limits or authentication.',
         ],
     },
@@ -40,7 +41,13 @@ const SECTIONS = [
         id: 'content', number: '4', heading: 'Your Content',
         clauses: [
             'Content You submit is stored as Your Prediction history, associated with Your Account, and is not visible to other Users.',
-            'See our Privacy Policy for what Content is collected, why, and how long it is retained.',
+            <>
+                See our{' '}
+                <Link to="/privacy" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
+                    Privacy Policy
+                </Link>{' '}
+                for what Content is collected, why, and how long it is retained.
+            </>,
         ],
     },
     {
