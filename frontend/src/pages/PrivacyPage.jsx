@@ -9,7 +9,7 @@ import LegalDocument from '../components/legal/LegalDocument';
 const DEFINITIONS = [
     { term: 'Platform', meaning: 'AMR-Insight, its website, and every feature it provides.' },
     { term: 'You / User', meaning: 'Anyone who accesses or creates an account on the Platform.' },
-    { term: 'Account Data', meaning: 'Your name, email address, and a bcrypt-hashed password — never Your actual password.' },
+    { term: 'Account Data', meaning: 'Your name and email address — Your password itself is handled entirely by Firebase, our authentication provider, and is never stored by the Platform.' },
     { term: 'Prediction Data', meaning: 'The clinical/patient fields You submit for a Prediction, and the results returned.' },
     { term: 'Security Events', meaning: 'A timestamped, append-only log of login, logout, lockout, and password-reset events tied to Your Account.' },
 ];
@@ -64,14 +64,14 @@ const SECTIONS = [
     {
         id: 'security', number: '7', heading: 'Security',
         clauses: [
-            'Passwords are bcrypt-hashed, sessions use JWTs with server-side revocation, and the Platform went through a documented, multi-phase security hardening process.',
+            'Passwords are managed entirely by Firebase, our authentication provider, and are never stored by the Platform. Sessions use JWTs with server-side revocation, and the Platform went through a documented, multi-phase security hardening process.',
             'Full technical detail is public in the Platform\'s security documentation, linked from the footer.',
         ],
     },
     {
         id: 'choices', number: '8', heading: 'Your Choices',
         clauses: [
-            'You can end every active session at once via "Log out everywhere" in Your Account.',
+            'Every active session on Your Account can be ended at once ("logging out everywhere"). This capability exists today, though it is not yet available as a self-service control in the interface — contact us using the details in the footer if You need it invoked.',
             'To request deletion of Your Account or data, contact us using the details in the footer.',
         ],
     },
