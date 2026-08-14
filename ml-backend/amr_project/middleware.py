@@ -9,12 +9,12 @@ from django.conf import settings
 from django.http import JsonResponse
 
 
-# Paths that don't require the internal API key. Empty for now — a future
+# Paths that don't require the internal API key. Currently just the
 # health-check/liveness endpoint (for a load balancer or container
-# orchestrator) should be added here rather than requiring the shared
-# secret, since infrastructure probes generally can't send custom headers
-# and a minimal health check leaks nothing sensitive by being public.
-EXEMPT_PATHS = set()
+# orchestrator) — it stays reachable without the shared secret since
+# infrastructure probes generally can't send custom headers, and a
+# minimal health check leaks nothing sensitive by being public.
+EXEMPT_PATHS = {'/api/predictor/health/'}
 
 
 # Django middleware gating every /api/predictor/ request behind a shared
