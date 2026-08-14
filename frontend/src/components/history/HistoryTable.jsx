@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, FileDown, FileSpreadsheet, FileJson, ArrowUpRight } from 'lucide-react';
+import { ChevronRight, FileDown, FileSpreadsheet, FileJson, ArrowUpRight } from 'lucide-react';
 import Panel from '../app/Panel';
 import PrimaryButton from '../app/PrimaryButton';
 import AntibioticChip from './AntibioticChip';
 import PatientContext from './PatientContext';
+import HistoryPager from './HistoryPager';
 
 // Dense, paginated table view of history records (alternative to
 // HistoryTimeline) — one row per record, expandable to show patient
@@ -91,25 +92,7 @@ const HistoryTable = ({ summaries, currentPage, totalPages, onPageChange, onView
         </div>
       </Panel>
 
-      {totalPages > 1 && (
-        <div className="mt-5 flex items-center justify-center gap-1">
-          <button onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="rounded-full p-1.5 text-page-muted hover:bg-canvas-alt disabled:opacity-30">
-            <ChevronLeft size={16} />
-          </button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-            <button
-              key={page}
-              onClick={() => onPageChange(page)}
-              className={`h-8 w-8 rounded-full font-sans text-[13px] ${currentPage === page ? 'bg-page-ink text-white' : 'text-page-muted hover:bg-canvas-alt'}`}
-            >
-              {page}
-            </button>
-          ))}
-          <button onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="rounded-full p-1.5 text-page-muted hover:bg-canvas-alt disabled:opacity-30">
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      )}
+      <HistoryPager currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
     </div>
   );
 };

@@ -22,6 +22,7 @@
 // or Django's HTML debug page reaching the client.
 // ===================================================================
 const express = require('express');
+const mongoose = require('mongoose');
 const multer = require('multer');
 const crypto = require('crypto');
 const FormData = require('form-data');
@@ -176,11 +177,19 @@ router.post('/predict', verifyToken, expensiveLimiter, async (req, res) => {
 
     const { predictions, aiInsights, modelVersion } = djangoResponse.data.data;
 
+    // Same averaging logic HistoryPage.jsx's summarizeRecord() computes
+    // client-side on every render — computed once here instead, at write
+    // time, so GET /history can sort on it directly in Mongo.
+    const avgConfidence = predictions.length
+      ? predictions.reduce((sum, p) => sum + (p.confidence || 0), 0) / predictions.length
+      : 0;
+
     await PredictionHistory.create({
       userId: req.userId,
       inputData: patientData,
       predictions: predictions,
       aiInsights: aiInsights,
+      avgConfidence,
     });
 
     res.status(200).json({
@@ -327,8 +336,199 @@ router.get('/research-papers', verifyToken, expensiveLimiter, async (req, res) =
 });
 
 
+// All-time aggregate stats for this user's history: the stats tile, the
+// quick-insights strip, and both filter-dropdowns' option lists + hover-
+// preview stats. Deliberately takes no filter params — these numbers are
+// always computed over the user's ENTIRE history regardless of whatever
+// filters are currently active on the paginated /history list below, so
+// the stats tile doesn't appear to "shrink" just because a filter is
+// applied to the list underneath it.
+//
+// A single $facet pipeline computes every figure in one round trip rather
+// than one query per figure — same reasoning as denormalizing
+// avgConfidence onto the schema: push the aggregation into Mongo instead
+// of loading every record into Node to compute it here.
+router.get('/history/aggregates', verifyToken, readLimiter, async (req, res) => {
+  try {
+    const userObjectId = new mongoose.Types.ObjectId(req.userId);
+
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const fourteenDaysAgo = new Date(now);
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+    const [facets] = await PredictionHistory.aggregate([
+      { $match: { userId: userObjectId } },
+      {
+        $facet: {
+          // Total record count, all-time.
+          totals: [{ $count: 'count' }],
+          // Record count in the last 7 days (the stats tile's "this week").
+          recentRecords: [
+            { $match: { createdAt: { $gte: sevenDaysAgo } } },
+            { $count: 'count' },
+          ],
+          // Resistant-prediction count in the last 7 vs. the 7 days before
+          // that, for the week-over-week trend figure.
+          recentResistant: [
+            { $match: { createdAt: { $gte: sevenDaysAgo } } },
+            { $unwind: '$predictions' },
+            { $match: { 'predictions.result': 'R' } },
+            { $count: 'count' },
+          ],
+          previousResistant: [
+            { $match: { createdAt: { $gte: fourteenDaysAgo, $lt: sevenDaysAgo } } },
+            { $unwind: '$predictions' },
+            { $match: { 'predictions.result': 'R' } },
+            { $count: 'count' },
+          ],
+          // Most recent record's timestamp, for the stats tile's "last
+          // prediction" label (formatted client-side).
+          lastRecord: [
+            { $sort: { createdAt: -1 } },
+            { $limit: 1 },
+            { $project: { _id: 0, createdAt: 1 } },
+          ],
+          // All-time R/S/I split across every prediction (not every
+          // record) — the quick-insights strip's outcome mix.
+          resultBreakdown: [
+            { $unwind: '$predictions' },
+            { $group: { _id: '$predictions.result', count: { $sum: 1 } } },
+          ],
+          // Per-antibiotic count/resistant-%/avg-confidence — the
+          // Antibiotic filter dropdown's option list + hover-preview stats.
+          antibioticStats: [
+            { $unwind: '$predictions' },
+            {
+              $group: {
+                _id: '$predictions.antibiotic',
+                count: { $sum: 1 },
+                resistant: { $sum: { $cond: [{ $eq: ['$predictions.result', 'R'] }, 1, 0] } },
+                confidenceSum: { $sum: '$predictions.confidence' },
+              },
+            },
+          ],
+          // Per-organism record count/resistant-% (resistant-% is over
+          // that organism's predictions, not its records) — the Organism
+          // filter dropdown's option list + hover-preview stats.
+          organismStats: [
+            {
+              $group: {
+                _id: '$inputData.organism',
+                count: { $sum: 1 },
+                resistant: {
+                  $sum: {
+                    $size: { $filter: { input: '$predictions', as: 'p', cond: { $eq: ['$$p.result', 'R'] } } },
+                  },
+                },
+                total: { $sum: { $size: '$predictions' } },
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const total = facets.totals[0]?.count || 0;
+    const thisWeek = facets.recentRecords[0]?.count || 0;
+    const recentResistant = facets.recentResistant[0]?.count || 0;
+    const previousResistant = facets.previousResistant[0]?.count || 0;
+    const lastPredictionDate = facets.lastRecord[0]?.createdAt || null;
+
+    const resultCounts = {};
+    facets.resultBreakdown.forEach((r) => { resultCounts[r._id] = r.count; });
+    const totalPredictions = (resultCounts.R || 0) + (resultCounts.S || 0) + (resultCounts.I || 0);
+    const avgResistance = totalPredictions ? Math.round(((resultCounts.R || 0) / totalPredictions) * 100) : 0;
+    const susceptibilityRate = totalPredictions ? Math.round(((resultCounts.S || 0) / totalPredictions) * 100) : 0;
+    const intermediateRate = totalPredictions ? Math.round(((resultCounts.I || 0) / totalPredictions) * 100) : 0;
+
+    const antibioticStats = {};
+    let mostCommonAntibiotic = null;
+    let mostCommonCount = -1;
+    facets.antibioticStats.forEach((a) => {
+      antibioticStats[a._id] = {
+        count: a.count,
+        resistantPct: a.count ? Math.round((a.resistant / a.count) * 100) : 0,
+        avgConfidence: a.count ? Math.round((a.confidenceSum / a.count) * 100) : 0,
+      };
+      if (a.count > mostCommonCount) {
+        mostCommonCount = a.count;
+        mostCommonAntibiotic = a._id;
+      }
+    });
+    const mostCommonAntibioticPct = mostCommonAntibiotic && totalPredictions
+      ? Math.round((mostCommonCount / totalPredictions) * 100)
+      : 0;
+
+    const organismStats = {};
+    facets.organismStats.forEach((o) => {
+      organismStats[o._id] = {
+        count: o.count,
+        resistantPct: o.total ? Math.round((o.resistant / o.total) * 100) : 0,
+      };
+    });
+
+    const trendChange = previousResistant > 0
+      ? Math.round(((recentResistant - previousResistant) / previousResistant) * 100)
+      : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        total,
+        thisWeek,
+        avgResistance,
+        lastPredictionDate,
+        mostCommonAntibiotic,
+        mostCommonAntibioticPct,
+        trendChange,
+        susceptibilityRate,
+        intermediateRate,
+        antibioticStats,
+        organismStats,
+        antibioticOptions: Object.keys(antibioticStats),
+        organismOptions: Object.keys(organismStats),
+      },
+      error: null,
+    });
+
+  } catch (err) {
+    logError('Error in /history/aggregates', { err });
+    res.status(500).json({
+      success: false,
+      data: null,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Something went wrong while fetching history statistics.',
+        field: null,
+      },
+    });
+  }
+});
+
+
+// Sort options for GET /history, allow-listed the same way every other
+// filter in that route is — an unrecognized value falls back to the
+// default rather than erroring.
+const HISTORY_SORT_OPTIONS = {
+  newest: { createdAt: -1 },
+  oldest: { createdAt: 1 },
+  'confidence-high': { avgConfidence: -1 },
+  'confidence-low': { avgConfidence: 1 },
+};
+const DEFAULT_HISTORY_PAGE_LIMIT = 8;
+// Absolute ceiling for `limit`, covering both normal paginated browsing
+// (which never asks for more than a couple dozen at a time) and the
+// frontend's CSV export flow (HistoryPage.jsx's handleExport), which
+// deliberately requests one large page — up to 5000 records — instead of
+// looping through paginated requests. There's no separate "export mode"
+// flag: the same clamp applies to every request; normal UI usage never
+// approaches it.
+const MAX_HISTORY_PAGE_LIMIT = 5000;
+
 // Builds a filtered Mongo query over this user's own prediction history
-// from query-string filters and returns the matching records.
+// from query-string filters and returns one page of matching records.
 router.get('/history', verifyToken, readLimiter, async (req, res) => {
   try {
     const {
@@ -340,6 +540,9 @@ router.get('/history', verifyToken, readLimiter, async (req, res) => {
       dateFrom,
       dateTo,
       search,
+      sort,
+      page: pageParam,
+      limit: limitParam,
     } = req.query;
 
     // Every filter below is optional and, if present, is expected to be a
@@ -413,13 +616,35 @@ router.get('/history', verifyToken, readLimiter, async (req, res) => {
       ];
     }
 
-    const history = await PredictionHistory.find(query)
-      .sort({ createdAt: -1 });
+    // --- Sort (allow-listed; unrecognized/missing value falls back to
+    // the default, same as every filter above) ---
+    const sortSpec = HISTORY_SORT_OPTIONS[sort] || HISTORY_SORT_OPTIONS.newest;
+
+    // --- Pagination ---
+    let page = parseInt(pageParam, 10);
+    if (!Number.isInteger(page) || page < 1) page = 1;
+
+    let limit = parseInt(limitParam, 10);
+    if (!Number.isInteger(limit) || limit < 1) limit = DEFAULT_HISTORY_PAGE_LIMIT;
+    limit = Math.min(limit, MAX_HISTORY_PAGE_LIMIT);
+
+    const skip = (page - 1) * limit;
+
+    const [history, total] = await Promise.all([
+      PredictionHistory.find(query).sort(sortSpec).skip(skip).limit(limit),
+      PredictionHistory.countDocuments(query),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
 
     res.status(200).json({
       success: true,
       data: {
         history,
+        page,
+        limit,
+        total,
+        totalPages,
       },
       error: null,
     });
