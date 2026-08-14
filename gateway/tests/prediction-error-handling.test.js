@@ -131,19 +131,55 @@ describe('GET /api/predictor/research-papers — catch block', () => {
 });
 
 describe('GET /api/predictor/history — catch block', () => {
-  test('a Mongo error from PredictionHistory.find(...).sort() is caught and returns a generic 500 INTERNAL_ERROR', async () => {
+  test('a Mongo error from PredictionHistory.find(...).sort().skip().limit() is caught and returns a generic 500 INTERNAL_ERROR', async () => {
     const { app, userStore, PredictionHistory } = buildPredictionApp();
     const { token } = seedAuthedUser(userStore);
-    PredictionHistory.find = () => ({
-      sort: async () => {
-        throw new Error('Mongo connection lost');
-      },
-    });
+    // Full chain shape (route calls .sort().skip().limit(), not just
+    // .sort()) — the terminal .limit() call is the one that rejects, same
+    // as a real Mongoose Query awaited at the end of the chain.
+    PredictionHistory.find = () => {
+      const chain = {
+        sort: () => chain,
+        skip: () => chain,
+        limit: () => Promise.reject(new Error('Mongo connection lost')),
+      };
+      return chain;
+    };
 
     const res = await request(app)
       .get('/api/predictor/history')
       .set('Authorization', `Bearer ${token}`);
 
     assertGeneric500(res, 'Something went wrong while fetching prediction history.');
+  });
+
+  test('a Mongo error from PredictionHistory.countDocuments() is caught and returns a generic 500 INTERNAL_ERROR', async () => {
+    const { app, userStore, PredictionHistory } = buildPredictionApp();
+    const { token } = seedAuthedUser(userStore);
+    PredictionHistory.countDocuments = async () => {
+      throw new Error('Mongo connection lost');
+    };
+
+    const res = await request(app)
+      .get('/api/predictor/history')
+      .set('Authorization', `Bearer ${token}`);
+
+    assertGeneric500(res, 'Something went wrong while fetching prediction history.');
+  });
+});
+
+describe('GET /api/predictor/history/aggregates — catch block', () => {
+  test('a Mongo error from PredictionHistory.aggregate() is caught and returns a generic 500 INTERNAL_ERROR', async () => {
+    const { app, userStore, PredictionHistory } = buildPredictionApp();
+    const { token } = seedAuthedUser(userStore);
+    PredictionHistory.aggregate = async () => {
+      throw new Error('Mongo connection lost');
+    };
+
+    const res = await request(app)
+      .get('/api/predictor/history/aggregates')
+      .set('Authorization', `Bearer ${token}`);
+
+    assertGeneric500(res, 'Something went wrong while fetching history statistics.');
   });
 });

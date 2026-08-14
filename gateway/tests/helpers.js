@@ -141,24 +141,87 @@ function mockSecurityEvent(SecurityEvent) {
   return events;
 }
 
-// Replaces PredictionHistory.find/.create with in-memory mocks.
-// Captures every filter object passed to PredictionHistory.find(), so
-// tests can assert on the actual Mongo query the route built rather than
-// just the HTTP response. .sort() resolves to whatever `results` currently
-// holds (empty by default — tests can push into `.records` first).
+// Replaces PredictionHistory.find/.countDocuments/.aggregate/.create with
+// in-memory mocks. Captures every filter object passed to
+// PredictionHistory.find() and .countDocuments(), so tests can assert on
+// the actual Mongo query the route built rather than just the HTTP
+// response — deliberately does NOT apply `query` as a real filter (matches
+// the existing convention throughout this suite: filter-building
+// correctness is tested via `findCalls`/`countCalls` assertions, not by
+// the mock re-interpreting Mongo query syntax).
+//
+// PredictionHistory.find()'s return value is a chainable, thenable stand-in
+// for a real Mongoose Query — .sort()/.skip()/.limit() can be called in any
+// combination (the route always uses all three together) and the chain
+// resolves to `records`, sorted/sliced according to whatever was chained.
 function mockPredictionHistory(PredictionHistory) {
   const findCalls = [];
+  const countCalls = [];
+  const aggregateCalls = [];
   const records = [];
-  PredictionHistory.find = (query) => {
+  let aggregateResult = [];
+
+  function buildFindQuery(query) {
     findCalls.push(query);
-    return { sort: async () => records.slice() };
+    let sortSpec = null;
+    let skipN = 0;
+    let limitN = null;
+    const chain = {
+      sort(spec) { sortSpec = spec; return chain; },
+      skip(n) { skipN = n; return chain; },
+      limit(n) { limitN = n; return chain; },
+      then(resolve, reject) {
+        try {
+          let result = records.slice();
+          if (sortSpec) {
+            const [field, dir] = Object.entries(sortSpec)[0];
+            result.sort((a, b) => {
+              if (a[field] === b[field]) return 0;
+              return (a[field] > b[field] ? 1 : -1) * dir;
+            });
+          }
+          if (skipN) result = result.slice(skipN);
+          if (limitN != null) result = result.slice(0, limitN);
+          resolve(result);
+        } catch (err) {
+          reject(err);
+        }
+      },
+    };
+    return chain;
+  }
+
+  PredictionHistory.find = (query) => buildFindQuery(query);
+
+  PredictionHistory.countDocuments = async (query) => {
+    countCalls.push(query);
+    return records.length;
   };
+
+  // Tests exercising GET /history/aggregates set the raw $facet-shaped
+  // result via setAggregateResult() before requesting — this mock doesn't
+  // interpret the pipeline itself (that's exactly what "manually verify
+  // against local Mongo" in the task covers); it only lets tests control
+  // what the route receives back, to test the route's response-shaping
+  // logic (defaults, percentage rounding, the empty-history case).
+  PredictionHistory.aggregate = async (pipeline) => {
+    aggregateCalls.push(pipeline);
+    return aggregateResult;
+  };
+
   PredictionHistory.create = async (fields) => {
     const doc = { _id: nextId(), createdAt: new Date(), ...fields };
     records.push(doc);
     return doc;
   };
-  return { findCalls, records };
+
+  return {
+    findCalls,
+    countCalls,
+    aggregateCalls,
+    records,
+    setAggregateResult(result) { aggregateResult = result; },
+  };
 }
 
 // Replaces sendWelcomeEmail with an in-memory recorder. sendOtpEmail is

@@ -135,11 +135,52 @@ const SORT_OPTIONS = [
     { value: 'confidence-low', label: 'Lowest confidence' },
 ];
 
+// filters.search now drives a real server request (GET /history's
+// `search` param), not an in-memory filter — debounce it so a fast typist
+// doesn't fire one request per keystroke. Every other control here
+// (selects, date pickers) still updates immediately, since those are
+// discrete choices, not a stream of keystrokes.
+const SEARCH_DEBOUNCE_MS = 300;
+
 // The full filter/sort/search control row for HistoryPage — all state
-// is lifted (controlled by `filters`/`onFilterChange` from the parent).
+// is lifted (controlled by `filters`/`onFilterChange` from the parent),
+// except the search input's own display value, which is local so typing
+// feels instant while the actual filter update it triggers is debounced.
 const HistoryFilterBar = ({ filters, onFilterChange, onClear, antibioticOptions, organismOptions, antibioticStats, organismStats, totalResults }) => {
     // Updates a single filter key, preserving the rest.
     const set = (key, value) => onFilterChange({ ...filters, [key]: value });
+
+    const [searchInput, setSearchInput] = useState(filters.search);
+    const searchDebounceRef = useRef(null);
+
+    // Keeps the local input in sync when filters.search changes from
+    // OUTSIDE this component (e.g. "Clear filters"), without fighting the
+    // debounce while the user is actively typing.
+    useEffect(() => {
+        setSearchInput(filters.search);
+    }, [filters.search]);
+
+    // Cancels any pending debounce on unmount, so it never fires a
+    // filter update against an already-unmounted page.
+    useEffect(() => () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    }, []);
+
+    const handleSearchChange = (value) => {
+        setSearchInput(value);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => set('search', value), SEARCH_DEBOUNCE_MS);
+    };
+
+    // The dedicated clear (X) button applies immediately, not debounced —
+    // a deliberate "clear now" action shouldn't wait out the same delay
+    // typing does.
+    const clearSearch = () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        setSearchInput('');
+        set('search', '');
+    };
+
     const hasActiveFilters =
         filters.search || filters.status !== 'All' || filters.dateFrom || filters.dateTo ||
         filters.antibiotic !== 'All' || filters.organism !== 'All' || filters.sort !== 'newest';
@@ -153,12 +194,12 @@ const HistoryFilterBar = ({ filters, onFilterChange, onClear, antibioticOptions,
                     <input
                         type="text"
                         placeholder="Organism or antibiotic…"
-                        value={filters.search}
-                        onChange={(e) => set('search', e.target.value)}
+                        value={searchInput}
+                        onChange={(e) => handleSearchChange(e.target.value)}
                         className="h-9 w-full rounded-[10px] border border-panel-border bg-panel-raised pl-8 pr-7 font-sans text-[13px] text-onpanel-ink outline-none placeholder:text-onpanel-faint focus:border-accent-blue"
                     />
-                    {filters.search && (
-                        <button onClick={() => set('search', '')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-onpanel-faint hover:text-onpanel-ink">
+                    {searchInput && (
+                        <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-onpanel-faint hover:text-onpanel-ink">
                             <X size={13} />
                         </button>
                     )}
