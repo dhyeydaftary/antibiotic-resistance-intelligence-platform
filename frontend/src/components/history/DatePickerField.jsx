@@ -57,11 +57,20 @@ const DatePickerField = ({ value, onChange }) => {
   const [viewMonth, setViewMonth] = useState((selectedDate || today).getMonth());
   const triggerRef = useRef(null);
 
-  // Positions and opens the popover relative to the trigger button.
+  const POPOVER_WIDTH = 280;
+
+  // Positions and opens the popover relative to the trigger button,
+  // clamping horizontally against the viewport edge -- same
+  // getBoundingClientRect()-against-window.innerWidth check
+  // AntibioticChip.jsx uses for its own portaled/fixed popover.
   const open = () => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    setPosition({ left: rect.left, top: rect.bottom + 6 });
+    let left = rect.left;
+    if (left + POPOVER_WIDTH > window.innerWidth - 12) {
+      left = window.innerWidth - POPOVER_WIDTH - 12;
+    }
+    setPosition({ left, top: rect.bottom + 6 });
     setShowMonthGrid(false);
     setIsOpen(true);
   };

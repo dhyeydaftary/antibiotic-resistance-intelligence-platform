@@ -30,9 +30,13 @@ function NativeSelect({ value, onChange, options }) {
 // Custom dropdown for Antibiotic / Organism — shows a live stat preview on hover.
 // Anchored with plain CSS (absolute inside a relative wrapper), NOT fixed/portal —
 // so it scrolls naturally with the page and can't drift, unlike the old popup.
+const POPOVER_WIDTH = 280;
+const POPOVER_EDGE_MARGIN = 12;
+
 function PreviewSelect({ value, onChange, options, statsMap, previewLabel }) {
     const [isOpen, setIsOpen] = useState(false);
     const [hoveredValue, setHoveredValue] = useState(null);
+    const [alignRight, setAlignRight] = useState(false);
     const ref = useRef(null);
 
     useEffect(() => {
@@ -43,11 +47,27 @@ function PreviewSelect({ value, onChange, options, statsMap, previewLabel }) {
 
     const preview = hoveredValue && hoveredValue !== 'All' ? statsMap[hoveredValue] : null;
 
+    // Same getBoundingClientRect()-against-window.innerWidth clamp
+    // AntibioticChip.jsx uses for its popover, adapted to this
+    // component's absolute-inside-relative-wrapper anchoring (kept
+    // deliberately non-portaled, per the comment above) rather than a
+    // fixed-position portal: instead of computing raw viewport
+    // coordinates, this only decides whether the fixed-width popover
+    // should hang from the trigger's left edge (the default) or its
+    // right edge, so it never overflows the viewport at a narrow width.
+    const handleToggle = () => {
+        if (!isOpen && ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setAlignRight(rect.left + POPOVER_WIDTH > window.innerWidth - POPOVER_EDGE_MARGIN);
+        }
+        setIsOpen((v) => !v);
+    };
+
     return (
         <div className="relative" ref={ref}>
             <button
                 type="button"
-                onClick={() => setIsOpen((v) => !v)}
+                onClick={handleToggle}
                 className="flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border border-panel-border bg-panel-raised px-3 font-sans text-[13px] font-medium text-onpanel-ink transition-colors hover:border-onpanel-faint"
             >
                 <span className="truncate">{value}</span>
@@ -55,7 +75,7 @@ function PreviewSelect({ value, onChange, options, statsMap, previewLabel }) {
             </button>
 
             {isOpen && (
-                <div className="absolute left-0 top-[calc(100%+4px)] z-30 flex w-[280px] overflow-hidden rounded-[12px] border border-panel-border bg-panel shadow-panel-lg">
+                <div className={`absolute top-[calc(100%+4px)] z-30 flex w-[280px] overflow-hidden rounded-[12px] border border-panel-border bg-panel shadow-panel-lg ${alignRight ? 'right-0' : 'left-0'}`}>
                     <div className="max-h-64 w-1/2 overflow-y-auto border-r border-panel-border py-1">
                         {options.map((opt) => (
                             <button

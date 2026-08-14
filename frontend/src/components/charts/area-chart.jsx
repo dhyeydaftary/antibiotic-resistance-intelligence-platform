@@ -20,6 +20,7 @@ import { Area } from "./area";
 import { ChartLoadingLabel } from "./chart-loading-label";
 import { DEFAULT_CHART_STATUS, DEFAULT_Y_DOMAIN_TWEEN_MS, resolveRestingChartPhase } from "./chart-phase";
 import { PatternArea } from "./pattern-area";
+import { getResponsiveMargin } from "./responsive-margin";
 import { TimeSeriesChartInner } from "./time-series-chart-shell";
 
 const DEFAULT_MARGIN = { top: 40, right: 40, bottom: 40, left: 40 };
@@ -134,7 +135,6 @@ export function AreaChart({
   children
 }) {
   const containerRef = useRef(null);
-  const margin = { ...DEFAULT_MARGIN, ...marginProp };
   const [chartPhase, setChartPhase] = useState(() =>
     resolveRestingChartPhase(status));
   const handlePhaseChange = useCallback((phase) => {
@@ -164,7 +164,7 @@ export function AreaChart({
             enterTransition={enterTransition}
             height={height}
             loadingLabel={loadingLabel}
-            margin={margin}
+            margin={{ ...getResponsiveMargin(DEFAULT_MARGIN, width), ...marginProp }}
             onPhaseChange={handlePhaseChange}
             revealSignature={revealSignature}
             tweenYDomainOnXDomainChange={tweenYDomainOnXDomainChange}

@@ -11,6 +11,7 @@ import { scaleLinear } from "@visx/scale";
 import { useCallback, useState } from "react";
 import { cn } from "@/lib/utils";
 import { defaultRadarColors, RadarProvider } from "./radar-context";
+import { getResponsiveMarginValue } from "./responsive-margin";
 
 function RadarChartInner({
   width,
@@ -43,7 +44,15 @@ function RadarChartInner({
 
   // Use the smaller dimension
   const size = Math.min(width, height);
-  const radius = (size - margin * 2) / 2;
+  // margin isn't four independent sides here -- it's a single scalar
+  // subtracted from the radius on every side at once, and the axis
+  // labels (radar-labels.jsx) sit just outside that radius with no
+  // collision avoidance of their own. Shrinking margin on a narrow
+  // container directly grows the radius (and therefore the label
+  // ring's circumference), which is the only lever available to give
+  // a dense set of labels more breathing room.
+  const resolvedMargin = getResponsiveMarginValue(margin, size);
+  const radius = (size - resolvedMargin * 2) / 2;
 
   // Scale for converting values (0-100) to radius
   const yScale = useCallback((value) => {

@@ -161,12 +161,12 @@ function PredictionRow({ p }) {
       <button
         type="button"
         onClick={() => hasShap && setExpanded((v) => !v)}
-        className={`flex w-full items-center gap-4 px-5 py-3.5 text-left transition-colors ${hasShap ? 'hover:bg-panel-raised cursor-pointer' : 'cursor-default'}`}
+        className={`flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors ${hasShap ? 'hover:bg-panel-raised cursor-pointer' : 'cursor-default'}`}
       >
-        <span className="w-24 shrink-0 truncate font-mono text-[13px] font-medium text-onpanel-ink">{p.antibiotic}</span>
-        <span className="w-32 shrink-0"><ResultBadge result={p.result} /></span>
-        <span className="w-20 shrink-0 font-mono text-[11px] uppercase tracking-wide text-onpanel-faint">{p.awareCategory}</span>
-        <span className="flex-1 text-right font-mono text-[13px] text-onpanel-muted">
+        <span className="min-w-0 flex-1 truncate font-mono text-[13px] font-medium text-onpanel-ink">{p.antibiotic}</span>
+        <span className="shrink-0"><ResultBadge result={p.result} /></span>
+        <span className="hidden shrink-0 font-mono text-[11px] uppercase tracking-wide text-onpanel-faint sm:block">{p.awareCategory}</span>
+        <span className="shrink-0 font-mono text-[13px] text-onpanel-muted">
           {Math.round(p.confidence * 100)}%
         </span>
         {hasShap && (
