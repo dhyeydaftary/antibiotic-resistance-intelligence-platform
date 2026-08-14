@@ -11,6 +11,7 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import { FormHeader } from "@/components/auth/FormHeader";
 import { TextInput } from "@/components/auth/TextInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
+import { Checkbox } from "@/components/auth/Checkbox";
 import { PrimaryButton, GhostButton } from "@/components/auth/Button";
 import { SocialButton } from "@/components/auth/SocialButton";
 import { Banner } from "@/components/auth/Banner";
@@ -64,6 +65,7 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [consent, setConsent] = useState(false);
   const [errors, setErrors] = useState({});
   const [globalError, setGlobalError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -85,6 +87,7 @@ function SignupPage() {
     else if (!pwEval.allPassed) e.password = "Password is too weak";
     if (!confirm) e.confirm = "Please confirm your password";
     else if (confirm !== password) e.confirm = "Passwords do not match";
+    if (!consent) e.consent = "Please accept the Terms & Conditions and Privacy Policy to continue";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -109,6 +112,15 @@ function SignupPage() {
   };
 
   const onSocialSignIn = async (provider, name) => {
+    // Google/GitHub bypass the email/password form's validate() entirely
+    // (they're a separate submit path), so the consent gate has to be
+    // re-checked here -- otherwise this is the one path that could reach
+    // Firebase's popup without ever accepting the Terms/Privacy Policy.
+    if (!consent) {
+      setErrors((prev) => ({ ...prev, consent: "Please accept the Terms & Conditions and Privacy Policy to continue" }));
+      toast.error("Please accept the Terms & Conditions and Privacy Policy first.");
+      return;
+    }
     setGlobalError(null);
     setSocialLoading(name);
     try {
@@ -209,6 +221,41 @@ function SignupPage() {
           testId="signup-confirm"
           placeholder="••••••••"
         />
+
+        <div className="pt-1">
+          <Checkbox
+            checked={consent}
+            onCheckedChange={(value) => {
+              setConsent(value);
+              if (value) setErrors((prev) => ({ ...prev, consent: undefined }));
+            }}
+            error={errors.consent}
+            testId="signup-consent"
+            label={
+              <>
+                I agree to the{" "}
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-blue transition-colors hover:text-accent-blue-hover"
+                >
+                  Terms &amp; Conditions
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-blue transition-colors hover:text-accent-blue-hover"
+                >
+                  Privacy Policy
+                </Link>
+                .
+              </>
+            }
+          />
+        </div>
 
         <PrimaryButton type="submit" loading={loading} loadingText="Creating account…" testId="signup-submit">
           Create account
