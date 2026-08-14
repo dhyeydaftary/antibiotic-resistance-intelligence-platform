@@ -21,6 +21,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.http import JsonResponse
 
 import logging
 
@@ -408,4 +409,10 @@ def extract_report_view(request):
         },
         status=status.HTTP_200_OK
     )
+
+
+# Liveness probe — exempted from InternalApiKeyMiddleware via EXEMPT_PATHS
+# (amr_project/middleware.py) since infra probes can't send custom headers.
+def health_view(request):
+    return JsonResponse({'status': 'ok'})
  
