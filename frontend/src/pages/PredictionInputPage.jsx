@@ -598,7 +598,7 @@ function PredictionInputPage() {
 
               <div>
                 <SectionLabel>Encounter details</SectionLabel>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <Field label="Infection frequency">
                     <TextInput
                       name="infection_freq" type="number" step="0.1" value={formData.infection_freq}
@@ -707,7 +707,7 @@ function PredictionInputPage() {
 
                         <div>
                           <SectionLabel>Vitals &amp; body metrics</SectionLabel>
-                          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                             <Field label="Temperature">
                               <div className="flex gap-2">
                                 <TextInput
