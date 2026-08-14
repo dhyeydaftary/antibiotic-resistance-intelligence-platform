@@ -28,4 +28,6 @@ const predictionHistorySchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+predictionHistorySchema.index({ userId: 1, createdAt: -1 });
+
 module.exports = mongoose.model('PredictionHistory', predictionHistorySchema);
