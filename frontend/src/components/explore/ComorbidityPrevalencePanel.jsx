@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { HeartPulse, Stethoscope, Activity } from 'lucide-react';
 import Panel from '../app/Panel';
 import { BarChart } from '../charts/bar-chart';
@@ -6,6 +6,7 @@ import { Bar } from '../charts/bar';
 import { Grid } from '../charts/grid';
 import { ChartTooltip } from '../charts/tooltip';
 import { BarYAxis } from '../charts/bar-y-axis';
+import { getResponsiveMargin } from '../charts/responsive-margin';
 
 const HOVER = 'transition-colors duration-300 hover:border-accent-blue/30 hover:shadow-panel-lg';
 
@@ -51,9 +52,35 @@ function prettifyField(key) {
   return FIELD_LABELS[key] || key;
 }
 
+// Tracks a wrapping element's rendered width via ResizeObserver.
+function useElementWidth() {
+  const ref = useRef(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, []);
+  return [ref, width];
+}
+
+// BarYAxis reserves `margin.left` px for its labels (comorbidity/symptom
+// names run up to ~27 chars with the inline "(NN%)" suffix, e.g.
+// "Previous Antibiotic Use (23%)") -- 200px is comfortable on desktop but
+// leaves almost nothing for the actual bars in a narrow mobile column.
+// BarYAxisLabel already truncates with an ellipsis at whatever width it's
+// given (its own maxWidth is derived from margin.left), so shrinking this
+// margin on narrow containers is safe -- it just truncates sooner, the
+// same getResponsiveMargin scaling the shared area/line chart containers
+// use, applied here directly since this margin is supplied by this
+// component rather than coming from BarChart's own default.
+const BASE_PREVALENCE_MARGIN = { top: 10, right: 25, bottom: 10, left: 200 };
+
 // Horizontal bar chart of prevalence % for a set of fields (comorbidity
 // or symptom), sorted descending; renders nothing if `items` is empty.
 function PrevalenceSection({ icon: Icon, title, subtitle, items }) {
+  const [wrapperRef, wrapperWidth] = useElementWidth();
   if (!items || items.length === 0) return null;
   const sorted = [...items].sort((a, b) => b.prevalence - a.prevalence);
 
@@ -74,14 +101,14 @@ function PrevalenceSection({ icon: Icon, title, subtitle, items }) {
       <p className="mb-4 font-sans text-caption text-onpanel-muted">{subtitle}</p>
       
       {/* 220px high graph area */}
-      <div className="relative h-[220px] w-full">
+      <div ref={wrapperRef} className="relative h-[220px] w-full">
         <BarChart
           data={chartData}
           xDataKey="name"
           orientation="horizontal"
           aspectRatio="auto"
           className="h-full"
-          margin={{ top: 10, right: 25, bottom: 10, left: 200 }}
+          margin={getResponsiveMargin(BASE_PREVALENCE_MARGIN, wrapperWidth)}
         >
           <Grid vertical />
           <BarYAxis />

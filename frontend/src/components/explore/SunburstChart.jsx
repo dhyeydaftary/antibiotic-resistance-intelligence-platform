@@ -126,8 +126,8 @@ function SunburstChart({ organisms, totalRows }) {
 
   return (
     <div ref={containerRef} className="relative flex flex-col items-center gap-6 sm:flex-row sm:items-center" onMouseLeave={() => setHovered(null)}>
-      <div className="relative shrink-0">
-        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width="300" height="300">
+      <div className="relative w-full max-w-[300px] shrink-0">
+        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="h-auto w-full">
           {innerSegments.map((s) => (
             <path
               key={`inner-${s.key}`}

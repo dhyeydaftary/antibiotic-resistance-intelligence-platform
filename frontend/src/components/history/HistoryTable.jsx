@@ -26,11 +26,11 @@ const HistoryTable = ({ summaries, currentPage, totalPages, onPageChange, onView
   return (
     <div className="mb-8">
       <Panel className="overflow-hidden">
-        <div className="flex items-center gap-3 border-b border-panel-border px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-3 border-b border-panel-border px-4 py-2.5 sm:flex-nowrap">
           <div className="w-16 shrink-0 font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">Date</div>
-          <div className="flex-1 font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">Organism</div>
-          <div className="w-40 shrink-0 text-center font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">R / S / I</div>
-          <div className="w-16 shrink-0 text-center font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">Avg</div>
+          <div className="min-w-0 flex-1 font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">Organism</div>
+          <div className="hidden w-40 shrink-0 text-center font-mono text-[10px] uppercase tracking-wider text-onpanel-faint sm:block">R / S / I</div>
+          <div className="hidden w-16 shrink-0 text-center font-mono text-[10px] uppercase tracking-wider text-onpanel-faint sm:block">Avg</div>
           <div className="w-24 shrink-0 text-right font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">Report</div>
         </div>
 
@@ -39,7 +39,7 @@ const HistoryTable = ({ summaries, currentPage, totalPages, onPageChange, onView
             <div key={s.id}>
               <div
                 onClick={() => setExpandedId(expandedId === s.id ? null : s.id)}
-                className="flex cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-panel-raised"
+                className="flex flex-wrap cursor-pointer items-center gap-3 px-4 py-3 transition-colors hover:bg-panel-raised sm:flex-nowrap"
               >
                 <div className="flex w-16 shrink-0 items-center gap-1">
                   <motion.div animate={{ rotate: expandedId === s.id ? 90 : 0 }} transition={{ duration: 0.2 }}>
@@ -48,12 +48,12 @@ const HistoryTable = ({ summaries, currentPage, totalPages, onPageChange, onView
                   <span className="font-mono text-[11px] text-onpanel-muted">{formatDate(s.date)}</span>
                 </div>
                 <div className="min-w-0 flex-1 truncate font-sans text-[13px] font-medium text-onpanel-ink">{s.organism}</div>
-                <div className="flex w-40 shrink-0 justify-center gap-1">
+                <div className="hidden w-40 shrink-0 justify-center gap-1 sm:flex">
                   {s.resistantCount > 0 && <span className="rounded-full bg-resistant/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-resistant">{s.resistantCount}R</span>}
                   {s.susceptibleCount > 0 && <span className="rounded-full bg-susceptible/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-susceptible">{s.susceptibleCount}S</span>}
                   {s.intermediateCount > 0 && <span className="rounded-full bg-intermediate/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-intermediate">{s.intermediateCount}I</span>}
                 </div>
-                <div className="w-16 shrink-0 text-center font-mono text-[11px] text-onpanel-muted">{Math.round(s.avgConfidence * 100)}%</div>
+                <div className="hidden w-16 shrink-0 text-center font-mono text-[11px] text-onpanel-muted sm:block">{Math.round(s.avgConfidence * 100)}%</div>
                 <div className="flex w-24 shrink-0 items-center justify-end gap-0.5">
                   <button onClick={(e) => { e.stopPropagation(); onDownloadPdf(s); }} className="rounded-md p-1 text-onpanel-faint hover:bg-panel-border hover:text-onpanel-ink"><FileDown size={12} /></button>
                   <button onClick={(e) => { e.stopPropagation(); onDownloadCsv(s); }} className="rounded-md p-1 text-onpanel-faint hover:bg-panel-border hover:text-onpanel-ink"><FileSpreadsheet size={12} /></button>
