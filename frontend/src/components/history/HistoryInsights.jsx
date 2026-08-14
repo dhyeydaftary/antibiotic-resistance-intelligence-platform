@@ -1,44 +1,17 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, FlaskConical, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import Panel from '../app/Panel';
 
 // Three-card "quick insights" strip above the history list: overall R/S/I
-// mix, most-frequent antibiotic, and week-over-week resistance trend —
-// all derived client-side from the already-loaded summaries.
-const HistoryInsights = ({ summaries }) => {
-  // Computes the three insight-card values from the full summary list.
-  const insights = useMemo(() => {
-    if (!summaries || !summaries.length) return null;
-
-    const allPreds = summaries.flatMap((s) => s.predictions);
-    const total = allPreds.length;
-    const resistance = allPreds.filter((p) => p.result === 'R').length;
-    const susceptible = allPreds.filter((p) => p.result === 'S').length;
-    const intermediate = allPreds.filter((p) => p.result === 'I').length;
-
-    const resistanceRate = Math.round((resistance / total) * 100);
-    const susceptibilityRate = Math.round((susceptible / total) * 100);
-    const intermediateRate = Math.round((intermediate / total) * 100);
-
-    const antibioticCount = {};
-    allPreds.forEach((p) => { antibioticCount[p.antibiotic] = (antibioticCount[p.antibiotic] || 0) + 1; });
-    const mostCommonAntibiotic = Object.keys(antibioticCount).reduce((a, b) => antibioticCount[a] > antibioticCount[b] ? a : b);
-    const mostCommonPct = Math.round((antibioticCount[mostCommonAntibiotic] / total) * 100);
-
-    const now = new Date();
-    const sevenAgo = new Date(now); sevenAgo.setDate(sevenAgo.getDate() - 7);
-    const fourteenAgo = new Date(now); fourteenAgo.setDate(fourteenAgo.getDate() - 14);
-
-    const recent = summaries.filter((s) => new Date(s.date) >= sevenAgo);
-    const previous = summaries.filter((s) => new Date(s.date) >= fourteenAgo && new Date(s.date) < sevenAgo);
-    const recentR = recent.flatMap((s) => s.predictions).filter((p) => p.result === 'R').length;
-    const previousR = previous.flatMap((s) => s.predictions).filter((p) => p.result === 'R').length;
-    const trendChange = previousR > 0 ? Math.round(((recentR - previousR) / previousR) * 100) : 0;
-
-    return { resistanceRate, susceptibilityRate, intermediateRate, mostCommonAntibiotic, mostCommonPct, trendChange, recentCount: recent.length };
-  }, [summaries]);
-
+// mix, most-frequent antibiotic, and week-over-week resistance trend.
+// Precomputed server-side now (gateway/routes/prediction.js's GET
+// /history/aggregates, via a single $facet pipeline over the user's
+// ENTIRE history) — this component just renders whatever HistoryPage.jsx
+// hands it, it doesn't compute anything itself. Expects:
+// { resistanceRate, susceptibilityRate, intermediateRate,
+//   mostCommonAntibiotic, mostCommonAntibioticPct, trendChange, recentCount }.
+const HistoryInsights = ({ insights }) => {
   if (!insights) return null;
 
   const outcomeLabel = insights.resistanceRate > 40 ? 'Resistant' : insights.susceptibilityRate > 40 ? 'Susceptible' : 'Intermediate';
@@ -75,7 +48,7 @@ const HistoryInsights = ({ summaries }) => {
             <FlaskConical size={11} /> Most frequent antibiotic
           </div>
           <div className="mt-1 truncate font-display text-[22px] font-semibold text-onpanel-ink">{insights.mostCommonAntibiotic}</div>
-          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">{insights.mostCommonPct}% of predictions</div>
+          <div className="mt-1 font-mono text-[11px] text-onpanel-muted">{insights.mostCommonAntibioticPct}% of predictions</div>
         </motion.div>
 
         <motion.div custom={2} initial="hidden" animate="visible" variants={cardVariants} className="rounded-[14px] bg-panel-raised p-4">
