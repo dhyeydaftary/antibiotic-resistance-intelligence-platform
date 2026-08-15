@@ -1,0 +1,11 @@
+node_modules/
+coverage/
+.env
+tests/
+
+# Real credential, gitignored and never committed — supplied to the
+# container via docker-compose's bind mount (see docker-compose.yml),
+# never baked into the image. Excluded here so a `COPY . .` can't
+# accidentally embed it in an image layer even if it exists in the build
+# context on someone's machine.
+firebase-service-account.json

@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
+    "start": "node index.js",
     "test": "node --test",
     "coverage": "c8 --reporter=text --reporter=html node --test"
   },
