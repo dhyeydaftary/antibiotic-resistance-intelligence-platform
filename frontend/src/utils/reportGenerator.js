@@ -18,41 +18,15 @@ import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
-// --- Font embedding: Merriweather TTFs served from /public/fonts ---
-// Fetches a font file and returns it as a base64 string for jsPDF embedding.
-async function loadFontBase64(url) {
-  const res = await fetch(url);
-  const buffer = await res.arrayBuffer();
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-// Loads and embeds the Merriweather font (regular/bold/italic) into the PDF doc.
-async function registerReportFonts(doc) {
-  const [regular, bold, italic] = await Promise.all([
-    loadFontBase64('/fonts/Merriweather_24pt-Regular.ttf'),
-    loadFontBase64('/fonts/Merriweather_24pt-Bold.ttf'),
-    loadFontBase64('/fonts/Merriweather_24pt-Italic.ttf'),
-  ]);
-  doc.addFileToVFS('Merriweather-Regular.ttf', regular);
-  doc.addFont('Merriweather-Regular.ttf', 'Merriweather', 'normal');
-  doc.addFileToVFS('Merriweather-Bold.ttf', bold);
-  doc.addFont('Merriweather-Bold.ttf', 'Merriweather', 'bold');
-  doc.addFileToVFS('Merriweather-Italic.ttf', italic);
-  doc.addFont('Merriweather-Italic.ttf', 'Merriweather', 'italic');
-}
-
 // --- Logo: rendered from the same mark used in AuthHeader.jsx, in monochrome ---
 // Rasterizes the app's SVG logo mark into a PNG data URL for embedding in the PDF.
 function renderLogoToImage(size = 120) {
   return new Promise((resolve) => {
     const svgMarkup = `
       <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 40 40">
-        <circle cx="20" cy="20" r="18" stroke="#141414" stroke-width="1.4" fill="none" />
-        <circle cx="20" cy="20" r="10" stroke="#5A5A5A" stroke-width="1.4" fill="none" />
-        <circle cx="20" cy="20" r="3" fill="#141414" />
+        <circle cx="20" cy="20" r="18" stroke="#1D1D1F" stroke-width="1.4" fill="none" />
+        <circle cx="20" cy="20" r="10" stroke="#6E6E73" stroke-width="1.4" fill="none" />
+        <circle cx="20" cy="20" r="3" fill="#1D1D1F" />
       </svg>
     `;
     const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
@@ -71,13 +45,20 @@ function renderLogoToImage(size = 120) {
   });
 }
 
-// Monochrome, clinical palette
-const INK = [20, 20, 20];
-const INK_SOFT = [70, 70, 70];
-const INK_MUTED = [110, 110, 110];
-const HAIRLINE = [210, 210, 210];
-const PANEL_BG = [246, 246, 246];
-const FLAG_COLOR = { Low: [90, 90, 90], Moderate: [90, 90, 90], 'Moderate-High': [40, 40, 40], High: [20, 20, 20] };
+// Matches the app's current locked design system (see frontend/tailwind.config.js's
+// page-ink/page-muted/page-faint and canvas-hairline/canvas-alt tokens), and
+// FLAG_COLOR mirrors PredictionResultPage.jsx's RISK_TONE mapping exactly.
+const INK = [29, 29, 31]; // #1D1D1F (page-ink)
+const INK_SOFT = [110, 110, 115]; // #6E6E73 (page-muted)
+const INK_MUTED = [134, 134, 139]; // #86868B (page-faint)
+const HAIRLINE = [210, 210, 215]; // #D2D2D7 (canvas-hairline)
+const PANEL_BG = [245, 245, 247]; // #F5F5F7 (canvas-alt)
+const FLAG_COLOR = {
+  Low: [48, 209, 88], // susceptible #30D158
+  Moderate: [255, 159, 10], // intermediate #FF9F0A
+  'Moderate-High': [255, 159, 10], // intermediate #FF9F0A
+  High: [255, 59, 48], // resistant #FF3B30
+};
 
 // Formats a stored timestamp into a locale-readable string.
 function formatDate(dateStr) {
@@ -170,7 +151,10 @@ function buildConfidenceChartConfig(predictions) {
 const PAGE_W = 210;
 const MARGIN = 16;
 const CONTENT_W = PAGE_W - MARGIN * 2;
-const FONT = 'Merriweather';
+// jsPDF's built-in Helvetica -- a clean modern sans-serif already bundled
+// with jsPDF, matching the app's current sans-serif direction without
+// adding new font assets (no Inter TTFs exist in this repo to embed).
+const FONT = 'helvetica';
 
 // Draws a section-divider rule + uppercase heading at y, returns the new
 // cursor y position.
@@ -228,7 +212,6 @@ function buildKeywordSet(predictions) {
 // PDF report for one prediction record.
 export async function downloadPdf(item) {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  await registerReportFonts(doc);
   const logoDataUrl = await renderLogoToImage();
   const insights = item.aiInsights;
   const reportId = item._id ? item._id.toString().slice(-8).toUpperCase() : 'UNKNOWN';
