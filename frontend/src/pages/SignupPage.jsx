@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   sendEmailVerification,
-  signInWithPopup,
+  signInWithRedirect,
 } from "firebase/auth";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { FormHeader } from "@/components/auth/FormHeader";
@@ -19,8 +19,6 @@ import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { StrengthMeter } from "@/components/auth/StrengthMeter";
 import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
 import { auth, googleProvider, githubProvider } from "@/lib/firebase";
-import { exchangeFirebaseSession } from "@/api/authApi";
-import { useAuth } from "@/context/AuthContext";
 import usePageTitle from '../hooks/usePageTitle';
 
 // ===================================================================
@@ -32,9 +30,19 @@ import usePageTitle from '../hooks/usePageTitle';
 // just a UI nicety.
 //
 // Google/GitHub buttons live on this page only (not Login) -- Firebase's
-// popup sign-in creates-or-returns an account transparently either way,
+// redirect sign-in creates-or-returns an account transparently either way,
 // so "signup" and "login" are the same call for those providers; the
 // distinction only matters for password accounts.
+//
+// signInWithRedirect navigates the whole page away to the provider and
+// back -- it never returns a credential here. onSocialSignIn's only job is
+// starting that navigation (after the consent check, which must stay
+// synchronous and here -- it's the only gate stopping an unconsented
+// signup from ever reaching the provider). Completing the flow (exchanging
+// the credential for a Gateway session, toast, redirect to /home) happens
+// once, app-wide, in AuthContext.jsx's getRedirectResult effect, since this
+// component isn't guaranteed to still be mounted -- or even be the page
+// the browser lands back on -- when the provider returns control.
 // ===================================================================
 
 // Maps Firebase's own error codes to messages worth showing a user,
@@ -47,8 +55,6 @@ function firebaseErrorMessage(err) {
       return "Password is too weak.";
     case "auth/invalid-email":
       return "Please enter a valid email address.";
-    case "auth/popup-closed-by-user":
-      return null; // user cancelled -- not an error worth showing
     default:
       return "Something went wrong. Please try again.";
   }
@@ -58,7 +64,6 @@ function SignupPage() {
   usePageTitle('Sign Up');
 
   const navigate = useNavigate();
-  const { login: authLogin } = useAuth();
   const nameRef = useRef(null);
 
   const [name, setName] = useState("");
@@ -115,7 +120,7 @@ function SignupPage() {
     // Google/GitHub bypass the email/password form's validate() entirely
     // (they're a separate submit path), so the consent gate has to be
     // re-checked here -- otherwise this is the one path that could reach
-    // Firebase's popup without ever accepting the Terms/Privacy Policy.
+    // Firebase's redirect without ever accepting the Terms/Privacy Policy.
     if (!consent) {
       setErrors((prev) => ({ ...prev, consent: "Please accept the Terms & Conditions and Privacy Policy to continue" }));
       toast.error("Please accept the Terms & Conditions and Privacy Policy first.");
@@ -124,20 +129,10 @@ function SignupPage() {
     setGlobalError(null);
     setSocialLoading(name);
     try {
-      const cred = await signInWithPopup(auth, provider);
-      const idToken = await cred.user.getIdToken();
-      const res = await exchangeFirebaseSession({ idToken });
-      if (res.ok) {
-        authLogin(res.token, res.user, true);
-        toast.success("Signed in.");
-        navigate("/home");
-      } else {
-        setGlobalError({ title: res.message, tone: "error" });
-      }
+      await signInWithRedirect(auth, provider);
     } catch (err) {
       const message = firebaseErrorMessage(err);
       if (message) setGlobalError({ title: message, tone: "error" });
-    } finally {
       setSocialLoading(null);
     }
   };
