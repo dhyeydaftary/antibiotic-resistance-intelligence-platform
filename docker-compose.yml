@@ -1,0 +1,95 @@
+# Local dev/eval stack for all three services plus a MongoDB container.
+# MONGO_URI stays a fully overridable env var (gateway's real env_file
+# value is intentionally overridden below with the compose service name,
+# not hardcoded elsewhere) — this file supplies convenient defaults, it
+# doesn't hardcode the app's data-layer assumptions.
+#
+# Two different "which host does this URL mean" answers show up below on
+# purpose, not by oversight: DJANGO_API_URL/MONGO_URI (gateway -> ml-backend
+# / mongo, server-to-server, inside this compose network) correctly use the
+# compose service names; the frontend's VITE_GATEWAY_URL (baked in at image
+# build time, see frontend/Dockerfile) has to be host-reachable instead,
+# because it's fetched by client-side JS running in the user's browser,
+# outside the Docker network entirely.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ml-backend:
+    build:
+      context: ./ml-backend
+    restart: unless-stopped
+    env_file:
+      - ml-backend/.env
+    environment:
+      ALLOWED_HOSTS: 127.0.0.1,localhost,ml-backend
+      CORS_ALLOWED_ORIGINS: http://localhost:8080
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/predictor/health/', timeout=3)" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  gateway:
+    build:
+      context: ./gateway
+    restart: unless-stopped
+    env_file:
+      - gateway/.env
+    environment:
+      # Overrides the real .env's localhost-based values (correct for
+      # running the gateway directly on the host, not for running it
+      # inside this compose network) with the compose service names —
+      # see the file-level comment above.
+      MONGO_URI: mongodb://mongo:27017/amr_insight
+      DJANGO_API_URL: http://ml-backend:8000/api/predictor
+      CORS_ALLOWED_ORIGINS: http://localhost:8080
+    volumes:
+      # gateway/firebase-service-account.json is a real credential —
+      # gitignored, never committed, and excluded from the image build via
+      # gateway/.dockerignore. Bind-mounted read-only instead of baked in,
+      # so it never ends up in an image layer.
+      - ./gateway/firebase-service-account.json:/app/firebase-service-account.json:ro
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      ml-backend:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Host-reachable, not the gateway's compose service name — see the
+        # file-level comment above. Override VITE_GATEWAY_URL in a root
+        # .env (see .env.example) if the gateway's mapped port changes.
+        VITE_GATEWAY_URL: ${VITE_GATEWAY_URL:-http://localhost:5000/api}
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - gateway
+
+volumes:
+  mongo_data:
