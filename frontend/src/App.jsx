@@ -26,7 +26,6 @@ function App() {
   const isAuthPage =
     location.pathname === '/login' ||
     location.pathname === '/signup' ||
-    location.pathname === '/verify-email' ||
     location.pathname === '/forgot-password';
 
   // AnimatePresence keyed on pathname re-triggers exit/enter animations on
@@ -57,7 +56,11 @@ function App() {
           position="top-center"
           toastOptions={{
             unstyled: false,
-            className: "!bg-paper !text-ink !border !border-hairline !rounded-none !shadow-none !font-sans",
+            className: "!bg-panel !text-onpanel-ink !border !border-panel-border !rounded-[10px] !shadow-panel-sm !font-sans",
+            classNames: {
+              success: "!border-susceptible/40",
+              error: "!border-resistant/40",
+            },
           }}
         />
       </>
@@ -75,7 +78,11 @@ function App() {
         position="top-center"
         toastOptions={{
           unstyled: false,
-          className: "!bg-paper !text-ink !border !border-hairline !rounded-none !shadow-none !font-sans",
+          className: "!bg-panel !text-onpanel-ink !border !border-panel-border !rounded-[10px] !shadow-panel-sm !font-sans",
+          classNames: {
+            success: "!border-susceptible/40",
+            error: "!border-resistant/40",
+          },
         }}
       />
     </>

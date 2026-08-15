@@ -202,7 +202,11 @@ describe('File upload validation on POST /api/predictor/extract-report', () => {
     };
 
     const maliciousFilename = '../../../etc/passwd\r\nX-Injected-Header: MARKER_INJECTED_XYZ.pdf';
-    const pdfBuffer = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.from('fake but valid-looking pdf body')]);
+    const pdfBuffer = Buffer.concat([
+      Buffer.from('%PDF-1.4\n'),
+      Buffer.from('fake but valid-looking pdf body'),
+      Buffer.from('\n%%EOF'),
+    ]);
 
     const res = await request(app)
       .post('/api/predictor/extract-report')
@@ -226,7 +230,9 @@ describe('File upload validation on POST /api/predictor/extract-report', () => {
 
   function pdfBufferOfSize(totalBytes) {
     const header = Buffer.from('%PDF-1.4\n');
-    return Buffer.concat([header, Buffer.alloc(totalBytes - header.length, 'a')]);
+    const trailer = Buffer.from('\n%%EOF');
+    const padding = Buffer.alloc(totalBytes - header.length - trailer.length, 'a');
+    return Buffer.concat([header, padding, trailer]);
   }
 
   test('a file safely within the 10MB multer limit is accepted (not rejected for size)', async () => {
@@ -296,20 +302,20 @@ describe('File upload validation on POST /api/predictor/extract-report', () => {
     assert.match(res.body.error.message, /does not appear to be a valid PDF/);
   });
 
-  test('a file with a valid %PDF- header but garbage content after it currently passes the magic-byte check', async () => {
-    // Documents actual, current behavior — the magic-byte check
-    // (gateway/routes/prediction.js) only inspects the first 5 bytes. A
-    // file that starts with %PDF- but is otherwise garbage is NOT caught
-    // here; deeper structural validity is Django/pdfplumber's concern on
-    // the other side, not this gateway-side check's job. Not a bug this
-    // sub-phase is fixing — just confirming the actual current boundary of
-    // what this check does and doesn't catch.
+  test('a file with a valid %PDF- header but no %%EOF trailer is rejected by the magic-byte check', async () => {
+    // Documents actual, current behavior — gateway/routes/prediction.js's
+    // check requires BOTH a %PDF- header AND a %%EOF trailer somewhere in
+    // the last 2048 bytes (a real, deliberate improvement over an earlier,
+    // header-only version of this check -- see the PDF_EOF_MARKER
+    // comments in prediction.js). A file that starts with %PDF- but has
+    // no trailer at all is genuinely garbage, and is now caught here, not
+    // left to Django/pdfplumber to discover downstream.
     const { app, userStore, djangoClient } = buildPredictionApp();
     const user = seedUser(userStore, { email: 'upload-garbage-body@example.com' });
     const token = signTestToken(user._id, 0);
-    djangoClient.post = async () => ({
-      data: { success: true, data: { extracted: {}, missing: [], extractionAvailable: true }, error: null },
-    });
+    djangoClient.post = async () => {
+      throw new Error('djangoClient.post should not be called for a file with no valid trailer');
+    };
 
     const garbageAfterHeader = Buffer.concat([Buffer.from('%PDF-'), Buffer.from('TOTALLY NOT A REAL PDF STRUCTURE \x00\x01\x02')]);
     const res = await request(app)
@@ -317,7 +323,9 @@ describe('File upload validation on POST /api/predictor/extract-report', () => {
       .set('Authorization', `Bearer ${token}`)
       .attach('report', garbageAfterHeader, { filename: 'garbage.pdf', contentType: 'application/pdf' });
 
-    assert.equal(res.status, 200);
+    assert.equal(res.status, 400);
+    assert.equal(res.body.error.code, 'VALIDATION_ERROR');
+    assert.match(res.body.error.message, /does not appear to be a valid PDF/);
   });
 });
 
@@ -544,23 +552,29 @@ describe('CORS', () => {
 // same helmet/CORS config so a genuine 401 and a genuine 429 (from the
 // real verifyLimiter) can be produced, plus a synthetic route and the same
 // final error-handling middleware shape as index.js for the 500 case.
+// CORS are applied at the very top of the app, before any route (or the
+// final error handler) runs — so they must be present on every response
+// regardless of its eventual status code. Mounts the REAL authRoutes
+// (fresh-required, same model-mocking pattern as helpers.js) alongside the
+// same helmet/CORS config so a genuine 401 and a genuine 429 (from the
+// real sessionLimiter) can be produced, plus a synthetic route and the same
+// final error-handling middleware shape as index.js for the 500 case.
 function buildFullAppWithHeaders() {
   const {
     clearCache, createUserStore, attachUserStore,
-    createPendingSignupStore, attachPendingSignupStore,
-    mockSecurityEvent, paths,
+    mockSecurityEvent, mockFirebaseAuth, paths,
   } = require('./helpers');
   clearCache(paths.AUTH_ROUTE_PATH, paths.AUTH_RATE_LIMITERS_PATH);
 
   const User = require(paths.USER_MODEL_PATH);
-  const PendingSignup = require(paths.PENDING_SIGNUP_MODEL_PATH);
   const SecurityEvent = require(paths.SECURITY_EVENT_MODEL_PATH);
+  const firebaseAdmin = require(paths.FIREBASE_ADMIN_PATH);
   attachUserStore(User, createUserStore());
-  // /login now falls back to PendingSignup when no User is found (see
-  // auth.js) — without this mock, that call hits the real, unconnected
-  // Mongoose model and hangs until Mongoose's buffering timeout.
-  attachPendingSignupStore(PendingSignup, createPendingSignupStore());
   mockSecurityEvent(SecurityEvent);
+  const firebaseAuthMock = mockFirebaseAuth(firebaseAdmin);
+  // A genuine 401 for this test's purposes: an invalid/unverifiable
+  // Firebase token, same as a real bad-credential attempt would produce.
+  firebaseAuthMock.setNextResult(new Error('invalid token'));
   const authRoutes = require(paths.AUTH_ROUTE_PATH);
 
   const app = express();
@@ -610,17 +624,19 @@ function assertSecurityHeadersPresent(res) {
 }
 
 describe('Security headers are present on error responses too, not just 200s', () => {
-  test('401 (bad login), 429 (rate limited), and 500 (unhandled error) responses all still carry the helmet-set security headers', async () => {
+  test('401 (bad session token), 429 (rate limited), and 500 (unhandled error) responses all still carry the helmet-set security headers', async () => {
     const app = buildFullAppWithHeaders();
 
-    const res401 = await request(app).post('/api/auth/login').send({ email: 'nope@example.com', password: 'whatever' });
+    const res401 = await request(app).post('/api/auth/session').send({ idToken: 'invalid-token' });
     assert.equal(res401.status, 401);
     assertSecurityHeadersPresent(res401);
 
     let last429;
-    for (let i = 0; i < 11; i += 1) {
+    // sessionLimiter's real max is 20/15min (see middleware/authRateLimiters.js) —
+    // this loop count must track that value, not be picked independently of it.
+    for (let i = 0; i < 21; i += 1) {
       // eslint-disable-next-line no-await-in-loop
-      last429 = await request(app).post('/api/auth/login').send({ email: 'nope@example.com', password: 'whatever' });
+      last429 = await request(app).post('/api/auth/session').send({ idToken: 'invalid-token' });
     }
     assert.equal(last429.status, 429);
     assertSecurityHeadersPresent(last429);
@@ -705,10 +721,12 @@ describe('Read-route rate limit is realistically sized', () => {
     const token = signTestToken(user._id, 0);
     djangoClient.get = async () => ({ data: { success: true, data: { series: [] }, error: null } });
 
-    // readLimiter max=300 (gateway/middleware/predictionRateLimiters.js,
-    // confirmed by reading the file — this is the value the hotfix raised
-    // it to, replacing the miscalibrated 30 that broke real navigation).
-    const READ_LIMITER_MAX = 300;
+    // readLimiter max=400 (gateway/middleware/predictionRateLimiters.js,
+    // confirmed by reading the file — raised from an earlier 300 at some
+    // point after this test was originally written; hardcoding this
+    // value is exactly the kind of thing that silently goes stale, as it
+    // did here).
+    const READ_LIMITER_MAX = 400;
     const TOTAL_REQUESTS = READ_LIMITER_MAX + 5;
 
     const statuses = [];
@@ -732,49 +750,43 @@ describe('Read-route rate limit is realistically sized', () => {
 });
 
 describe('Rate limiting — exact boundaries', () => {
-  test('readLimiter: the 300th request succeeds, the 301st is blocked', async () => {
+  test('readLimiter: the 400th request succeeds, the 401st is blocked', async () => {
     const { app, userStore, djangoClient } = buildPredictionApp();
     const user = seedUser(userStore, { email: 'exact-boundary-read@example.com' });
     const token = signTestToken(user._id, 0);
     djangoClient.get = async () => ({ data: { success: true, data: { series: [] }, error: null } });
 
-    const READ_LIMITER_MAX = 300; // gateway/middleware/predictionRateLimiters.js, confirmed by reading the file.
+    const READ_LIMITER_MAX = 400; // gateway/middleware/predictionRateLimiters.js, confirmed by reading the file.
 
     let lastWithinBudget;
     for (let i = 0; i < READ_LIMITER_MAX; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       lastWithinBudget = await request(app).get('/api/predictor/trends?antibiotic=CIP').set('Authorization', `Bearer ${token}`);
     }
-    assert.notEqual(lastWithinBudget.status, 429, 'the 300th request must not be rate-limited');
+    assert.notEqual(lastWithinBudget.status, 429, 'the 400th request must not be rate-limited');
 
     const overBudget = await request(app).get('/api/predictor/trends?antibiotic=CIP').set('Authorization', `Bearer ${token}`);
-    assert.equal(overBudget.status, 429, 'the 301st request must be rate-limited');
+    assert.equal(overBudget.status, 429, 'the 401st request must be rate-limited');
     assert.equal(overBudget.body.error.code, 'RATE_LIMITED');
   });
 
-  test('verifyLimiter (auth): shared across /login and /verify-otp — the 10th request across both routes succeeds, the 11th is blocked', async () => {
-    const { app } = buildAuthApp();
-    const VERIFY_LIMITER_MAX = 10; // gateway/middleware/authRateLimiters.js, confirmed by reading the file.
+  test('sessionLimiter (auth): the 20th request succeeds, the 21st is blocked', async () => {
+    const { app, firebaseAuthMock } = buildAuthApp();
+    // Invalid credentials on every attempt -- this test is about the rate
+    // limiter's own boundary, not about a successful session exchange.
+    firebaseAuthMock.setNextResult(new Error('invalid token'));
 
-    const responses = [];
-    for (let i = 0; i < VERIFY_LIMITER_MAX - 1; i += 1) {
+    const SESSION_LIMITER_MAX = 20; // gateway/middleware/authRateLimiters.js, confirmed by reading the file.
+
+    let lastWithinBudget;
+    for (let i = 0; i < SESSION_LIMITER_MAX; i += 1) {
       // eslint-disable-next-line no-await-in-loop
-      responses.push(
-        await request(app).post('/api/auth/login').send({ email: 'boundary@example.com', password: 'WrongPass1!' })
-      );
+      lastWithinBudget = await request(app).post('/api/auth/session').send({ idToken: 'bad-token' });
     }
-    // The 10th request overall, but the 1st on a DIFFERENT route sharing
-    // the same IP-keyed limiter — confirms the budget is genuinely shared
-    // across routes, not tracked per-route.
-    const tenth = await request(app).post('/api/auth/verify-otp').send({ email: 'boundary@example.com', code: '000000' });
-    responses.push(tenth);
+    assert.notEqual(lastWithinBudget.status, 429, 'the 20th request must not be rate-limited');
 
-    for (const res of responses) {
-      assert.notEqual(res.status, 429);
-    }
-
-    const eleventh = await request(app).post('/api/auth/login').send({ email: 'boundary@example.com', password: 'WrongPass1!' });
-    assert.equal(eleventh.status, 429);
-    assert.equal(eleventh.body.error.code, 'RATE_LIMITED');
+    const overBudget = await request(app).post('/api/auth/session').send({ idToken: 'bad-token' });
+    assert.equal(overBudget.status, 429, 'the 21st request must be rate-limited');
+    assert.equal(overBudget.body.error.code, 'RATE_LIMITED');
   });
 });

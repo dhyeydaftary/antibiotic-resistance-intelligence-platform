@@ -84,14 +84,14 @@ Full per-antibiotic figures live in [`docs/ml/model-cards.md`](../ml/model-cards
 The following are explicit, deliberate scope decisions for the current release, not gaps:
 
 - **Single flat user type** — no role-based access control, no admin panel.
-- **Authentication** — email/OTP verification and JWT sessions only; two-factor authentication beyond signup/reset OTP is deferred, not implemented.
-- **Email delivery is sandbox-tier.** The gateway's transactional email sends from Resend's default sandbox sender address, which restricts delivery to the registered account's own email — this is a scoping decision appropriate for a project at this stage, not a production email configuration.
+- **Authentication** — Firebase-backed (password, Google, GitHub), with the Gateway issuing its own downstream session JWT per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md); two-factor authentication beyond Firebase's own account security is deferred, not implemented.
+- **Email delivery is sandbox-tier, but no longer a functional blocker.** The gateway still sends one non-blocking welcome email via Resend's default sandbox sender (restricted to the registered account's own address) on first sign-in — this is a scoping decision appropriate for a project at this stage, not a production email configuration. Unlike before this project's Firebase migration, this limitation no longer affects account verification itself, since Firebase now owns that delivery entirely.
 - **Not open to external contributors** — this is currently a 3-person team project. The repository is licensed under [Apache License 2.0](../../LICENSE), but that governs reuse of the code, not acceptance of outside contributions, which isn't happening yet regardless of licensing.
 
 The following are genuine current gaps, stated plainly rather than reframed as decisions:
 
-- **No frontend test suite exists.** The gateway and ML backend both now have real, automated, re-runnable test suites (98 tests total — see [`docs/security/threat-model.md`](../security/threat-model.md)'s Security Testing section), but the frontend has none. This was a deliberate scope decision for the security-focused test-writing pass specifically (the frontend doesn't independently enforce security logic — see [`docs/architecture/high-level-architecture.md`](../architecture/high-level-architecture.md)), not an oversight, but it remains a genuine gap for UI-behavior testing if that becomes a priority.
-- **No CI/CD pipeline exists yet** — both test suites and both dependency-vulnerability scanners (`pip-audit`, `npm audit`) currently run manually rather than automatically on every change. Tracked as planned work.
+- **No frontend test suite exists.** The gateway and ML backend both now have real, automated, re-runnable test suites (332 tests total — see [`docs/security/threat-model.md`](../security/threat-model.md)'s Security Testing section), but the frontend has none. This was a deliberate scope decision for the security-focused test-writing pass specifically (the frontend doesn't independently enforce security logic — see [`docs/architecture/high-level-architecture.md`](../architecture/high-level-architecture.md)), not an oversight, but it remains a genuine gap for UI-behavior testing if that becomes a priority.
+- **A CI pipeline now runs both test suites automatically on every push and pull request to `main`/`dev`** (see `.github/workflows/ci.yml`: gateway tests, ML backend tests, and a frontend build job). Both dependency-vulnerability scanners (`pip-audit`, `npm audit`) are not yet wired into that pipeline and still run manually. Tracked as planned work.
 
 ## A Named Technical Constraint
 

@@ -1,28 +1,65 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendEmailVerification,
+  signInWithRedirect,
+} from "firebase/auth";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { FormHeader } from "@/components/auth/FormHeader";
 import { TextInput } from "@/components/auth/TextInput";
 import { PasswordInput } from "@/components/auth/PasswordInput";
 import { Checkbox } from "@/components/auth/Checkbox";
-import { PrimaryButton } from "@/components/auth/Button";
+import { PrimaryButton, GhostButton } from "@/components/auth/Button";
+import { SocialButton } from "@/components/auth/SocialButton";
 import { Banner } from "@/components/auth/Banner";
 import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { StrengthMeter } from "@/components/auth/StrengthMeter";
 import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
-import { signup } from "@/api/authApi";
+import { auth, googleProvider, githubProvider } from "@/lib/firebase";
 import usePageTitle from '../hooks/usePageTitle';
 
 // ===================================================================
-// Route: /signup (gated by GuestRoute). Calls api/authApi.js's
-// signup(), which only ever creates a PendingSignup on the backend —
-// no session is issued here. On success, stashes the email in
-// sessionStorage (read by VerifyEmailPage) and redirects to
-// /verify-email to complete the OTP step. Password strength/checklist
-// UI is driven by utils/validators.js's evaluatePassword(), mirroring
-// the gateway's own password policy.
+// Route: /signup. Per ADR-0005, Firebase owns authentication directly.
+// Email/password signup calls Firebase's createUserWithEmailAndPassword,
+// then sends its own verification email (not our old OTP) and holds on
+// this page's "check your email" state -- the Gateway's /session route
+// rejects an unverified email, so there's a real, enforced gate here, not
+// just a UI nicety.
+//
+// Google/GitHub buttons live on this page only (not Login) -- Firebase's
+// redirect sign-in creates-or-returns an account transparently either way,
+// so "signup" and "login" are the same call for those providers; the
+// distinction only matters for password accounts.
+//
+// signInWithRedirect navigates the whole page away to the provider and
+// back -- it never returns a credential here. onSocialSignIn's only job is
+// starting that navigation (after the consent check, which must stay
+// synchronous and here -- it's the only gate stopping an unconsented
+// signup from ever reaching the provider). Completing the flow (exchanging
+// the credential for a Gateway session, toast, redirect to /home) happens
+// once, app-wide, in AuthContext.jsx's getRedirectResult effect, since this
+// component isn't guaranteed to still be mounted -- or even be the page
+// the browser lands back on -- when the provider returns control.
 // ===================================================================
+
+// Maps Firebase's own error codes to messages worth showing a user,
+// rather than surfacing raw codes like "auth/email-already-in-use".
+function firebaseErrorMessage(err) {
+  switch (err?.code) {
+    case "auth/email-already-in-use":
+      return "An account with this email already exists. Try signing in instead.";
+    case "auth/weak-password":
+      return "Password is too weak.";
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+    default:
+      return "Something went wrong. Please try again.";
+  }
+}
+
 function SignupPage() {
   usePageTitle('Sign Up');
 
@@ -33,11 +70,12 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [terms, setTerms] = useState(false);
-  const [privacy, setPrivacy] = useState(false);
+  const [consent, setConsent] = useState(false);
   const [errors, setErrors] = useState({});
   const [globalError, setGlobalError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState(null);
+  const [awaitingVerification, setAwaitingVerification] = useState(null); // holds email once shown
 
   useEffect(() => {
     nameRef.current?.focus();
@@ -45,61 +83,89 @@ function SignupPage() {
 
   const pwEval = useMemo(() => evaluatePassword(password), [password]);
 
-  // Validates every field (name/email/password strength/confirm-match/
-  // consent checkboxes) and populates `errors`; returns whether the form is valid.
   const validate = () => {
     const e = {};
     if (!name.trim()) e.name = "Name is required";
     if (!email) e.email = "Email address is required";
-    else if (!EMAIL_RE.test(email))
-      e.email = "Please enter a valid email address";
+    else if (!EMAIL_RE.test(email)) e.email = "Please enter a valid email address";
     if (!password) e.password = "Password is required";
     else if (!pwEval.allPassed) e.password = "Password is too weak";
     if (!confirm) e.confirm = "Please confirm your password";
     else if (confirm !== password) e.confirm = "Passwords do not match";
-    if (!terms) e.terms = "Please accept the Terms & Conditions";
-    if (!privacy) e.privacy = "Please accept the Privacy Policy";
+    if (!consent) e.consent = "Please accept the Terms & Conditions and Privacy Policy to continue";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  // Validates, submits the signup, and routes to OTP verification on success.
   const onSubmit = async (ev) => {
     ev.preventDefault();
     setGlobalError(null);
     if (!validate()) return;
+
     setLoading(true);
-    const res = await signup({ name, email, password });
-    setLoading(false);
-    if (res.ok) {
-      sessionStorage.setItem("amr:pending-email", email);
-      toast.success("Account created. Check your inbox for the code.");
-      navigate("/verify-email");
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name.trim() });
+      await sendEmailVerification(cred.user);
+      setAwaitingVerification(email);
+    } catch (err) {
+      const message = firebaseErrorMessage(err);
+      if (message) setGlobalError({ title: message, tone: "error" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSocialSignIn = async (provider, name) => {
+    // Google/GitHub bypass the email/password form's validate() entirely
+    // (they're a separate submit path), so the consent gate has to be
+    // re-checked here -- otherwise this is the one path that could reach
+    // Firebase's redirect without ever accepting the Terms/Privacy Policy.
+    if (!consent) {
+      setErrors((prev) => ({ ...prev, consent: "Please accept the Terms & Conditions and Privacy Policy to continue" }));
+      toast.error("Please accept the Terms & Conditions and Privacy Policy first.");
       return;
     }
-    if (res.field === "email") setErrors({ email: res.message });
-    else setGlobalError({ title: res.message, tone: "error" });
+    setGlobalError(null);
+    setSocialLoading(name);
+    try {
+      await signInWithRedirect(auth, provider);
+    } catch (err) {
+      const message = firebaseErrorMessage(err);
+      if (message) setGlobalError({ title: message, tone: "error" });
+      setSocialLoading(null);
+    }
   };
+
+  // Holding state after a password signup -- Firebase's verification
+  // email was sent; the account is real but the Gateway won't issue a
+  // session until it's confirmed.
+  if (awaitingVerification) {
+    return (
+      <AuthLayout sideLabel="Check your email">
+        <FormHeader
+          kicker="One step left"
+          title={<>Verify your <span className="text-accent-blue">email</span>.</>}
+          subtitle={`We sent a verification link to ${awaitingVerification}. Click it, then come back here and sign in.`}
+        />
+        <GhostButton onClick={() => navigate("/login")} testId="go-to-login">
+          Go to sign in →
+        </GhostButton>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout sideLabel="Create account">
       <FormHeader
         kicker="New · Researcher registration"
-        title={
-          <>
-            Begin your <span className="text-accent-blue">inquiry</span> into resistance.
-          </>
-        }
+        title={<>Begin your <span className="text-accent-blue">inquiry</span> into resistance.</>}
         subtitle="Create an account to run predictions across 15 antibiotics on a validated public dataset."
       />
 
       {globalError ? (
         <div className="mb-6">
-          <Banner
-            tone={globalError.tone}
-            title={globalError.title}
-            testId="signup-banner"
-          />
+          <Banner tone={globalError.tone} title={globalError.title} testId="signup-banner" />
         </div>
       ) : null}
 
@@ -126,7 +192,6 @@ function SignupPage() {
           testId="signup-email"
           placeholder="you@lab.org"
         />
-
         <div>
           <PasswordInput
             label="Password"
@@ -138,16 +203,9 @@ function SignupPage() {
             testId="signup-password"
             placeholder="••••••••"
           />
-          <StrengthMeter
-            strength={pwEval.strength}
-            strengthIndex={pwEval.strengthIndex}
-          />
-          <PasswordChecklist
-            results={pwEval.results}
-            testId="signup-password-checklist"
-          />
+          <StrengthMeter strength={pwEval.strength} strengthIndex={pwEval.strengthIndex} />
+          <PasswordChecklist results={pwEval.results} testId="signup-password-checklist" />
         </div>
-
         <PasswordInput
           label="Confirm password"
           required
@@ -159,31 +217,33 @@ function SignupPage() {
           placeholder="••••••••"
         />
 
-        <div className="space-y-3 pt-2">
+        <div className="pt-1">
           <Checkbox
-            checked={terms}
-            onCheckedChange={setTerms}
-            error={errors.terms}
-            testId="signup-terms"
+            checked={consent}
+            onCheckedChange={(value) => {
+              setConsent(value);
+              if (value) setErrors((prev) => ({ ...prev, consent: undefined }));
+            }}
+            error={errors.consent}
+            testId="signup-consent"
             label={
               <>
                 I agree to the{" "}
-                <Link to="/terms" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
+                <Link
+                  to="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-blue transition-colors hover:text-accent-blue-hover"
+                >
                   Terms &amp; Conditions
-                </Link>
-                .
-              </>
-            }
-          />
-          <Checkbox
-            checked={privacy}
-            onCheckedChange={setPrivacy}
-            error={errors.privacy}
-            testId="signup-privacy"
-            label={
-              <>
-                I&rsquo;ve read and accept the{" "}
-                <Link to="/privacy" className="text-accent-blue transition-colors hover:text-accent-blue-hover">
+                </Link>{" "}
+                and{" "}
+                <Link
+                  to="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-blue transition-colors hover:text-accent-blue-hover"
+                >
                   Privacy Policy
                 </Link>
                 .
@@ -192,15 +252,33 @@ function SignupPage() {
           />
         </div>
 
-        <PrimaryButton
-          type="submit"
-          loading={loading}
-          loadingText="Creating account…"
-          testId="signup-submit"
-        >
+        <PrimaryButton type="submit" loading={loading} loadingText="Creating account…" testId="signup-submit">
           Create account
         </PrimaryButton>
       </form>
+
+      <div className="my-6 flex items-center gap-3">
+        <div className="h-px flex-1 bg-panel-border" />
+        <span className="font-mono text-[10px] uppercase tracking-wider text-onpanel-faint">or</span>
+        <div className="h-px flex-1 bg-panel-border" />
+      </div>
+
+      <div className="space-y-3">
+        <SocialButton
+          provider="google"
+          onClick={() => onSocialSignIn(googleProvider, "google")}
+          loading={socialLoading === "google"}
+          disabled={socialLoading !== null}
+          testId="signup-google"
+        />
+        <SocialButton
+          provider="github"
+          onClick={() => onSocialSignIn(githubProvider, "github")}
+          loading={socialLoading === "github"}
+          disabled={socialLoading !== null}
+          testId="signup-github"
+        />
+      </div>
 
       <div className="mt-8 flex items-center justify-between border-t border-panel-border pt-6">
         <span className="font-sans text-[13.5px] text-onpanel-muted">

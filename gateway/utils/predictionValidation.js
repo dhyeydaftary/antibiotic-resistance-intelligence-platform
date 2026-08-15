@@ -50,6 +50,7 @@ const OPTIONAL_FIELDS = [
   { name: 'respiratory_rate', type: 'float', min: 4, max: 60 },
   { name: 'spo2', type: 'float', min: 50, max: 100 },
   { name: 'weight_kg', type: 'float', min: 2, max: 300 },
+  { name: 'height_cm', type: 'float', min: 50, max: 250 },
   { name: 'bmi', type: 'float', min: 8, max: 80 },
 ];
 

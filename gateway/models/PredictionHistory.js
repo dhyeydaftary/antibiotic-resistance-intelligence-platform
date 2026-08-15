@@ -26,6 +26,17 @@ const predictionHistorySchema = new mongoose.Schema({
     type: Object,
     required: false,
   },
+  // Denormalized average of predictions[].confidence, computed once at
+  // write time (routes/prediction.js's POST /predict) so GET /history can
+  // sort on it directly in Mongo — same reasoning as storing inputData/
+  // predictions as convenience blobs rather than recomputing from a
+  // normalized shape on every read.
+  avgConfidence: {
+    type: Number,
+    required: true,
+  },
 }, { timestamps: true });
+
+predictionHistorySchema.index({ userId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('PredictionHistory', predictionHistorySchema);

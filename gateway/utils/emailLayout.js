@@ -1,12 +1,15 @@
+// Mirrors the app's current locked design system (see frontend/tailwind.config.js's
+// "Apple-calibrated tokens": canvas/canvas-alt/panel/accent-blue/page-ink family) --
+// light canvas, dark ink text, single blue accent, no gradients.
 const BRAND = {
-    ink: '#0F172A',
-    inkSoft: '#334155',
-    inkMuted: '#64748B',
-    inkFaint: '#94A3B8',
-    accent: '#5B4FE9',
-    accentSoft: '#EEECFD',
-    border: '#E5E7EB',
-    panel: '#F8F9FB',
+    ink: '#1D1D1F',
+    inkSoft: '#3A3A3C',
+    inkMuted: '#6E6E73',
+    inkFaint: '#86868B',
+    accent: '#0071E3',
+    accentSoft: '#E0EEFC',
+    border: '#D2D2D7',
+    panel: '#F5F5F7',
     background: '#FFFFFF',
 };
 
@@ -39,7 +42,7 @@ function ctaButton(label, href) {
     return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 8px 0;">
       <tr>
-        <td class="email-cta" style="background:${BRAND.ink}; border-radius:8px;">
+        <td class="email-cta" style="background:${BRAND.accent}; border-radius:8px;">
           <a href="${href}" style="display:inline-block; padding:13px 28px; font-size:14px; font-weight:600; color:#FFFFFF; text-decoration:none; letter-spacing:0.2px;">
             ${label} &rarr;
           </a>

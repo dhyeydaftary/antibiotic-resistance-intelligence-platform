@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "d3-array": "^3.2.4",
     "d3-shape": "^3.2.0",
+    "firebase": "^12.17.1",
     "framer-motion": "^12.42.2",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

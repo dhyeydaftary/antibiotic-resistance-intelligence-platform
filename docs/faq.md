@@ -62,7 +62,7 @@ It didn't, originally — the frontend called Django directly for the first two 
 
 ### Is there role-based access control or an admin panel?
 
-No — single flat user type, by design, given the current scope and timeline. Two-factor authentication beyond signup/reset OTP is also deferred. See [`docs/data/known-limitations.md`](data/known-limitations.md#infrastructure-and-scope-boundaries).
+No — single flat user type, by design, given the current scope and timeline. Two-factor authentication beyond Firebase's own account security (see [ADR-0005](architecture/adr/ADR-0005-firebase-auth-migration.md)) is also deferred. See [`docs/data/known-limitations.md`](data/known-limitations.md#infrastructure-and-scope-boundaries).
 
 ## Project & Governance
 

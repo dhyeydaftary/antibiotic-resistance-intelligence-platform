@@ -41,29 +41,37 @@ Source: `gateway/.env.example`
 | `MONGO_URI` | **Yes** | none | MongoDB connection string; `mongoose.connect()` has no fallback |
 | `JWT_SECRET` | **Yes** | none | Signs and verifies every JWT — auth is broken without it |
 | `DJANGO_API_URL` | **Yes** | none | Base URL the gateway proxies all six ML-backed routes to; no fallback in `prediction.js` |
-| `RESEND_API_KEY` | **Yes** (for email features) | none | Required for signup/reset OTP emails and welcome emails to send at all |
+| `RESEND_API_KEY` | **Yes** (for email features) | none | Required for the welcome email sent on first sign-in to send at all. OTP delivery is no longer this app's concern — see [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md) — Firebase owns that entirely now |
 | `PORT` | No | `5000` | Port the Express server listens on |
 | `INTERNAL_API_KEY` | Effectively yes | none | Sent as the `X-Internal-Api-Key` header on every Django-proxied call (`djangoClient.js`) — confirmed the gateway process itself starts fine without it, it just silently sends an `undefined` header, so every Django-proxied route breaks while auth routes keep working |
+| `FIREBASE_SERVICE_ACCOUNT_PATH` | No | `./firebase-service-account.json` (resolved against `process.cwd()`, not this file's own directory — see the code comment in `config/firebaseAdmin.js`) | Path to the Firebase Admin SDK service account key, used to verify Firebase ID tokens server-side (`/session`). This file is a real secret, same sensitivity as `JWT_SECRET` — never commit it (see `.gitignore`) |
 | `CORS_ALLOWED_ORIGINS` | No | `''` (empty) | Comma-separated list of browser origins allowed to call this API (`cors()` middleware); empty means no browser origin is allowed through — `.env.example` ships `http://localhost:5173` |
 
 ## Frontend (React/Vite)
 
-The frontend has no `.env.example` file — it has exactly one optional environment variable, with a working default:
+Per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md), the frontend now has real, mostly-required configuration — `frontend/.env.example` exists, matching this convention:
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
 | `VITE_GATEWAY_URL` | No | `http://localhost:5000/api` | Overrides the gateway base URL — used for local network testing (e.g. accessing the dev server from another device on the same LAN), added in commit `6aab7bb` (see [ADR-0001](../architecture/adr/ADR-0001-three-service-architecture.md)'s Consequences section) |
+| `VITE_FIREBASE_API_KEY` | **Yes** | none | Firebase project's public API key — identifies which Firebase project a request belongs to. Not a secret the way `JWT_SECRET` is; meant to ship inside the public frontend bundle (real access control lives in Firebase's own console rules and the Gateway's server-side token verification, not in hiding this value) |
+| `VITE_FIREBASE_AUTH_DOMAIN` | **Yes** | none | The Firebase project's auth domain (e.g. `<project-id>.firebaseapp.com`) |
+| `VITE_FIREBASE_PROJECT_ID` | **Yes** | none | The Firebase project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | **Yes** | none | The Firebase project's storage bucket identifier |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | **Yes** | none | Firebase Cloud Messaging sender ID (part of the standard Firebase web config object, even though this app doesn't currently use FCM) |
+| `VITE_FIREBASE_APP_ID` | **Yes** | none | The Firebase web app's unique ID |
 
 ## Setup
 
-Copy each backend service's example file and fill in real values before running:
+Copy each service's example file and fill in real values before running:
 
 ```bash
 cd ml-backend && cp .env.example .env
 cd ../gateway && cp .env.example .env
+cd ../frontend && cp .env.example .env.local
 ```
 
-**Security:** never commit populated `.env` files or real API keys to version control. Only `.env.example` files should be tracked in the repository.
+**Security:** never commit populated `.env`/`.env.local` files, the Firebase service account key, or any real API keys to version control. Only `.env.example` files should be tracked in the repository.
 
 Full step-by-step install instructions, including where to obtain each API key, are in the root [`README.md`](../../README.md#installation).
 

@@ -30,9 +30,13 @@ function NativeSelect({ value, onChange, options }) {
 // Custom dropdown for Antibiotic / Organism — shows a live stat preview on hover.
 // Anchored with plain CSS (absolute inside a relative wrapper), NOT fixed/portal —
 // so it scrolls naturally with the page and can't drift, unlike the old popup.
+const POPOVER_WIDTH = 280;
+const POPOVER_EDGE_MARGIN = 12;
+
 function PreviewSelect({ value, onChange, options, statsMap, previewLabel }) {
     const [isOpen, setIsOpen] = useState(false);
     const [hoveredValue, setHoveredValue] = useState(null);
+    const [alignRight, setAlignRight] = useState(false);
     const ref = useRef(null);
 
     useEffect(() => {
@@ -43,11 +47,27 @@ function PreviewSelect({ value, onChange, options, statsMap, previewLabel }) {
 
     const preview = hoveredValue && hoveredValue !== 'All' ? statsMap[hoveredValue] : null;
 
+    // Same getBoundingClientRect()-against-window.innerWidth clamp
+    // AntibioticChip.jsx uses for its popover, adapted to this
+    // component's absolute-inside-relative-wrapper anchoring (kept
+    // deliberately non-portaled, per the comment above) rather than a
+    // fixed-position portal: instead of computing raw viewport
+    // coordinates, this only decides whether the fixed-width popover
+    // should hang from the trigger's left edge (the default) or its
+    // right edge, so it never overflows the viewport at a narrow width.
+    const handleToggle = () => {
+        if (!isOpen && ref.current) {
+            const rect = ref.current.getBoundingClientRect();
+            setAlignRight(rect.left + POPOVER_WIDTH > window.innerWidth - POPOVER_EDGE_MARGIN);
+        }
+        setIsOpen((v) => !v);
+    };
+
     return (
         <div className="relative" ref={ref}>
             <button
                 type="button"
-                onClick={() => setIsOpen((v) => !v)}
+                onClick={handleToggle}
                 className="flex h-9 w-full items-center justify-between gap-2 rounded-[10px] border border-panel-border bg-panel-raised px-3 font-sans text-[13px] font-medium text-onpanel-ink transition-colors hover:border-onpanel-faint"
             >
                 <span className="truncate">{value}</span>
@@ -55,7 +75,7 @@ function PreviewSelect({ value, onChange, options, statsMap, previewLabel }) {
             </button>
 
             {isOpen && (
-                <div className="absolute left-0 top-[calc(100%+4px)] z-30 flex w-[280px] overflow-hidden rounded-[12px] border border-panel-border bg-panel shadow-panel-lg">
+                <div className={`absolute top-[calc(100%+4px)] z-30 flex w-[280px] overflow-hidden rounded-[12px] border border-panel-border bg-panel shadow-panel-lg ${alignRight ? 'right-0' : 'left-0'}`}>
                     <div className="max-h-64 w-1/2 overflow-y-auto border-r border-panel-border py-1">
                         {options.map((opt) => (
                             <button
@@ -115,11 +135,52 @@ const SORT_OPTIONS = [
     { value: 'confidence-low', label: 'Lowest confidence' },
 ];
 
+// filters.search now drives a real server request (GET /history's
+// `search` param), not an in-memory filter — debounce it so a fast typist
+// doesn't fire one request per keystroke. Every other control here
+// (selects, date pickers) still updates immediately, since those are
+// discrete choices, not a stream of keystrokes.
+const SEARCH_DEBOUNCE_MS = 300;
+
 // The full filter/sort/search control row for HistoryPage — all state
-// is lifted (controlled by `filters`/`onFilterChange` from the parent).
+// is lifted (controlled by `filters`/`onFilterChange` from the parent),
+// except the search input's own display value, which is local so typing
+// feels instant while the actual filter update it triggers is debounced.
 const HistoryFilterBar = ({ filters, onFilterChange, onClear, antibioticOptions, organismOptions, antibioticStats, organismStats, totalResults }) => {
     // Updates a single filter key, preserving the rest.
     const set = (key, value) => onFilterChange({ ...filters, [key]: value });
+
+    const [searchInput, setSearchInput] = useState(filters.search);
+    const searchDebounceRef = useRef(null);
+
+    // Keeps the local input in sync when filters.search changes from
+    // OUTSIDE this component (e.g. "Clear filters"), without fighting the
+    // debounce while the user is actively typing.
+    useEffect(() => {
+        setSearchInput(filters.search);
+    }, [filters.search]);
+
+    // Cancels any pending debounce on unmount, so it never fires a
+    // filter update against an already-unmounted page.
+    useEffect(() => () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    }, []);
+
+    const handleSearchChange = (value) => {
+        setSearchInput(value);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => set('search', value), SEARCH_DEBOUNCE_MS);
+    };
+
+    // The dedicated clear (X) button applies immediately, not debounced —
+    // a deliberate "clear now" action shouldn't wait out the same delay
+    // typing does.
+    const clearSearch = () => {
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        setSearchInput('');
+        set('search', '');
+    };
+
     const hasActiveFilters =
         filters.search || filters.status !== 'All' || filters.dateFrom || filters.dateTo ||
         filters.antibiotic !== 'All' || filters.organism !== 'All' || filters.sort !== 'newest';
@@ -133,12 +194,12 @@ const HistoryFilterBar = ({ filters, onFilterChange, onClear, antibioticOptions,
                     <input
                         type="text"
                         placeholder="Organism or antibiotic…"
-                        value={filters.search}
-                        onChange={(e) => set('search', e.target.value)}
+                        value={searchInput}
+                        onChange={(e) => handleSearchChange(e.target.value)}
                         className="h-9 w-full rounded-[10px] border border-panel-border bg-panel-raised pl-8 pr-7 font-sans text-[13px] text-onpanel-ink outline-none placeholder:text-onpanel-faint focus:border-accent-blue"
                     />
-                    {filters.search && (
-                        <button onClick={() => set('search', '')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-onpanel-faint hover:text-onpanel-ink">
+                    {searchInput && (
+                        <button onClick={clearSearch} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-onpanel-faint hover:text-onpanel-ink">
                             <X size={13} />
                         </button>
                     )}

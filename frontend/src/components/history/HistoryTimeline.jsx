@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, FileDown, FileSpreadsheet, FileJson, ArrowUpRight } from 'lucide-react';
 import PrimaryButton from '../app/PrimaryButton';
 import AntibioticChip from './AntibioticChip';
+import HistoryPager from './HistoryPager';
 
 // Small "NR"/"NS"/"NI" count pill; renders nothing if count is 0.
 function ResultCountBadge({ count, tone, letter }) {
@@ -93,7 +94,7 @@ function SummaryRow({ summary, isExpanded, onToggle, onView, onDownloadPdf, onDo
 
 // Default history view: records grouped by calendar day along a
 // vertical timeline rail, each day's records rendered via SummaryRow.
-const HistoryTimeline = ({ summaries, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) => {
+const HistoryTimeline = ({ summaries, currentPage, totalPages, onPageChange, onView, onDownloadPdf, onDownloadCsv, onDownloadJson }) => {
   const [expandedId, setExpandedId] = useState(null);
 
   if (!summaries || !summaries.length) {
@@ -138,6 +139,7 @@ const HistoryTimeline = ({ summaries, onView, onDownloadPdf, onDownloadCsv, onDo
           </div>
         </div>
       ))}
+      <HistoryPager currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
     </div>
   );
 };

@@ -19,28 +19,20 @@ Every route on both base paths sits behind [`helmet`](../security/threat-model.m
 ### Typical API Flow
 
 ```
-New user:   signup → verify-otp → predict → history
-Returning:  login → predict → history
+Every user: Firebase auth (password/Google/GitHub, frontend-side) → session → authenticated requests
 ```
 
-## Authentication (`/api/auth`, 8 routes)
+## Authentication (`/api/auth`, 3 routes)
+
+Per [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md), Firebase is this app's identity provider — the frontend authenticates directly against Firebase (password, Google, or GitHub), then exchanges the resulting Firebase ID token for the Gateway's own session token here. There's no separate signup/login distinction at this API level; Firebase's find-or-create semantics mean the same `/session` call works for a brand-new account or a returning one.
 
 | Route | Method | Auth required | Rate limit | Purpose |
 |---|---|---|---|---|
-| `/signup` | POST | No | 5 / hour, per IP | Create an unverified account, email a verification OTP |
-| `/login` | POST | No | 10 / 15 min, per IP | Authenticate; returns `403 NOT_VERIFIED` if the account hasn't completed OTP verification yet |
-| `/verify-otp` | POST | No | 10 / 15 min, per IP | Verify the signup OTP; on success, marks the account verified **and returns a JWT** — auto-login, no separate `/login` call needed after verification |
-| `/resend-otp` | POST | No | 3 / hour, per IP | Regenerate and resend the signup OTP |
-| `/forgot-password` | POST | No | 3 / hour, per IP | Generate and email a password-reset code |
-| `/verify-reset-otp` | POST | No | 10 / 15 min, per IP | Check a reset code without consuming it — a read-only step for the UI's step 2→3 transition; the code is re-validated again in `/reset-password` regardless |
-| `/reset-password` | POST | No | 10 / 15 min, per IP | Re-validate the reset code, update the password, and bump `tokenVersion` — invalidating every token issued before this point (see [ADR-0006](../architecture/adr/ADR-0006-session-and-token-security-architecture.md)) |
+| `/session` | POST | No | 20 / 15 min, per IP | Verify a Firebase ID token server-side and exchange it for a Gateway session JWT. Finds-or-creates the MongoDB `User` record, keyed by Firebase UID |
 | `/logout-everywhere` | POST | **Yes** | None currently | Bump `tokenVersion`, invalidating every token issued to the account — including the one used to make this call. Requires a valid token, not just an email, so it can't be used to lock another account out. Writes a `LOGOUT_EVERYWHERE` audit event ([`docs/security/threat-model.md`](../security/threat-model.md)) |
+| `/me` | GET | **Yes** | None currently | Session-validity check — confirms a stored Gateway token still resolves to a real, current user. Called once at app mount, not on every navigation |
 
-Typical flow: `signup → verify-otp → authenticated requests` for new users, or `login → authenticated requests` for returning users.
-
-**`/login`, `/verify-otp`, `/verify-reset-otp`, and `/reset-password` share one combined rate-limit budget** (`verifyLimiter`) — the 10/15min figure above is a shared pool across all four, not four independent budgets. `/resend-otp` and `/forgot-password` similarly share one budget (`emailSendLimiter`), since both directly trigger an outbound email. `/logout-everywhere` currently has no dedicated rate limit of its own — worth knowing rather than assuming every route carries one.
-
-`/login` also has a separate, per-account (not per-IP) failed-password lockout, independent of the rate limits above: 5 wrong passwords locks the account for 15 minutes, with a response indistinguishable from a normal wrong-password failure — see [`docs/security/threat-model.md`](../security/threat-model.md)'s Brute Force Protection section for why.
+**`/session` rejects with two distinct error codes worth knowing apart:** `AUTH_ERROR` (401) means the Firebase ID token itself failed verification — expired, malformed, or not genuinely signed by Firebase for this project. `EMAIL_NOT_VERIFIED` (401) means the token verified fine, but Firebase itself hasn't confirmed that email yet (only reachable via the password-signup path — Google/GitHub sign-ins arrive pre-verified). The frontend treats these differently: only the second offers a "resend verification email" action.
 
 Every JWT-protected route returns the same shape on an auth failure — verified directly against `gateway/middleware/verifyToken.js`:
 
@@ -48,7 +40,7 @@ Every JWT-protected route returns the same shape on an auth failure — verified
 { "success": false, "data": null, "error": { "code": "AUTH_ERROR", "message": "No token provided", "field": null } }
 ```
 
-or, for an expired, invalid, or **revoked** (`tokenVersion` mismatch — e.g. after a password reset or `/logout-everywhere`) token, the same shape with `"message": "Invalid or expired token"`.
+or, for an expired, invalid, or **revoked** (`tokenVersion` mismatch — e.g. after `/logout-everywhere`) token, the same shape with `"message": "Invalid or expired token"`.
 
 ## Prediction and Data (`/api/predictor`, 7 routes)
 
@@ -124,7 +116,7 @@ Every response — success or failure — follows the same three-key shape: `suc
 
 - [`docs/api/openapi.yaml`](openapi.yaml) — the full machine-readable contract for all 15 routes
 - [`docs/architecture/adr/ADR-0001-three-service-architecture.md`](../architecture/adr/ADR-0001-three-service-architecture.md) — why the gateway is the single client-facing surface
-- [`docs/architecture/adr/ADR-0006-session-and-token-security-architecture.md`](../architecture/adr/ADR-0006-session-and-token-security-architecture.md) — the `tokenVersion` mechanism behind `/reset-password` and `/logout-everywhere`
+- [`docs/architecture/adr/ADR-0006-session-and-token-security-architecture.md`](../architecture/adr/ADR-0006-session-and-token-security-architecture.md) — the `tokenVersion` mechanism behind `/session` and `/logout-everywhere`
 - [`docs/architecture/request-lifecycle.md`](../architecture/request-lifecycle.md) — the full internal sequence behind `/predict` specifically
 - [`docs/data/data-dictionary.md`](../data/data-dictionary.md) — every input field's type, range, and unit
 - [`docs/security/threat-model.md`](../security/threat-model.md) — the reasoning behind every rate limit, validation gate, and error-handling decision referenced above

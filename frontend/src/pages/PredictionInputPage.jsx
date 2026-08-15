@@ -18,7 +18,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, AlertCircle, ChevronDown, UploadCloud, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronDown, UploadCloud, Wand2, CheckCircle2, XCircle } from 'lucide-react';
 import { getPrediction, extractReportFromPDF } from '../api/predictionApi';
 import { ORGANISM_OPTIONS } from '../constants/domainData';
 import usePageTitle from '../hooks/usePageTitle';
@@ -61,13 +61,33 @@ const VALIDATORS = {
     if (n < 1 || n > 12) return 'Must be between 1 and 12';
     return null;
   },
+  // Optional fields below: empty is valid (predict.py applies its own
+  // default), but an entered value must be a realistic clinical reading —
+  // ranges match gateway/utils/predictionValidation.js and
+  // ml-backend/predictor/serializers.py so a value accepted here is never
+  // rejected by the backend.
+  weight_kg: (v) => {
+    if (v === '') return null;
+    const n = Number(v);
+    if (Number.isNaN(n)) return 'Must be a number';
+    if (n < 2 || n > 300) return 'Must be between 2 and 300 kg';
+    return null;
+  },
+  height_cm: (v) => {
+    if (v === '') return null;
+    const n = Number(v);
+    if (Number.isNaN(n)) return 'Must be a number';
+    if (n < 50 || n > 250) return 'Must be between 50 and 250 cm';
+    return null;
+  },
 };
 
-// Optional new fields default to empty/false — none are required, none are
-// validated. Empty numeric fields and the "not specified" select option are
-// stripped out of the payload before submit so predict.py's own defaults
-// apply, exactly matching the same optional/default behavior the backend
-// already implements.
+// Optional new fields default to empty/false — none are required. Empty
+// numeric fields and the "not specified" select option are stripped out of
+// the payload before submit so predict.py's own defaults apply, exactly
+// matching the same optional/default behavior the backend already
+// implements. `bmi` is intentionally absent here: it's a derived value
+// (see computedBmi below), never a raw form field.
 const OPTIONAL_DEFAULTS = {
   ward_type: '',
   specimen_source: '',
@@ -92,14 +112,67 @@ const OPTIONAL_DEFAULTS = {
   respiratory_rate: '',
   spo2: '',
   weight_kg: '',
-  bmi: '',
+  height_cm: '',
 };
 
 const OPTIONAL_NUMERIC_FIELDS = [
   'wbc', 'neutrophils_pct', 'lymphocytes_pct', 'crp', 'procalcitonin',
   'creatinine', 'egfr', 'temperature', 'heart_rate', 'respiratory_rate',
-  'spo2', 'weight_kg', 'bmi',
+  'spo2', 'weight_kg', 'height_cm',
 ];
+
+const TEMPERATURE_UNITS = ['°C', '°F'];
+
+// Converts a temperature value between °C and °F (either direction).
+function convertTemperature(value, fromUnit, toUnit) {
+  if (fromUnit === toUnit) return value;
+  return fromUnit === '°C' ? (value * 9) / 5 + 32 : ((value - 32) * 5) / 9;
+}
+
+// A complete, clinically plausible example (all 9 required fields + a
+// realistic subset of the 24 optional ones) for the "Fill sample data"
+// button — gives someone with zero context a concrete sense of what the
+// form expects. Values are authored in °C (temperature) and stay within
+// VALIDATORS' ranges above. year/month are computed at fill time so this
+// never drifts into a stale, eventually-invalid year.
+function buildSampleFormData() {
+  const now = new Date();
+  return {
+    age: '58',
+    gender: 'Female',
+    diabetes: true,
+    hypertension: true,
+    hospital_before: false,
+    infection_freq: '1',
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    organism: 'Escherichia coli',
+    ward_type: 'General Ward',
+    specimen_source: 'Urine',
+    previous_antibiotic_use: true,
+    ckd_status: false,
+    liver_disease: false,
+    cancer: false,
+    immunocompromised_status: false,
+    fever: true,
+    cough: false,
+    burning_urination: true,
+    wound_infection: false,
+    wbc: '11.4',
+    neutrophils_pct: '72',
+    lymphocytes_pct: '20',
+    crp: '38',
+    procalcitonin: '',
+    creatinine: '0.9',
+    egfr: '85',
+    temperature: '38.3',
+    heart_rate: '96',
+    respiratory_rate: '18',
+    spo2: '97',
+    weight_kg: '68',
+    height_cm: '162',
+  };
+}
 
 // Every field the extraction endpoint can possibly return (7 core fields
 // minus year/month, which aren't derivable from a report — plus all 24
@@ -144,7 +217,7 @@ function TextInput({ name, value, onChange, onBlur, type = 'text', error, touche
         value={value}
         onChange={onChange}
         onBlur={onBlur}
-        className={`w-full rounded-[10px] border bg-panel-raised px-3.5 py-2.5 font-sans text-[15px] text-onpanel-ink placeholder:text-onpanel-faint outline-none transition-all duration-150 ${showError
+        className={`w-full rounded-[10px] border bg-panel-raised px-3.5 py-2.5 font-sans text-[15px] text-onpanel-ink placeholder:text-onpanel-faint outline-none transition-all duration-150 disabled:cursor-not-allowed disabled:bg-panel-border/30 disabled:text-onpanel-faint ${showError
             ? 'border-resistant focus:border-resistant focus:shadow-[0_0_0_4px_rgba(255,59,48,0.15)]'
             : 'border-panel-border focus:border-accent-blue focus:shadow-focus-ring'
           }`}
@@ -192,6 +265,11 @@ function PredictionInputPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState(null);
   const fileInputRef = useRef(null);
+  // Display-only unit for the Temperature field — formData.temperature is
+  // always kept in whatever unit this is currently set to (see
+  // handleTemperatureUnitChange) and converted back to °C at submit time,
+  // since that's the only unit ml-backend/predictor/serializers.py accepts.
+  const [temperatureUnit, setTemperatureUnit] = useState('°C');
 
   const [formData, setFormData] = useState({
     age: '',
@@ -248,6 +326,19 @@ function PredictionInputPage() {
     }).length;
   }, [formData]);
 
+  // BMI (kg/m²) auto-calculated from height + weight, recomputed on every
+  // relevant change — never a raw input. Standard formula: kg / (m^2).
+  // Returns null (shown as "—") until both inputs are present and valid.
+  const computedBmi = useMemo(() => {
+    const w = Number(formData.weight_kg);
+    const h = Number(formData.height_cm);
+    if (formData.weight_kg === '' || formData.height_cm === '' || Number.isNaN(w) || Number.isNaN(h) || h <= 0) {
+      return null;
+    }
+    const heightM = h / 100;
+    return w / (heightM * heightM);
+  }, [formData.weight_kg, formData.height_cm]);
+
   // Generic controlled-input handler for every field (checkbox-aware).
   function handleChange(e) {
     const { name, value, type, checked } = e.target;
@@ -262,9 +353,37 @@ function PredictionInputPage() {
     setTouched((prev) => ({ ...prev, [e.target.name]: true }));
   }
 
+  // Switches the Temperature field's display unit, converting the
+  // currently-entered value in place so the number on screen keeps meaning
+  // the same physical temperature (not stripped and left for the user to
+  // manually redo the math).
+  function handleTemperatureUnitChange(e) {
+    const nextUnit = e.target.value;
+    setFormData((prev) => {
+      if (prev.temperature === '') return prev;
+      const n = Number(prev.temperature);
+      if (Number.isNaN(n)) return prev;
+      const converted = convertTemperature(n, temperatureUnit, nextUnit);
+      return { ...prev, temperature: String(Math.round(converted * 10) / 10) };
+    });
+    setTemperatureUnit(nextUnit);
+  }
+
   // Opens the native file picker via the hidden file input.
   function triggerFileUpload() {
     fileInputRef.current?.click();
+  }
+
+  // Populates the entire form with a realistic example patient, so someone
+  // with zero context can see what the form expects. Leaves the form in the
+  // same state a successful PDF extraction would: upload status/error
+  // cleared and the optional section expanded to show what got filled.
+  function handleSampleFill() {
+    setFormData(buildSampleFormData());
+    setTemperatureUnit('°C');
+    setUploadStatus(null);
+    setError(null);
+    setShowOptional(true);
   }
 
   // Uploads the selected PDF for LLM field extraction, then merges any
@@ -357,7 +476,7 @@ function PredictionInputPage() {
     setError(null);
 
     // Mark all validated fields touched so any remaining errors show up
-    setTouched({ age: true, infection_freq: true, year: true, month: true });
+    setTouched({ age: true, infection_freq: true, year: true, month: true, weight_kg: true, height_cm: true });
 
     if (!isFormValid) {
       setError('Please fix the highlighted fields before submitting.');
@@ -391,6 +510,21 @@ function PredictionInputPage() {
           payload[key] = OPTIONAL_NUMERIC_FIELDS.includes(key) ? Number(val) : val;
         }
       });
+
+      // Temperature is always entered in `temperatureUnit`, but the ML
+      // backend's serializer only accepts °C — convert here, at the API
+      // boundary, right before submission.
+      if (payload.temperature !== undefined) {
+        const celsius = convertTemperature(payload.temperature, temperatureUnit, '°C');
+        payload.temperature = Math.round(celsius * 10) / 10;
+      }
+
+      // BMI is derived (see computedBmi), not a raw form field — attach it
+      // to the payload the same way a manually-entered optional field
+      // would be, so the backend contract (a `bmi` key in kg/m²) is unchanged.
+      if (computedBmi !== null) {
+        payload.bmi = Math.round(computedBmi * 10) / 10;
+      }
 
       const result = await getPrediction(payload);
       navigate('/predict/result/live', { state: { prediction: result.data, inputData: payload } });
@@ -441,7 +575,7 @@ function PredictionInputPage() {
                 We'll read the PDF and auto-fill matching fields below — you can review and edit everything before submitting.
               </p>
             </div>
-            <div>
+            <div className="flex items-center gap-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -466,6 +600,14 @@ function PredictionInputPage() {
                     Upload PDF
                   </>
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={handleSampleFill}
+                className="flex items-center gap-2 rounded-[10px] border border-panel-border bg-panel-raised px-4 py-2.5 font-sans text-[14px] font-medium text-onpanel-ink transition-colors hover:border-accent-blue"
+              >
+                <Wand2 size={16} />
+                Fill sample data
               </button>
             </div>
           </div>
@@ -521,7 +663,7 @@ function PredictionInputPage() {
 
               <div>
                 <SectionLabel>Encounter details</SectionLabel>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <Field label="Infection frequency">
                     <TextInput
                       name="infection_freq" type="number" step="0.1" value={formData.infection_freq}
@@ -630,9 +772,21 @@ function PredictionInputPage() {
 
                         <div>
                           <SectionLabel>Vitals &amp; body metrics</SectionLabel>
-                          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                            <Field label="Temperature (°C)">
-                              <TextInput name="temperature" type="number" step="0.1" value={formData.temperature} onChange={handleChange} placeholder="e.g. 37.2" />
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                            <Field label="Temperature">
+                              <div className="flex gap-2">
+                                <TextInput
+                                  name="temperature" type="number" step="0.1" value={formData.temperature}
+                                  onChange={handleChange}
+                                  placeholder={temperatureUnit === '°C' ? 'e.g. 37.2' : 'e.g. 98.9'}
+                                />
+                                <div className="w-[74px] shrink-0">
+                                  <SelectInput
+                                    name="temperature_unit" value={temperatureUnit}
+                                    onChange={handleTemperatureUnitChange} options={TEMPERATURE_UNITS}
+                                  />
+                                </div>
+                              </div>
                             </Field>
                             <Field label="Heart rate (bpm)">
                               <TextInput name="heart_rate" type="number" value={formData.heart_rate} onChange={handleChange} placeholder="e.g. 82" />
@@ -644,10 +798,27 @@ function PredictionInputPage() {
                               <TextInput name="spo2" type="number" value={formData.spo2} onChange={handleChange} placeholder="e.g. 98" />
                             </Field>
                             <Field label="Weight (kg)">
-                              <TextInput name="weight_kg" type="number" step="0.1" value={formData.weight_kg} onChange={handleChange} placeholder="e.g. 70" />
+                              <TextInput
+                                name="weight_kg" type="number" step="0.1" value={formData.weight_kg}
+                                onChange={handleChange} onBlur={handleBlur}
+                                error={fieldErrors.weight_kg} touched={touched.weight_kg}
+                                placeholder="e.g. 70"
+                              />
+                            </Field>
+                            <Field label="Height (cm)">
+                              <TextInput
+                                name="height_cm" type="number" step="0.1" value={formData.height_cm}
+                                onChange={handleChange} onBlur={handleBlur}
+                                error={fieldErrors.height_cm} touched={touched.height_cm}
+                                placeholder="e.g. 170"
+                              />
                             </Field>
                             <Field label="BMI (kg/m²)">
-                              <TextInput name="bmi" type="number" step="0.1" value={formData.bmi} onChange={handleChange} placeholder="e.g. 24.5" />
+                              <TextInput
+                                name="bmi_computed" type="text" value={computedBmi !== null ? computedBmi.toFixed(1) : ''}
+                                disabled readOnly
+                                placeholder="Auto-calculated"
+                              />
                             </Field>
                           </div>
                         </div>

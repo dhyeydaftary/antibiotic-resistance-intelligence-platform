@@ -64,6 +64,13 @@
   <text x="462" y="185" font-size="11" class="accent-ink">submits patient/clinical data,</text>
   <text x="462" y="200" font-size="11" class="accent-ink">views predictions</text>
 
+  <!-- Top left: Firebase (identity provider, per ADR-0005) -->
+  <rect x="40" y="70" width="220" height="60" rx="8" stroke-width="1.5" class="node-neutral"/>
+  <text x="150" y="96" text-anchor="middle" font-size="14" class="ink">Firebase</text>
+  <text x="150" y="113" text-anchor="middle" font-size="11" class="ink-muted">Identity: password, Google, GitHub</text>
+
+  <line x1="255" y1="120" x2="355" y2="252" stroke-width="1.5" marker-end="url(#arrow)" class="edge-accent"/>
+
   <!-- Right: Gemini -->
   <rect x="650" y="255" width="210" height="60" rx="8" stroke-width="1.5" class="node-neutral"/>
   <text x="755" y="281" text-anchor="middle" font-size="14" class="ink">Google Gemini</text>

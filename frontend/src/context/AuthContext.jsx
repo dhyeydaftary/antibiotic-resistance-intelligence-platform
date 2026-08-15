@@ -5,22 +5,33 @@
 // Mounted once in main.jsx, inside BrowserRouter (needs useNavigate) and
 // wrapping App.
 //
-// Two responsibilities: (1) persist the token/user to localStorage or
-// sessionStorage depending on "remember me", and (2) on mount, re-
-// validate a stored token against the gateway's /auth/me (a token
-// existing locally doesn't mean it's still valid server-side). Also
-// registers this context's clearAuth+redirect as axiosConfig.js's global
-// 401 handler, so ANY API call that comes back unauthorized anywhere in
-// the app logs the user out consistently, not just this file's own calls.
+// Three responsibilities: (1) persist the token/user to localStorage or
+// sessionStorage depending on "remember me", (2) on mount, re-validate a
+// stored token against the gateway's /auth/me (a token existing locally
+// doesn't mean it's still valid server-side), and (3) on mount, check for
+// a pending Google/GitHub signInWithRedirect result -- LoginPage/SignupPage
+// only start the redirect; this is where it's completed, since the whole
+// page reloads and neither of those components can be relied on to still
+// be mounted when the browser returns. Also registers this context's
+// clearAuth+redirect as axiosConfig.js's global 401 handler, so ANY API
+// call that comes back unauthorized anywhere in the app logs the user out
+// consistently, not just this file's own calls.
 //
 // Talks to: api/axiosConfig.js (setAuthErrorHandler), api/authApi.js
-// (getMe), routes/ProtectedRoute.jsx + routes/GuestRoute.jsx (both read
-// isAuthenticated/isCheckingSession from here).
+// (getMe), lib/firebase.js (auth), utils/completeSocialSignIn.js,
+// routes/ProtectedRoute.jsx + routes/GuestRoute.jsx (both read
+// isAuthenticated/isCheckingSession from here; GuestRoute also reads
+// isCheckingRedirect, since a redirect can only ever land back on an
+// auth page).
 // ===================================================================
 import { createContext, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { getRedirectResult } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { setAuthErrorHandler } from '../api/axiosConfig';
 import { getMe } from '../api/authApi';
+import { completeSocialSignIn, socialErrorMessage } from '../utils/completeSocialSignIn';
 import { useEffect } from 'react';
 
 const AuthContext = createContext(null);
@@ -49,6 +60,13 @@ export function AuthProvider({ children }) {
   // has nothing to check, so this is false (and protected routes/guest
   // routes never wait) from the very first render.
   const [isCheckingSession, setIsCheckingSession] = useState(() => !!getStoredToken());
+  // Unconditionally true on first render, unlike isCheckingSession above --
+  // a fresh signInWithRedirect return has no stored token yet to key off
+  // of, so there's no cheap way to know in advance whether this mount is
+  // the one completing a pending redirect. getRedirectResult resolves
+  // near-instantly when there isn't one (no network round trip), so this
+  // costs guests essentially nothing in the common case.
+  const [isCheckingRedirect, setIsCheckingRedirect] = useState(true);
   const navigate = useNavigate();
 
   // Registers this context's own logout+redirect as axiosConfig's global
@@ -89,8 +107,36 @@ export function AuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Mount-only check for a pending Google/GitHub signInWithRedirect result.
+  // Resolves to a real credential only on the one page load that's actually
+  // returning from the provider; null on every other load (the common
+  // case). LoginPage/SignupPage's onSocialSignIn only starts the redirect
+  // (see their own comments) -- this is the one place that finishes it,
+  // regardless of which of those two pages started it.
+  useEffect(() => {
+    let cancelled = false;
+
+    getRedirectResult(auth)
+      .then((cred) => {
+        if (cancelled || !cred) return;
+        return completeSocialSignIn(cred, { authLogin: login, navigate });
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        toast.error(socialErrorMessage(err));
+      })
+      .finally(() => {
+        if (!cancelled) setIsCheckingRedirect(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Persists a fresh token/user to the storage matching "remember me", and
-  // updates in-memory state. Called by LoginPage/VerifyEmailPage on success.
+  // updates in-memory state. Called by LoginPage/SignupPage on success.
   function login(newToken, newUser, remember = false) {
     // Clear both storages first so a previous session in the *other* store
     // (e.g. switching from "remembered" to "not remembered" on a later
@@ -129,6 +175,7 @@ export function AuthProvider({ children }) {
     user,
     isAuthenticated: !!token,
     isCheckingSession,
+    isCheckingRedirect,
     login,
     logout,
   };
