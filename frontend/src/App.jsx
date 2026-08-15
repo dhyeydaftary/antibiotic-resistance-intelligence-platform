@@ -56,7 +56,11 @@ function App() {
           position="top-center"
           toastOptions={{
             unstyled: false,
-            className: "!bg-paper !text-ink !border !border-hairline !rounded-none !shadow-none !font-sans",
+            className: "!bg-panel !text-onpanel-ink !border !border-panel-border !rounded-[10px] !shadow-panel-sm !font-sans",
+            classNames: {
+              success: "!border-susceptible/40",
+              error: "!border-resistant/40",
+            },
           }}
         />
       </>
@@ -74,7 +78,11 @@ function App() {
         position="top-center"
         toastOptions={{
           unstyled: false,
-          className: "!bg-paper !text-ink !border !border-hairline !rounded-none !shadow-none !font-sans",
+          className: "!bg-panel !text-onpanel-ink !border !border-panel-border !rounded-[10px] !shadow-panel-sm !font-sans",
+          classNames: {
+            success: "!border-susceptible/40",
+            error: "!border-resistant/40",
+          },
         }}
       />
     </>
