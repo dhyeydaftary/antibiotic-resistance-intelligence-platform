@@ -18,7 +18,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, AlertCircle, ChevronDown, UploadCloud, CheckCircle2, XCircle } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronDown, UploadCloud, Wand2, CheckCircle2, XCircle } from 'lucide-react';
 import { getPrediction, extractReportFromPDF } from '../api/predictionApi';
 import { ORGANISM_OPTIONS } from '../constants/domainData';
 import usePageTitle from '../hooks/usePageTitle';
@@ -127,6 +127,51 @@ const TEMPERATURE_UNITS = ['°C', '°F'];
 function convertTemperature(value, fromUnit, toUnit) {
   if (fromUnit === toUnit) return value;
   return fromUnit === '°C' ? (value * 9) / 5 + 32 : ((value - 32) * 5) / 9;
+}
+
+// A complete, clinically plausible example (all 9 required fields + a
+// realistic subset of the 24 optional ones) for the "Fill sample data"
+// button — gives someone with zero context a concrete sense of what the
+// form expects. Values are authored in °C (temperature) and stay within
+// VALIDATORS' ranges above. year/month are computed at fill time so this
+// never drifts into a stale, eventually-invalid year.
+function buildSampleFormData() {
+  const now = new Date();
+  return {
+    age: '58',
+    gender: 'Female',
+    diabetes: true,
+    hypertension: true,
+    hospital_before: false,
+    infection_freq: '1',
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    organism: 'Escherichia coli',
+    ward_type: 'General Ward',
+    specimen_source: 'Urine',
+    previous_antibiotic_use: true,
+    ckd_status: false,
+    liver_disease: false,
+    cancer: false,
+    immunocompromised_status: false,
+    fever: true,
+    cough: false,
+    burning_urination: true,
+    wound_infection: false,
+    wbc: '11.4',
+    neutrophils_pct: '72',
+    lymphocytes_pct: '20',
+    crp: '38',
+    procalcitonin: '',
+    creatinine: '0.9',
+    egfr: '85',
+    temperature: '38.3',
+    heart_rate: '96',
+    respiratory_rate: '18',
+    spo2: '97',
+    weight_kg: '68',
+    height_cm: '162',
+  };
 }
 
 // Every field the extraction endpoint can possibly return (7 core fields
@@ -329,6 +374,18 @@ function PredictionInputPage() {
     fileInputRef.current?.click();
   }
 
+  // Populates the entire form with a realistic example patient, so someone
+  // with zero context can see what the form expects. Leaves the form in the
+  // same state a successful PDF extraction would: upload status/error
+  // cleared and the optional section expanded to show what got filled.
+  function handleSampleFill() {
+    setFormData(buildSampleFormData());
+    setTemperatureUnit('°C');
+    setUploadStatus(null);
+    setError(null);
+    setShowOptional(true);
+  }
+
   // Uploads the selected PDF for LLM field extraction, then merges any
   // extracted values into formData (type-converted per field kind) and
   // auto-expands the optional section if anything was filled.
@@ -518,7 +575,7 @@ function PredictionInputPage() {
                 We'll read the PDF and auto-fill matching fields below — you can review and edit everything before submitting.
               </p>
             </div>
-            <div>
+            <div className="flex items-center gap-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -543,6 +600,14 @@ function PredictionInputPage() {
                     Upload PDF
                   </>
                 )}
+              </button>
+              <button
+                type="button"
+                onClick={handleSampleFill}
+                className="flex items-center gap-2 rounded-[10px] border border-panel-border bg-panel-raised px-4 py-2.5 font-sans text-[14px] font-medium text-onpanel-ink transition-colors hover:border-accent-blue"
+              >
+                <Wand2 size={16} />
+                Fill sample data
               </button>
             </div>
           </div>
