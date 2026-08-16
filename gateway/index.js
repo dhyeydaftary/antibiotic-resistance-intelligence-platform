@@ -27,6 +27,7 @@ const helmet = require('helmet');
 const authRoutes = require('./routes/auth');
 const predictionRoutes = require('./routes/prediction');
 const { logInfo, logError } = require('./utils/logger');
+const djangoClient = require('./utils/djangoClient');
 
 const app = express();
 
@@ -50,6 +51,25 @@ const app = express();
 // no proxy and no X-Forwarded-For header to (mis)trust, this setting is
 // inert — Express falls back to the direct socket address either way.
 app.set('trust proxy', 1);
+
+
+app.get('/debug-django-TEMP', async (req, res) => {
+  try {
+    const r = await djangoClient.get('/trends/', { params: { antibiotic: 'AN', organism: 'all', ward_type: 'all' } });
+    res.json({ ok: true, status: r.status, headers: r.headers, data: r.data });
+  } catch (err) {
+    res.json({
+      ok: false,
+      hasResponse: !!err.response,
+      status: err.response?.status,
+      headers: err.response?.headers,
+      data: typeof err.response?.data === 'string' ? err.response.data.slice(0, 3000) : err.response?.data,
+      message: err.message,
+      code: err.code,
+    });
+  }
+});
+
 
 // Security headers, via helmet — the scope grew from "just HSTS" (Transport
 // Security) to five headers (this sub-phase), which is exactly the point
