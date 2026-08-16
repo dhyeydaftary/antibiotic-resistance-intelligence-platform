@@ -24,4 +24,4 @@ COPY . .
 # settings.py) — supplied by docker-compose's env_file, not baked in here.
 EXPOSE 8000
 
-CMD ["gunicorn", "amr_project.wsgi:application", "--bind", "0.0.0.0:8000", "--preload", "--timeout", "120"]
+CMD ["gunicorn", "amr_project.wsgi:application", "--bind", "0.0.0.0:8000", "--preload", "--timeout", "120", "--workers", "1", "--threads", "8", "--worker-class", "gthread"]
