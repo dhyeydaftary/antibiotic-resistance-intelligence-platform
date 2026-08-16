@@ -27,28 +27,47 @@ function HomeToolsPanel({ datasetStats }) {
   const [overviewStats, setOverviewStats] = useState([]);
   const [loadingTrends, setLoadingTrends] = useState(true);
 
-  // Fetch latest rate + delta for all 15 antibiotics (same as Trends page)
+  // Fetch latest rate + delta for all 15 antibiotics (same as Trends page).
+  // Batched (4 at a time) rather than fired all at once — 15 simultaneous
+  // requests is more concurrent load than a free-tier backend reliably
+  // handles; batching keeps this robust regardless of backend capacity.
   useEffect(() => {
+    let cancelled = false;
     setLoadingTrends(true);
-    Promise.all(
-      ANTIBIOTICS.map((a) =>
-        getTrends(a.code, 'all')
-          .then((result) => {
-            const s = result.data.series || [];
-            if (s.length === 0) return null;
-            const latest = Math.round(s[s.length - 1].resistanceRate * 1000) / 10;
-            const first = Math.round(s[0].resistanceRate * 1000) / 10;
-            return { code: a.code, latest, delta: Math.round((latest - first) * 10) / 10 };
-          })
-          .catch((err) => {
-            console.error(`Failed to load trend data for ${a.code}:`, err);
-            return null;
-          })
-      )
-    ).then((results) => {
-      setOverviewStats(results.filter(Boolean));
-      setLoadingTrends(false);
-    });
+
+    async function fetchOne(a) {
+      try {
+        const result = await getTrends(a.code, 'all');
+        const s = result.data.series || [];
+        if (s.length === 0) return null;
+        const latest = Math.round(s[s.length - 1].resistanceRate * 1000) / 10;
+        const first = Math.round(s[0].resistanceRate * 1000) / 10;
+        return { code: a.code, latest, delta: Math.round((latest - first) * 10) / 10 };
+      } catch (err) {
+        console.error(`Failed to load trend data for ${a.code}:`, err);
+        return null;
+      }
+    }
+
+    async function loadAllInBatches() {
+      const BATCH_SIZE = 4;
+      const results = [];
+      for (let i = 0; i < ANTIBIOTICS.length; i += BATCH_SIZE) {
+        const batch = ANTIBIOTICS.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(batch.map(fetchOne));
+        results.push(...batchResults);
+      }
+      if (!cancelled) {
+        setOverviewStats(results.filter(Boolean));
+        setLoadingTrends(false);
+      }
+    }
+
+    loadAllInBatches();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Finds the antibiotic with the largest positive resistance delta,
