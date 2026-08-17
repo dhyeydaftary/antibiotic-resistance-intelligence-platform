@@ -71,6 +71,41 @@ services:
       ml-backend:
         condition: service_healthy
 
+  # Single-container merge of ml-backend + gateway (see combined/Dockerfile,
+  # combined/supervisord.conf) — exercises the same shape as the merged
+  # Render service: gunicorn loopback-only, node the sole public listener,
+  # both under supervisord, talking over localhost instead of a cross-
+  # service network call. Kept alongside the standalone ml-backend/gateway
+  # services above (not replacing them) since those remain useful for local
+  # dev — independent restarts, separate log streams. Env vars sourced from
+  # the same two .env files as the standalone services; only
+  # DJANGO_API_URL/ALLOWED_HOSTS change here, since gateway now reaches
+  # Django over loopback instead of the compose network, and Django never
+  # needs a hostname other than loopback again. Host port deliberately
+  # different from the standalone gateway service's 5000 (and gunicorn is
+  # not published at all, matching production) so this can run side by side
+  # with the standalone services without a port clash.
+  combined:
+    build:
+      context: .
+      dockerfile: combined/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - gateway/.env
+      - ml-backend/.env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/amr_insight
+      DJANGO_API_URL: http://127.0.0.1:8000/api/predictor
+      ALLOWED_HOSTS: 127.0.0.1,localhost
+      CORS_ALLOWED_ORIGINS: http://localhost:8080
+    volumes:
+      - ./gateway/firebase-service-account.json:/app/gateway/firebase-service-account.json:ro
+    ports:
+      - "5050:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
   frontend:
     build:
       context: ./frontend

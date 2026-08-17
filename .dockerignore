@@ -1,0 +1,37 @@
+# Applies only to combined/Dockerfile — the one Dockerfile built from the
+# repo root (context: . in docker-compose.yml's `combined` service), needed
+# there since it COPYs from both gateway/ and ml-backend/. gateway/Dockerfile
+# and ml-backend/Dockerfile each still build from their own subdirectory
+# (context: ./gateway, ./ml-backend) and use their own .dockerignore,
+# unaffected by this file. Docker only reads a .dockerignore from the build
+# context root, so gateway/.dockerignore and ml-backend/.dockerignore's
+# exclusions have to be mirrored here (path-prefixed) for anything
+# combined/Dockerfile's COPY gateway/ / COPY ml-backend/ steps would
+# otherwise pick up.
+
+# --- gateway/.dockerignore, mirrored ---
+gateway/node_modules/
+gateway/coverage/
+gateway/.env
+gateway/tests/
+# Real credential, gitignored and never committed — supplied to the
+# combined container the same way as the standalone gateway service: a
+# read-only bind mount (see docker-compose.yml), never baked into the image.
+gateway/firebase-service-account.json
+
+# --- ml-backend/.dockerignore, mirrored ---
+ml-backend/ml-backend-env/
+ml-backend/__pycache__/
+ml-backend/**/__pycache__/
+ml-backend/*.pyc
+ml-backend/db.sqlite3
+ml-backend/catboost_info/
+ml-backend/staticfiles/
+ml-backend/media/
+ml-backend/.env
+
+# --- not needed in the combined build context at all ---
+frontend/
+ml-backend-env/
+docs/
+.git/
