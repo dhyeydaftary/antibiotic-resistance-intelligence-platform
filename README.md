@@ -7,7 +7,7 @@
 A research and education tool that predicts antibiotic resistance across 15 antibiotics from patient and lab data, using gradient-boosted models, native SHAP explainability, and WHO AWaRe classification.
 
 [![Documentation Status](https://img.shields.io/badge/docs-in%20progress-yellow)](docs/README.md)
-[![Tests](https://img.shields.io/badge/tests-98%20passing-brightgreen)](docs/security/threat-model.md)
+[![Tests](https://img.shields.io/badge/tests-352%20passing-brightgreen)](docs/security/threat-model.md)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](ml-backend/requirements.txt)
 [![Django](https://img.shields.io/badge/Django-6.0-092E20?logo=django&logoColor=white)](ml-backend/requirements.txt)
 [![CatBoost](https://img.shields.io/badge/CatBoost-1.2-FFCC00)](ml-backend/requirements.txt)
@@ -16,6 +16,8 @@ A research and education tool that predicts antibiotic resistance across 15 anti
 [![Node](https://img.shields.io/badge/Node%2FExpress-5-339933?logo=node.js&logoColor=white)](gateway/package.json)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose-47A248?logo=mongodb&logoColor=white)](gateway/package.json)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
+**Live Demo:** [antibiotic-resistance-intelligence.vercel.app](https://antibiotic-resistance-intelligence.vercel.app)
 
 </div>
 
@@ -32,7 +34,7 @@ Numbers that don't change on retrain — anything that does (per-antibiotic accu
 | **Antibiotics predicted per request** | 15, in a single response |
 | **Services** | 3 — React frontend, Node/Express gateway, Django ML backend |
 | **Training dataset** | 10,710 rows, 23 source columns |
-| **Automated tests** | 98 (84 gateway, 14 Django) |
+| **Automated tests** | 352 (113 gateway, 239 Django) |
 | **Security hardening** | 13 sequential sub-phases + 2 emergency hotfixes, independently audited and verified at each step |
 | **Confirmed vulnerabilities fixed** | Including one remote-code-execution issue in a PDF-processing dependency |
 | **Explainability** | Native SHAP, per-prediction, per-feature — no external `shap` dependency |
@@ -128,6 +130,8 @@ The gateway proxies six endpoints to the Django backend: `/predict`, `/trends`, 
 
 A full low-level breakdown lives in [`docs/architecture/system-context.md`](docs/architecture/system-context.md) and [`docs/architecture/high-level-architecture.md`](docs/architecture/high-level-architecture.md).
 
+> **Note:** the codebase maintains three independent services per ADR-0001 — nothing about that changed. But the free-tier production deployment runs `gateway` and `ml-backend` together in a single Render container for reasons specific to hosting-platform constraints — see [ADR-0007](docs/architecture/adr/ADR-0007-combined-deployment-topology.md) for the full reasoning.
+
 ## Folder Structure
 
 ```
@@ -141,7 +145,7 @@ amr-insight/
 │   ├── middleware/           # token verification, rate limiters
 │   ├── models/               # User, PredictionHistory, SecurityEvent (MongoDB)
 │   ├── utils/                # validation, logging, email, internal Django client
-│   └── tests/                # 84 automated tests
+│   └── tests/                # 113 automated tests
 ├── frontend/                 # React/Vite — UI
 │   ├── src/pages/             # one file per route
 │   ├── src/components/        # organized by page/feature area
@@ -394,11 +398,11 @@ Full documentation map, including everything above plus honest notes on what's s
 
 ## Roadmap
 
-**Completed:** feature freeze, demo, and initial presentation milestone; a full security hardening pass (thirteen sequential sub-phases plus two emergency hotfixes — see [Security](#security)); documentation synchronized to reflect that work.
+**Completed:** feature freeze, demo, and initial presentation milestone; a full security hardening pass (thirteen sequential sub-phases plus two emergency hotfixes — see [Security](#security)); a Firebase Authentication migration ([ADR-0005](docs/architecture/adr/ADR-0005-firebase-auth-migration.md)); production deployment (see Live Demo above, and [ADR-0007](docs/architecture/adr/ADR-0007-combined-deployment-topology.md) for the deployment-topology decision behind it); documentation synchronized to reflect that work.
 
-**Current:** finalizing remaining documentation and presentation-readiness items.
+**Current:** finalizing the documentation categories not yet written (`docs/product/`, `docs/ai/`, `docs/backend/`, `docs/testing/`, `docs/research/` — see the [Documentation Map](docs/README.md) for the full, honest list of what's built vs. still planned) and ongoing accuracy passes on existing docs, like this one.
 
-**Future:** a Firebase Authentication migration decision (postponed, not cancelled, pending post-presentation review); scaling and infrastructure work, once real deployment traffic is expected; a dedicated `docs/product/` category with a full roadmap document, planned but not yet written.
+**Future:** scaling and infrastructure work, once real deployment traffic is expected; a dedicated `docs/product/` category with a full roadmap document, planned but not yet written.
 
 A full project roadmap, once `docs/product/roadmap.md` exists, will be linked here instead of this summary.
 
