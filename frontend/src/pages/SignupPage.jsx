@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   sendEmailVerification,
-  signInWithRedirect,
+  signInWithPopup,
 } from "firebase/auth";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { FormHeader } from "@/components/auth/FormHeader";
@@ -19,6 +19,8 @@ import { PasswordChecklist } from "@/components/auth/PasswordChecklist";
 import { StrengthMeter } from "@/components/auth/StrengthMeter";
 import { EMAIL_RE, evaluatePassword } from "@/utils/validators";
 import { auth, googleProvider, githubProvider } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
+import { completeSocialSignIn } from "@/utils/completeSocialSignIn";
 import usePageTitle from '../hooks/usePageTitle';
 
 // ===================================================================
@@ -30,19 +32,15 @@ import usePageTitle from '../hooks/usePageTitle';
 // just a UI nicety.
 //
 // Google/GitHub buttons live on this page only (not Login) -- Firebase's
-// redirect sign-in creates-or-returns an account transparently either way,
+// popup sign-in creates-or-returns an account transparently either way,
 // so "signup" and "login" are the same call for those providers; the
 // distinction only matters for password accounts.
 //
-// signInWithRedirect navigates the whole page away to the provider and
-// back -- it never returns a credential here. onSocialSignIn's only job is
-// starting that navigation (after the consent check, which must stay
+// signInWithPopup resolves right here with a real credential, so
+// onSocialSignIn completes the whole flow itself via completeSocialSignIn
+// (shared with LoginPage), after the consent check, which must stay
 // synchronous and here -- it's the only gate stopping an unconsented
-// signup from ever reaching the provider). Completing the flow (exchanging
-// the credential for a Gateway session, toast, redirect to /home) happens
-// once, app-wide, in AuthContext.jsx's getRedirectResult effect, since this
-// component isn't guaranteed to still be mounted -- or even be the page
-// the browser lands back on -- when the provider returns control.
+// signup from ever reaching the provider.
 // ===================================================================
 
 // Maps Firebase's own error codes to messages worth showing a user,
@@ -55,6 +53,8 @@ function firebaseErrorMessage(err) {
       return "Password is too weak.";
     case "auth/invalid-email":
       return "Please enter a valid email address.";
+    case "auth/popup-closed-by-user":
+      return null;
     default:
       return "Something went wrong. Please try again.";
   }
@@ -64,6 +64,7 @@ function SignupPage() {
   usePageTitle('Sign Up');
 
   const navigate = useNavigate();
+  const { login: authLogin } = useAuth();
   const nameRef = useRef(null);
 
   const [name, setName] = useState("");
@@ -129,10 +130,12 @@ function SignupPage() {
     setGlobalError(null);
     setSocialLoading(name);
     try {
-      await signInWithRedirect(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      await completeSocialSignIn(cred, { authLogin, navigate });
     } catch (err) {
       const message = firebaseErrorMessage(err);
       if (message) setGlobalError({ title: message, tone: "error" });
+    } finally {
       setSocialLoading(null);
     }
   };

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { signInWithEmailAndPassword, sendEmailVerification, signInWithRedirect } from "firebase/auth";
+import { signInWithEmailAndPassword, sendEmailVerification, signInWithPopup } from "firebase/auth";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { FormHeader } from "@/components/auth/FormHeader";
 import { TextInput } from "@/components/auth/TextInput";
@@ -14,6 +14,7 @@ import { EMAIL_RE } from "@/utils/validators";
 import { auth, googleProvider, githubProvider } from "@/lib/firebase";
 import { exchangeFirebaseSession } from "@/api/authApi";
 import { useAuth } from "@/context/AuthContext";
+import { completeSocialSignIn } from "@/utils/completeSocialSignIn";
 import usePageTitle from '../hooks/usePageTitle';
 
 // ===================================================================
@@ -21,17 +22,13 @@ import usePageTitle from '../hooks/usePageTitle';
 // Google/GitHub buttons -- both providers live on Login AND Signup, since
 // an account created via Google/GitHub has no password at all (Firebase's
 // OAuth-based sign-in never sets one), so a password-only Login page
-// would leave those users with no way back in. Firebase's signInWithRedirect
+// would leave those users with no way back in. Firebase's signInWithPopup
 // is the same call either way (creates-or-returns transparently), so
 // showing it here needs no new logic, just the same buttons Signup uses.
 //
-// signInWithRedirect navigates the whole page away to the provider and
-// back -- it never returns a credential here. onSocialSignIn's only job is
-// starting that navigation; completing it (exchanging the credential for a
-// Gateway session, toast, redirect to /home) happens once, app-wide, in
-// AuthContext.jsx's getRedirectResult effect, since this component isn't
-// guaranteed to still be mounted -- or even be the page the browser lands
-// back on -- when the provider returns control.
+// signInWithPopup resolves right here with a real credential, so
+// onSocialSignIn completes the whole flow itself via completeSocialSignIn
+// (shared with SignupPage) rather than deferring to a later mount.
 // ===================================================================
 
 function firebaseErrorMessage(err) {
@@ -42,6 +39,8 @@ function firebaseErrorMessage(err) {
       return "Invalid email or password.";
     case "auth/too-many-requests":
       return "Too many attempts. Please wait a moment and try again.";
+    case "auth/popup-closed-by-user":
+      return null;
     default:
       return "Something went wrong. Please try again.";
   }
@@ -134,20 +133,17 @@ function LoginPage() {
     }
   };
 
-  // Starts the redirect and nothing else -- see the file-level comment for
-  // why the rest of the flow doesn't live here anymore. The only failure
-  // this try/catch can actually observe is signInWithRedirect itself
-  // rejecting before the page ever navigates away (e.g. a misconfigured
-  // provider); once navigation begins, this component may already be gone.
   const onSocialSignIn = async (provider, name) => {
     setGlobalError(null);
     setUnverifiedFirebaseUser(null);
     setSocialLoading(name);
     try {
-      await signInWithRedirect(auth, provider);
+      const cred = await signInWithPopup(auth, provider);
+      await completeSocialSignIn(cred, { authLogin, navigate });
     } catch (err) {
       const message = firebaseErrorMessage(err);
       if (message) setGlobalError({ title: message, tone: "error" });
+    } finally {
       setSocialLoading(null);
     }
   };
