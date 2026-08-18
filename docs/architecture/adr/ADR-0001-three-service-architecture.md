@@ -10,7 +10,7 @@ review_frequency: on-architecture-change
 
 ## Status
 
-Accepted.
+Accepted. **Note:** this ADR describes the three-service architecture at the code level, which is unchanged. The free-tier production *deployment* runs `gateway` and `ml-backend` together in a single container for hosting-platform reasons unrelated to this decision — see [ADR-0007](ADR-0007-combined-deployment-topology.md).
 
 ## Context
 
@@ -85,3 +85,4 @@ This is the same diagram maintained in the root [`README.md`](../../../README.md
 - Root [`README.md`](../../../README.md#system-architecture) — the current-state Mermaid diagram, kept in sync with the one above
 - [ADR-0003: Prediction Model Strategy](ADR-0003-prediction-model-strategy.md)
 - [ADR-0004: Explainability Strategy](ADR-0004-explainability-strategy.md)
+- [ADR-0007: Combined Deployment Topology](ADR-0007-combined-deployment-topology.md) — the deployment-topology decision layered on top of this architecture, not a revision of it

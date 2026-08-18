@@ -25,7 +25,7 @@ Source: `ml-backend/.env.example`
 |---|---|---|---|
 | `SECRET_KEY` | **Yes** | none — Django raises on startup without it | Django's cryptographic signing key |
 | `GEMINI_API_KEY` | Effectively yes | none | Not required for Django to start, but both AI-insight generation and PDF report extraction return an explicit `"GEMINI_API_KEY not configured"` error without it — the app runs, but two real features don't work |
-| `DEBUG` | No | `False` | Django debug mode; `.env.example` ships it as `True` for local development |
+| `DEBUG` | No | `False` | Django debug mode; `.env.example` ships it as `False` — the safe default even for local dev (see the security rationale in `.env.example`'s own comment and [`docs/security/threat-model.md`](../security/threat-model.md)'s Sub-phase 7), not something meant to be flipped to `True` outside a specific local debugging need |
 | `ALLOWED_HOSTS` | No | `''` (empty) | Comma-separated list of hosts Django will serve; `.env.example` ships `127.0.0.1,localhost` |
 | `PUBMED_TOOL_NAME` | No | `'AMR-Insight'` | Identifies this app to NCBI's E-utilities API, per their usage policy |
 | `PUBMED_CONTACT_EMAIL` | No | `''` (empty) | Contact email sent to NCBI with each request — NCBI recommends providing one, but the code runs without it |
@@ -40,7 +40,7 @@ Source: `gateway/.env.example`
 |---|---|---|---|
 | `MONGO_URI` | **Yes** | none | MongoDB connection string; `mongoose.connect()` has no fallback |
 | `JWT_SECRET` | **Yes** | none | Signs and verifies every JWT — auth is broken without it |
-| `DJANGO_API_URL` | **Yes** | none | Base URL the gateway proxies all six ML-backed routes to; no fallback in `prediction.js` |
+| `DJANGO_API_URL` | **Yes** | none | Base URL the gateway proxies all six ML-backed routes to; no fallback in `prediction.js`. Has two genuinely different valid values depending on deployment topology: a real, public `ml-backend` URL when gateway and ml-backend run as two separately-hosted services, or `http://127.0.0.1:8000/api/predictor` when they run together in the combined Render container — see [ADR-0007](../architecture/adr/ADR-0007-combined-deployment-topology.md) for why the combined topology exists and uses loopback here |
 | `RESEND_API_KEY` | **Yes** (for email features) | none | Required for the welcome email sent on first sign-in to send at all. OTP delivery is no longer this app's concern — see [ADR-0005](../architecture/adr/ADR-0005-firebase-auth-migration.md) — Firebase owns that entirely now |
 | `PORT` | No | `5000` | Port the Express server listens on |
 | `INTERNAL_API_KEY` | Effectively yes | none | Sent as the `X-Internal-Api-Key` header on every Django-proxied call (`djangoClient.js`) — confirmed the gateway process itself starts fine without it, it just silently sends an `undefined` header, so every Django-proxied route breaks while auth routes keep working |

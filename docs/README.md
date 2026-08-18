@@ -55,9 +55,9 @@ docs/
 │       ├── ADR-0002-synthetic-feature-generation-and-leakage-prevention.md
 │       ├── ADR-0003-prediction-model-strategy.md
 │       ├── ADR-0004-explainability-strategy.md
-│       └── ADR-0006-session-and-token-security-architecture.md
-│                                       # (ADR-0005 is reserved for a future Firebase
-│                                       #  Authentication decision, not yet made)
+│       ├── ADR-0005-firebase-auth-migration.md
+│       ├── ADR-0006-session-and-token-security-architecture.md
+│       └── ADR-0007-combined-deployment-topology.md
 ├── assets/
 │   └── diagrams/                      # Mermaid source references + exported SVGs
 ├── data/

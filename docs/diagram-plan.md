@@ -792,7 +792,7 @@ None — for now
 
 ##### Reason
 
-A real, automated test suite now exists — 98 tests (84 gateway via `node:test`, 14 Django via `manage.py test`), added during the Security Testing sub-phase of the hardening pass (see [`docs/security/threat-model.md`](../security/threat-model.md)) — so the original reasoning for staying diagram-free here no longer holds. This entry should be revisited: a real CI/test-flow diagram may now be worth adding, following this plan's own diagram-selection process rather than being decided inline here.
+A real, automated test suite now exists — 352 tests (113 gateway via `node:test`, 239 Django via `manage.py test`) as of this writing, up from the 98 first added during the Security Testing sub-phase of the hardening pass (see [`docs/security/threat-model.md`](../security/threat-model.md)) — so the original reasoning for staying diagram-free here no longer holds. The exact count will keep drifting; the point this section rests on is that a real suite exists at all, not its size at any given moment. This entry should be revisited: a real CI/test-flow diagram may now be worth adding, following this plan's own diagram-selection process rather than being decided inline here.
 
 ---
 

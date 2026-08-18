@@ -49,6 +49,27 @@ A running reference of the commands used across this project's three services, w
 
 ---
 
+## Combined deployment image (`combined/`) — run from the repo root
+
+Per [ADR-0007](../architecture/adr/ADR-0007-combined-deployment-topology.md), the real production deployment runs `gateway` and `ml-backend` together in one container, built from `combined/Dockerfile`. `gateway/` and `ml-backend/`'s own standalone Dockerfiles are untouched by this — these commands are for exercising the *combined* image specifically, locally, before it goes anywhere near Render.
+
+| Command | What it does | When to use it |
+|---|---|---|
+| `docker compose build combined` | Builds the combined image from `combined/Dockerfile`, using the repo root as build context (not `./gateway` or `./ml-backend` individually — see the root `.dockerignore`). | After changing `combined/Dockerfile`, `combined/supervisord.conf`, or either service's source, when you want to verify the combined image specifically (not just the standalone `gateway`/`ml-backend` services). |
+| `docker compose up combined` | Starts the combined container alongside `mongo` (its only `depends_on`). Exposes the container's port 5000 (node/gateway, the only public listener) on host port `5050` — deliberately different from the standalone gateway service's `5000`, so both can run side by side without a port clash. | Reproducing the production topology locally — verifying gateway and Django actually talk to each other over `127.0.0.1` inside the container, rather than trusting that in the abstract. |
+| `docker compose logs -f combined` | Follows the combined container's logs — `supervisord` routes both gunicorn's and node's stdout/stderr into one stream, prefixed by process name. | Confirming both processes actually started, or diagnosing which of the two processes a failure came from. |
+
+**Render (production hosting):** Render builds and deploys this same `combined/Dockerfile` directly from the repository — there's no separate Render-specific build step or config to run locally; what's verified with the commands above is exactly what Render runs. See [ADR-0007](../architecture/adr/ADR-0007-combined-deployment-topology.md) for why this topology exists.
+
+**GHCR image publish (`.github/workflows/docker-publish.yml`)** — not a command you run locally, but worth knowing about: publishing a GitHub Release (or editing one) triggers a workflow that builds `combined/Dockerfile` with the exact same build definition Render uses, and pushes it to `ghcr.io/dhyeydaftary/amr-insight`, tagged with the release's version (e.g. `v1.1.0`) and `latest`. A manual `workflow_dispatch` trigger also exists, for re-running the publish without cutting a new release. Uses the automatically-provided `GITHUB_TOKEN` — no separate registry credentials to manage.
+
+```bash
+# Pull the published image directly, without building anything locally
+docker pull ghcr.io/dhyeydaftary/amr-insight:latest
+```
+
+---
+
 ## Git workflow (the convention used throughout this project)
 
 Every sub-phase/feature follows the same pattern:
